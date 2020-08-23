@@ -21,11 +21,11 @@
 		</body>
 			
 		<body pos="1.2 0.28 0.1" name="target_box">
-			<geom name="box_bottom" pos="0 0 0" size="0.2 0.2 0.12" type="box" material="table_mat"></geom>
-			<geom name="box_left" pos="0 -0.18 0.24" size="0.2 0.01 0.13" rgba="0 0 1 1" type="box"></geom>
-			<geom name="box_right" pos="0 0.18 0.24" size="0.2 0.01 0.13" rgba="0 0 1 1" type="box"></geom>
-			<geom name="box_front" pos="0.18 0 0.24" size="0.01 0.2 0.13" rgba="0 0 1 0.6" type="box"></geom>
-			<geom name="box_back" pos="-0.18 0 0.24" size="0.01 0.2 0.13" rgba="0 0 1 1" type="box"></geom>
+			<geom name="box_bottom" pos="0 0 0" size="0.2 0.2 0.24" type="box" material="table_mat"></geom>
+			<geom name="box_left" pos="0 -0.18 0.32" size="0.2 0.01 0.1" rgba="0 0 1 1" type="box"></geom>
+			<geom name="box_right" pos="0 0.18 0.32" size="0.2 0.01 0.1" rgba="0 0 1 1" type="box"></geom>
+			<geom name="box_front" pos="0.18 0 0.32" size="0.01 0.2 0.1" rgba="0 0 1 0.6" type="box"></geom>
+			<geom name="box_back" pos="-0.18 0 0.32" size="0.01 0.2 0.1" rgba="0 0 1 1" type="box"></geom>
 		</body>
 
 
