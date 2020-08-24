@@ -17,6 +17,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
             'robot0:slide1': 0.48,
             'robot0:slide2': 0.0,
             'object0:joint': [1.25, 0.53, 0.4, 1., 0., 0., 0.],
+            'object1:joint': [0.9, 0.53, 0.4, 1., 0., 0., 0.],
+            'object2:joint': [1, 0.53, 0.4, 1., 0., 0., 0.],
         }
         fetch_env.FetchEnv.__init__(
             self, MODEL_XML_PATH, has_object=True, block_gripper=False, n_substeps=20,
@@ -26,15 +28,6 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def _sample_goal(self):
-        # #get box position
-        # body_num = self.sim.model.body_name2id('target_box')
-        # box_center = self.sim.model.body_pos[body_num]
-        # goal = box_center.copy()
-        # goal[0] += np.random.uniform(-0.15, 0.15)        
-        # goal[1] += np.random.uniform(-0.15, 0.15)   
-        # goal[2] = 0.4
-        # return goal.copy()
-
         body_num = self.sim.model.body_name2id('table0')
         box_center = self.sim.model.body_pos[body_num]
         goal = box_center[:3].copy()
@@ -88,44 +81,65 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         did_reset_sim = False
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
+
         self.goal = self._sample_goal().copy()
         obs = self._get_obs()
         self.last_dist = goal_distance(
             obs['achieved_goal'], self.goal)
         return obs
 
+
     def _reset_sim(self):
         self.sim.set_state(self.initial_state)
 
-        # # set object below goal
-        # if self.has_object:
-        #     self._sample_goal()
-        #     print("reset")
-        #     object_xpos =  self.goal.copy()
-        #     object_qpos = self.sim.data.get_joint_qpos('object0:joint')
-        #     assert object_qpos.shape == (7,)
-        #     object_qpos[:2] = object_xpos[:2]
-        #     self.sim.data.set_joint_qpos('object0:joint', object_qpos)
+        #reset mocap to some place
+        body_num = self.sim.model.body_name2id('target_box')
+        box_center = self.sim.model.body_pos[body_num]
+        grip_pos = box_center.copy()
+        grip_pos[0] += np.random.uniform(-0.15, 0.15)
+        grip_pos[1] += np.random.uniform(-0.15, 0.15)
+        grip_pos[2] += np.random.uniform(0.2, 0.3)
+
+        gripper_rotation = np.array([1., 1., 0., 0.])
+        self.sim.data.set_mocap_pos('robot0:mocap', grip_pos)
+        self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
+        for _ in range(10):
+            self.sim.step()
 
 
-        #----- set object position on the table ----#
-        if self.has_object:
-            body_num = self.sim.model.body_name2id('table0')
-            box_center = self.sim.model.body_pos[body_num]
-            object_xpos = box_center[:2].copy()
+        name_list = ['object0:joint', 'object1:joint', 'object2:joint']
+        xpos_list = []
+        qpos_list = []
 
-            object_qpos = self.sim.data.get_joint_qpos('object0:joint')
-            assert object_qpos.shape == (7,)
 
-            object_xpos[0] += np.random.uniform(-0.28, 0.28)
-            object_xpos[1] += np.random.uniform(-0.4, 0.4)
-            object_qpos[:2] = object_xpos
-            self.object_xpos = object_xpos
-            self.sim.data.set_joint_qpos('object0:joint', object_qpos)
+        #--- random put goals ---#
+        #todo: control goal distance
+        for name in name_list:
+            xpos, qpos = self.put_object(name)
+            self.sim.data.set_joint_qpos(name, qpos)
+            xpos_list.append(xpos)
+            qpos_list.append(qpos)
+
+        self.object_xpos = xpos_list[0]
+
 
         self.sim.forward()
         self.last_dist = 0
         return True
+
+    def put_object(self, name):
+        body_num = self.sim.model.body_name2id('table0')
+        table_center = self.sim.model.body_pos[body_num]
+        object_xpos = table_center[:2].copy()
+
+        object_qpos = self.sim.data.get_joint_qpos(name)
+        assert object_qpos.shape == (7,)
+
+        object_xpos[0] += np.random.uniform(-0.28, 0.28)
+        object_xpos[1] += np.random.uniform(-0.4, 0.4)
+        object_qpos[:2] = object_xpos
+        return object_xpos, object_qpos
+
 
     def _env_setup(self, initial_qpos):
         for name, value in initial_qpos.items():
@@ -184,9 +198,6 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
             object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
         ])
 
-        #todo: reduce observation state
-
-        #todo: for spining up        
 
         return {
             'observation': obs.copy(),
@@ -218,16 +229,19 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
 
     def compute_reward(self, achieved_goal, goal, info):
-        # r = self.sparse_reward(achieved_goal, goal)
-        # return r
+        if reward_type == 'sparse':
+            r = sparse_reward
+        elif reward_type == 'fast_app':
+            r = self.fast_app_reward(achieved_goal, goal, info)
 
-        if info["is_success"]:
-            return 300.0
+        elif reward_type == 'point':
+            r = point_reward(self, achieved_goal, goal, info)
+
         else:
-            # Compute distance between goal and the
-            # r = self.sparse_reward(achieved_goal, goal)
-            r = self.fast_app_reward(achieved_goal, goal)
-            return r
+            print("reward type {} not recognize".format(reward_type))
+            raise NotImplementedError
+
+        return r
 
 
     def sparse_reward(self, achieved_goal, goal):
@@ -237,13 +251,23 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         else:
             return -d
 
-    def fast_app_reward(self, achieved_goal, goal):
-        current_dist = goal_distance(achieved_goal, goal)
+    def fast_app_reward(self, achieved_goal, goal, info):
+        if info["is_success"]:
+            return 300.0
+        else:
+            current_dist = goal_distance(achieved_goal, goal)
+            r = 20*(self.last_dist-current_dist)
+            self.last_dist = copy.deepcopy(current_dist)
+            return r
 
-        r = 20*(self.last_dist-current_dist)
-        # print("achieved_goal {}, goal {}, current_dist{}, rewatd {}".format(achieved_goal, goal, current_dist, r))
-        self.last_dist = copy.deepcopy(current_dist)
-        return r
+    def point_reward(self, achieved_goal, goal, info):
+        if info["is_success"]:
+            return 300.0
+        else:
+            current_dist = goal_distance(achieved_goal, goal)
+            r = 20*(self.last_dist-current_dist)
+            self.last_dist = copy.deepcopy(current_dist)
+            return r
 
 
 

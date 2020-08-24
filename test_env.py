@@ -3,8 +3,8 @@ import gym
 import gym_rlmp
 
 
-# env = gym.make('FetchMotionPlan-v0')
-env = gym.make('FetchJointPlan-v1')
+env = gym.make('FetchMotionPlan-v0')
+# env = gym.make('FetchJointPlan-v1')
 
 for e in range(100):
     env.reset()
