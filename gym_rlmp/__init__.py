@@ -8,3 +8,8 @@ register(
 )
 
 
+register(
+    id='FetchJointPlan-v1',
+    entry_point='gym_rlmp.envs:FetchPlanEnv',
+    max_episode_steps=400
+)

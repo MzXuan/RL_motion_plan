@@ -11,7 +11,7 @@ MODEL_XML_PATH = os.path.join('fetch', 'pick_and_place_xz.xml')
 
 
 class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
-    def __init__(self, reward_type='dense'):
+    def __init__(self, reward_type='sparse'):
         initial_qpos = {
             'robot0:slide0': 0.405,
             'robot0:slide1': 0.48,
@@ -186,6 +186,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
         #todo: reduce observation state
 
+        #todo: for spining up        
+
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
@@ -210,13 +212,15 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
 
         
-
         # Apply action to simulation.
         robotics.utils.ctrl_set_action(self.sim, action)
         robotics.utils.mocap_set_action(self.sim, action)
 
 
     def compute_reward(self, achieved_goal, goal, info):
+        # r = self.sparse_reward(achieved_goal, goal)
+        # return r
+
         if info["is_success"]:
             return 300.0
         else:
@@ -235,7 +239,9 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
     def fast_app_reward(self, achieved_goal, goal):
         current_dist = goal_distance(achieved_goal, goal)
+
         r = 20*(self.last_dist-current_dist)
+        # print("achieved_goal {}, goal {}, current_dist{}, rewatd {}".format(achieved_goal, goal, current_dist, r))
         self.last_dist = copy.deepcopy(current_dist)
         return r
 
