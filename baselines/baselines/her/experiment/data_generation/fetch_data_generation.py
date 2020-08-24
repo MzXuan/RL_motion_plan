@@ -100,6 +100,7 @@ def goToGoal(env, lastObs):
         objectPos = obsDataNew['observation'][3:6]
         object_rel_pos = obsDataNew['observation'][6:9]
 
+
     while True: #limit the number of timesteps in the episode to a fixed duration
         env.render()
         action = [0, 0, 0, 0]
@@ -117,6 +118,10 @@ def goToGoal(env, lastObs):
 
         if timeStep >= env._max_episode_steps: break
 
+    # print("episodeAcs", episodeAcs)
+    # print("episodeObs", episodeObs)
+    # print("episodeInfo", episodeInfo)
+    
     actions.append(episodeAcs)
     observations.append(episodeObs)
     infos.append(episodeInfo)

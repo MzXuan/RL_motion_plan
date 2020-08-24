@@ -3,6 +3,7 @@ from gym import utils
 from gym.envs.robotics import fetch_env
 import gym.envs.robotics as robotics
 import numpy as np
+import math
 
 import copy
 
@@ -11,15 +12,18 @@ MODEL_XML_PATH = os.path.join('fetch', 'pick_and_place_xz.xml')
 
 
 class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
-    def __init__(self, reward_type='sparse'):
+    def __init__(self, reward_type='point'):
         initial_qpos = {
             'robot0:slide0': 0.405,
             'robot0:slide1': 0.48,
             'robot0:slide2': 0.0,
-            'object0:joint': [1.25, 0.53, 0.4, 1., 0., 0., 0.],
-            'object1:joint': [0.9, 0.53, 0.4, 1., 0., 0., 0.],
-            'object2:joint': [1, 0.53, 0.4, 1., 0., 0., 0.],
+            'object0:joint': [1.25, 0.53, 0.41, 1., 0., 0., 0.],
+            'object1:joint': [0.9, 0.53, 0.41, 1., 0., 0., 0.],
+            'object2:joint': [1, 0.53, 0.41, 1., 0., 0., 0.],
         }
+
+        self.object_name_list = ['object0:joint', 'object1:joint', 'object2:joint']
+
         fetch_env.FetchEnv.__init__(
             self, MODEL_XML_PATH, has_object=True, block_gripper=False, n_substeps=20,
             gripper_extra_height=0.2, target_in_the_air=False, target_offset=0.0,
@@ -55,6 +59,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
 
     def step(self, action):
+        self.time_step += 1
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
         self.sim.step()
@@ -65,7 +70,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
         }
-        reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
+        reward = self.compute_reward(obs['observation'], obs['achieved_goal'], self.goal, info)
 
         if info["is_success"]:
             done = True
@@ -82,6 +87,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
 
+        self.time_step = 0
         self.goal = self._sample_goal().copy()
         obs = self._get_obs()
         self.last_dist = goal_distance(
@@ -106,22 +112,19 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         for _ in range(10):
             self.sim.step()
 
-
-        name_list = ['object0:joint', 'object1:joint', 'object2:joint']
+        #--- random put goals ---#
+        #todo: control goal distance
         xpos_list = []
         qpos_list = []
 
-
-        #--- random put goals ---#
-        #todo: control goal distance
-        for name in name_list:
+        for name in self.object_name_list:
             xpos, qpos = self.put_object(name)
             self.sim.data.set_joint_qpos(name, qpos)
             xpos_list.append(xpos)
             qpos_list.append(qpos)
 
         self.object_xpos = xpos_list[0]
-
+        # print("xposlist: {} and qpos list {}".format(xpos_list, qpos_list))
 
         self.sim.forward()
         self.last_dist = 0
@@ -138,6 +141,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         object_xpos[0] += np.random.uniform(-0.28, 0.28)
         object_xpos[1] += np.random.uniform(-0.4, 0.4)
         object_qpos[:2] = object_xpos
+        object_qpos[2] = 0.4
         return object_xpos, object_qpos
 
 
@@ -172,32 +176,24 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
         grip_velp = self.sim.data.get_site_xvelp('robot0:grip') * dt
         robot_qpos, robot_qvel = robotics.utils.robot_get_obs(self.sim)
-        # if self.has_object:
-        #     object_pos = self.sim.data.get_site_xpos('object0')
-        #     # rotations
-        #     object_rot = robotics.rotations.mat2euler(self.sim.data.get_site_xmat('object0'))
-        #     # velocities
-        #     object_velp = self.sim.data.get_site_xvelp('object0') * dt
-        #     object_velr = self.sim.data.get_site_xvelr('object0') * dt
-        #     # gripper state
-        #     object_rel_pos = object_pos - grip_pos
-        #     object_velp -= grip_velp
-        # else:
-            # object_pos = object_rot = object_velp = object_velr = object_rel_pos = np.zeros(0)
-
-        object_pos = object_rot = object_velp = object_velr = object_rel_pos = np.zeros(0)
         
-        gripper_state = robot_qpos[-2:]
-        gripper_vel = robot_qvel[-2:] * dt  # change to a scalar if the gripper is made symmetric
-
+        # add all objects into observations
+        xpos_list  = []
+        for name in self.object_name_list:
+            xpos = self.sim.data.get_joint_qpos(name)[:3]
+            xpos_list.append(xpos)
+        xpos_list = np.asarray(xpos_list)
+        self.alternative_goals = xpos_list
 
         achieved_goal = grip_pos.copy()
         
-        obs = np.concatenate([
-            grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
-            object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
-        ])
 
+        # obs = np.concatenate([
+        #     grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
+        #     object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
+        # ])
+
+        obs = np.concatenate([grip_pos, grip_velp, xpos_list.ravel()])
 
         return {
             'observation': obs.copy(),
@@ -228,19 +224,18 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         robotics.utils.mocap_set_action(self.sim, action)
 
 
-    def compute_reward(self, achieved_goal, goal, info):
-        if reward_type == 'sparse':
-            r = sparse_reward
-        elif reward_type == 'fast_app':
+    def compute_reward(self, obs, achieved_goal, goal, info):
+        if self.reward_type == 'sparse':
+            r = self.sparse_reward(achieved_goal, goal)
+        elif self.reward_type == 'fast_app':
             r = self.fast_app_reward(achieved_goal, goal, info)
 
-        elif reward_type == 'point':
-            r = point_reward(self, achieved_goal, goal, info)
+        elif self.reward_type == 'point':
+            r = self.point_reward(obs, achieved_goal, goal, info)
 
         else:
-            print("reward type {} not recognize".format(reward_type))
+            print("reward type {} not recognize".format(self.reward_type))
             raise NotImplementedError
-
         return r
 
 
@@ -260,16 +255,35 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
             self.last_dist = copy.deepcopy(current_dist)
             return r
 
-    def point_reward(self, achieved_goal, goal, info):
+
+    def point_reward(self, obs, achieved_goal, goal, info):
         if info["is_success"]:
             return 300.0
         else:
-            current_dist = goal_distance(achieved_goal, goal)
-            r = 20*(self.last_dist-current_dist)
-            self.last_dist = copy.deepcopy(current_dist)
-            return r
+            t = self.time_step
+            dis_list = []
+            alternative_goals = obs[-6:]
 
+            d0 = np.linalg.norm(achieved_goal - goal)
+            for g in alternative_goals:
+                if np.linalg.norm(g - goal) < 1e-7:
+                    pass
+                else:
+                    dis_list.append(np.linalg.norm(achieved_goal - g))
+            rew = self.reward_dist(d0, dis_list, t)
+            return rew
 
+    def reward_dist(self, d0, dis, t):
+        rew = []
+        for d in dis:
+            theta = 1 if d0 < d else -1
+            # rew.append(theta*math.log(abs(d0-d)/abs(d0+1)+1)) #  why log???
+            rew.append(theta * abs(d0 - d) / abs(d0 + 1))
+            # rew.append(theta*math.log(abs(d0-d)/abs(d0+d)+1))
+        # print("distance is {} and reward list is: {} ".format(dist, rew))
+        min_rew = np.asarray(rew).min()
+        time_scale = math.exp(-t / 30)
+        return (time_scale*min_rew)
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape

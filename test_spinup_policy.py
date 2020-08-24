@@ -102,87 +102,67 @@ def main(fpath, env, itr, collect, test):
     else:
         get_action = load_tf_policy(fpath, itr)
 
-    if collect is False:
-        env.render(mode="human")
+
+    env.render(mode="human")
 
     #prepare collect buffer list
-    obs_lst = []
-    center_lst = []
-    goal_label = []
+    actions = []
+    observations = []
+    infos = []
+    numItr = 100
 
     obs = env.reset()
     print("obs initial", obs)
-    id=0
-    if collect is False:
-        env.render(mode="human")
+    env.render(mode="human")
+
 
     ## start simulation loop ##
-    while(id<300):
+    while len(actions) < numItr:
         time.sleep(0.03)
 
         action = get_action(obs)
 
         obs, rew, done, info = env.step(action)
+        # episodeAcs.append(action)
+        # episodeInfo.append(info)
+        # episodeObs.append(obs)
 
         if done == True:
+            
+            # actions.append(episodeAcs)
+            # observations.append(episodeObs)
+            # infos.append(episodeInfo)
+
+
             #reset all
             time.sleep(1)
             env.reset()
-            # save data
-            if collect is True:
-                pass
-                # cam_utils.save_set(id, obs_lst, center_lst, goal_label)
-
+            
             #reset
             obs_lst = []
             center_lst = []
             goal_label = []
-            id+=1
             seed+=1
             np.random.seed(seed)
             tf.set_random_seed(seed)
             random.seed(seed)
 
-        if collect is False:
-            env.render()
-            # w, h = 112, 112
-            # far =3
-            # near =0.1
-            # img_camera = env.get_camera_img(w, h)
-            # depth_buffer_opengl = np.reshape(img_camera[3], [w, h])
-            # depth_opengl = far * near / (far - (far - near) * depth_buffer_opengl)
-            # cv2.imshow("img", depth_opengl/far)
-            # cv2.waitKey(1)
-        #
-        # else:
-        #     w, h = 112, 112
-        #     img_camera = env.get_camera_img(w, h)
-        #     img = np.asarray(img_camera[2]).reshape((w, h, 4))
-        #     # find pixels with goal value in img_camera[4] if reset, than find once
-        #     if center_lst == [] or goal_label == []:
-        #         target_value = env.get_target_value()
-        #         # print("target value", target_value)
-        #         goal_label = target_value["goal_label"]
-        #         for t_id in target_value["target_id"]:
-        #             center_lst.append(cam_utils.find_link_px(img_camera[4], t_id, w, h))
-        #         c = list(zip(center_lst, goal_label))
-        #         random.shuffle(c)
-        #         center_lst, goal_label = zip(*c)
-        #         center_lst = list(center_lst)
-        #         goal_label = list(goal_label)
-        #         print("center_ lst {} goal_label {}".format(center_lst, goal_label))
-        #     img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_RGB2BGR)
-        #     obs_lst.append(img)
 
-            # # #for debug
-            # # print("center is {}".format(c))
-            # for idx, c in enumerate(center_lst):
-            #     if goal_label[idx] == 1:
-            #         img = cv2.circle(img, (c[0], c[1]), 5, (0, 0, 255), 2)
-            #     else:
-            #         img = cv2.circle(img, (c[0], c[1]), 5, (0, 255, 0), 2)
-            # cv2.imshow("img", img)
-            # cv2.waitKey(1)
+        env.render()
+        if collect is True:
+            pass
+
+    # fileName = "data_fetch"
+    # fileName += "_" + initStateSpace
+    # fileName += "_" + str(numItr)
+    # fileName += ".npz"
+    #
+    # np.savez_compressed(fileName, acs=actions, obs=observations, info=infos) # save the file
+
+
+
+        
+
 
 
 if __name__ == "__main__":
