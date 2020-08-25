@@ -154,7 +154,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         grip_pos = box_center.copy()
         grip_pos[0] += np.random.uniform(-0.15, 0.15)
         grip_pos[1] += np.random.uniform(-0.15, 0.15)
-        grip_pos[2] += np.random.uniform(0.2, 0.3)
+        grip_pos[2] += np.random.uniform(0.3, 0.5)
 
         gripper_rotation = np.array([1., 1., 0., 0.])
         self.sim.data.set_mocap_pos('robot0:mocap', grip_pos)
