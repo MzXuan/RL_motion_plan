@@ -5,6 +5,8 @@ import gym.envs.robotics as robotics
 import numpy as np
 import math
 
+import mujoco_py
+
 import copy
 
 # Ensure we get the path separator correct on windows
@@ -18,11 +20,12 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
             'robot0:slide1': 0.48,
             'robot0:slide2': 0.0,
             'object0:joint': [1.25, 0.53, 0.41, 1., 0., 0., 0.],
-            'object1:joint': [0.9, 0.53, 0.41, 1., 0., 0., 0.],
-            'object2:joint': [1, 0.53, 0.41, 1., 0., 0., 0.],
+            'object1:joint': [1.25, 0.53, 0.41, 1., 0., 0., 0.],
+            'object2:joint': [1.25, 0.53, 0.41, 1., 0., 0., 0.],
         }
 
         self.object_name_list = ['object0:joint', 'object1:joint', 'object2:joint']
+        self.early_stop = True
 
         fetch_env.FetchEnv.__init__(
             self, MODEL_XML_PATH, has_object=True, block_gripper=False, n_substeps=20,
@@ -69,12 +72,59 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         done = False
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
+            'is_collision': self._contact_dection()
         }
         reward = self.compute_reward(obs['observation'], obs['achieved_goal'], self.goal, info)
 
-        if info["is_success"]:
-            done = True
+        if self.early_stop:
+            if info["is_success"] or info["is_collision"]:
+                done = True
         return obs, reward, done, info
+
+
+    def _contact_dection(self):
+        #----------------------------------
+        # if there is collision: return true
+        # if there is no collision: return false
+        #----------------------------------
+
+        # print('number of contacts', self.sim.data.ncon)
+        # for i in range(self.sim.data.ncon):
+        #     # Note that the contact array has more than `ncon` entries,
+        #     # so be careful to only read the valid entries.
+        #     contact = self.sim.data.contact[i]
+        #     print('contact', i)
+        #     print('dist', contact.dist)
+        #     print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+        #     print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+        #     print("exclude", contact.exclude)
+        #     # There's more stuff in the data structure
+        #     # See the mujoco documentation for more info!
+        #     geom2_body = self.sim.model.geom_bodyid[self.sim.data.contact[i].geom2]
+        #     print(' Contact force on geom2 body', self.sim.data.cfrc_ext[geom2_body])
+        #     print('norm', np.sqrt(np.sum(np.square(self.sim.data.cfrc_ext[geom2_body]))))
+        #     # Use internal functions to read out mj_contactForce
+        #     c_array = np.zeros(6, dtype=np.float64)
+        #     print('c_array', c_array)
+        #     mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, c_array)
+        #     print('c_array', c_array)
+
+
+        contact_count = 0
+        for i in range(self.sim.data.ncon):
+            # Note that the contact array has more than `ncon` entries,
+            # so be careful to only read the valid entries.
+            contact = self.sim.data.contact[i]
+            if self.sim.model.geom_id2name(contact.geom1) is None or \
+                self.sim.model.geom_id2name(contact.geom2) is None:
+                pass
+            else:
+                contact_count +=1
+
+        if contact_count > 0:
+            return True
+        else:
+            return False
 
 
     def reset(self):
@@ -164,8 +214,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
         # Extract information for sampling goals.
         self.initial_gripper_xpos = self.sim.data.get_site_xpos('robot0:grip').copy()
-        if self.has_object:
-            self.height_offset = self.sim.data.get_site_xpos('object0')[2]
+        # if self.has_object:
+        #     self.height_offset = self.sim.data.get_site_xpos('object0')[2]
 
         # GoalEnv methods
 
@@ -249,6 +299,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
     def fast_app_reward(self, achieved_goal, goal, info):
         if info["is_success"]:
             return 300.0
+        elif info["is_collision"]:
+            return -30
         else:
             current_dist = goal_distance(achieved_goal, goal)
             r = 20*(self.last_dist-current_dist)
@@ -259,6 +311,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
     def point_reward(self, obs, achieved_goal, goal, info):
         if info["is_success"]:
             return 300.0
+        elif info["is_collision"]:
+            return -30
         else:
             t = self.time_step
             dis_list = []
@@ -277,8 +331,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         rew = []
         for d in dis:
             theta = 1 if d0 < d else -1
-            # rew.append(theta*math.log(abs(d0-d)/abs(d0+1)+1)) #  why log???
-            rew.append(theta * abs(d0 - d) / abs(d0 + 1))
+            rew.append(theta*math.log(abs(d0-d)/abs(d0+1)+1)) #  why log???
+            # rew.append(theta * abs(d0 - d) / abs(d0 + 1))
             # rew.append(theta*math.log(abs(d0-d)/abs(d0+d)+1))
         # print("distance is {} and reward list is: {} ".format(dist, rew))
         min_rew = np.asarray(rew).min()
