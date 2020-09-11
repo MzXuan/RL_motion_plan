@@ -127,6 +127,9 @@ def build_env(args):
 def get_env_type(args):
     env_id = args.env
 
+    # print("env id", env_id)
+    # print("env_type: ", args.env_type)
+
     if args.env_type is not None:
         return args.env_type, env_id
 
@@ -232,21 +235,35 @@ def main(args):
         state = model.initial_state if hasattr(model, 'initial_state') else None
         dones = np.zeros((1,))
 
+        fail_count = 0
+        success_count = 0
+
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
-        while True:
+        for _ in range(500):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
                 actions, _, _, _ = model.step(obs)
 
-            obs, rew, done, _ = env.step(actions)
+            obs, rew, done, info = env.step(actions)
+
+
             episode_rew += rew
             env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
+                if info[0]['is_collision'] is True:
+                    print("fail")
+                    fail_count+=1
+                elif info[0]['is_success'] == 1.0:
+                    print('success')
+                    success_count+=1
+
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
+
+        print("success rate is: ", success_count/(fail_count+success_count))
 
     env.close()
 

@@ -14,7 +14,7 @@ MODEL_XML_PATH = os.path.join('fetch', 'pick_and_place_xz.xml')
 
 
 class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
-    def __init__(self, reward_type='point'):
+    def __init__(self, reward_type='sparse'):
         initial_qpos = {
             'robot0:slide0': 0.405,
             'robot0:slide1': 0.48,
@@ -72,9 +72,10 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         done = False
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
-            'is_collision': self._contact_dection()
+            'is_collision': self._contact_dection(),
+            'alternative_goals': obs['observation'][-6:]
         }
-        reward = self.compute_reward(obs['observation'], obs['achieved_goal'], self.goal, info)
+        reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
 
         if self.early_stop:
             if info["is_success"] or info["is_collision"]:
@@ -88,26 +89,26 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         # if there is no collision: return false
         #----------------------------------
 
-        # print('number of contacts', self.sim.data.ncon)
-        # for i in range(self.sim.data.ncon):
-        #     # Note that the contact array has more than `ncon` entries,
-        #     # so be careful to only read the valid entries.
-        #     contact = self.sim.data.contact[i]
-        #     print('contact', i)
-        #     print('dist', contact.dist)
-        #     print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
-        #     print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
-        #     print("exclude", contact.exclude)
-        #     # There's more stuff in the data structure
-        #     # See the mujoco documentation for more info!
-        #     geom2_body = self.sim.model.geom_bodyid[self.sim.data.contact[i].geom2]
-        #     print(' Contact force on geom2 body', self.sim.data.cfrc_ext[geom2_body])
-        #     print('norm', np.sqrt(np.sum(np.square(self.sim.data.cfrc_ext[geom2_body]))))
-        #     # Use internal functions to read out mj_contactForce
-        #     c_array = np.zeros(6, dtype=np.float64)
-        #     print('c_array', c_array)
-        #     mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, c_array)
-        #     print('c_array', c_array)
+        print('number of contacts', self.sim.data.ncon)
+        for i in range(self.sim.data.ncon):
+            # Note that the contact array has more than `ncon` entries,
+            # so be careful to only read the valid entries.
+            contact = self.sim.data.contact[i]
+            print('contact', i)
+            print('dist', contact.dist)
+            print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+            print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+            print("exclude", contact.exclude)
+            # There's more stuff in the data structure
+            # See the mujoco documentation for more info!
+            geom2_body = self.sim.model.geom_bodyid[self.sim.data.contact[i].geom2]
+            print(' Contact force on geom2 body', self.sim.data.cfrc_ext[geom2_body])
+            print('norm', np.sqrt(np.sum(np.square(self.sim.data.cfrc_ext[geom2_body]))))
+            # Use internal functions to read out mj_contactForce
+            c_array = np.zeros(6, dtype=np.float64)
+            print('c_array', c_array)
+            mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, c_array)
+            print('c_array', c_array)
 
 
         contact_count = 0
@@ -145,22 +146,32 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         return obs
 
 
+
+    def _reset_arm(self):
+        collision_flag = True
+        while collision_flag:
+            #reset mocap to some place
+            body_num = self.sim.model.body_name2id('target_box')
+            box_center = self.sim.model.body_pos[body_num]
+            grip_pos = box_center.copy()
+            grip_pos[0] += np.random.uniform(-0.15, 0.15)
+            grip_pos[1] += np.random.uniform(-0.15, 0.15)
+            grip_pos[2] += np.random.uniform(0.5, 0.7)
+
+            gripper_rotation = np.array([1., 1., 0., 0.])
+            self.sim.data.set_mocap_pos('robot0:mocap', grip_pos)
+            self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
+            for _ in range(10):
+                self.sim.step()
+            collision_flag = self._contact_dection()
+
+
+
+
     def _reset_sim(self):
         self.sim.set_state(self.initial_state)
 
-        #reset mocap to some place
-        body_num = self.sim.model.body_name2id('target_box')
-        box_center = self.sim.model.body_pos[body_num]
-        grip_pos = box_center.copy()
-        grip_pos[0] += np.random.uniform(-0.15, 0.15)
-        grip_pos[1] += np.random.uniform(-0.15, 0.15)
-        grip_pos[2] += np.random.uniform(0.3, 0.5)
-
-        gripper_rotation = np.array([1., 1., 0., 0.])
-        self.sim.data.set_mocap_pos('robot0:mocap', grip_pos)
-        self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
-        for _ in range(10):
-            self.sim.step()
+        self._reset_arm()
 
         #--- random put goals ---#
         #todo: control goal distance
@@ -188,8 +199,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         object_qpos = self.sim.data.get_joint_qpos(name)
         assert object_qpos.shape == (7,)
 
-        object_xpos[0] += np.random.uniform(-0.28, 0.28)
-        object_xpos[1] += np.random.uniform(-0.4, 0.4)
+        object_xpos[0] += np.random.uniform(-0.2, 0.20)
+        object_xpos[1] += np.random.uniform(-0.2, 0.2)
         object_qpos[:2] = object_xpos
         object_qpos[2] = 0.4
         return object_xpos, object_qpos
@@ -253,6 +264,9 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
 
         # ----------------------------
 
+    def get_raw_obs(self):
+        return self._get_obs()
+
     def _set_action(self, action):
         assert action.shape == (4,)
         action = action.copy()  # ensure that we don't change the action outside of this scope
@@ -274,7 +288,7 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         robotics.utils.mocap_set_action(self.sim, action)
 
 
-    def compute_reward(self, obs, achieved_goal, goal, info):
+    def compute_reward(self, achieved_goal, goal, info):
         if self.reward_type == 'sparse':
             r = self.sparse_reward(achieved_goal, goal)
         elif self.reward_type == 'fast_app':
@@ -316,7 +330,8 @@ class FetchMotionPlanEnv(fetch_env.FetchEnv, utils.EzPickle):
         else:
             t = self.time_step
             dis_list = []
-            alternative_goals = obs[-6:]
+            # alternative_goals = obs[-6:]
+            alternative_goals = info['alternative_goals']
 
             d0 = np.linalg.norm(achieved_goal - goal)
             for g in alternative_goals:

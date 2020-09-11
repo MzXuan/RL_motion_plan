@@ -89,8 +89,8 @@ def main(fpath, env, itr, collect):
     tf.set_random_seed(seed)
     random.seed(seed)
 
-    env = gym.make(env)
-    env = gym.wrappers.FlattenObservation(env)
+    env_raw = gym.make(env)
+    env = gym.wrappers.FlattenObservation(env_raw)
     
     numItr = 100
     initStateSpace = "random"
@@ -111,11 +111,12 @@ def main(fpath, env, itr, collect):
     while len(actions) < numItr:
         obs = env.reset()
         print("ITERATION NUMBER ", len(actions))
-        episodeAcs, episodeInfo, episodeObs = goToGoal(env, obs, get_action)
+        episodeAcs, episodeInfo, episodeObs, success = goToGoal(env, obs, get_action, env_raw)
         
-        actions.append(episodeAcs)
-        observations.append(episodeObs)
-        infos.append(episodeInfo)
+        if success == 1.0:
+            actions.append(episodeAcs)
+            observations.append(episodeObs)
+            infos.append(episodeInfo)
 
 
     fileName = "data_fetch"
@@ -126,7 +127,7 @@ def main(fpath, env, itr, collect):
     np.savez_compressed(fileName, acs=actions, obs=observations, info=infos) # save the file
 
 
-def goToGoal(env, obs, get_action):
+def goToGoal(env, obs, get_action, env_raw):
     episodeAcs = []
     episodeObs = []
     episodeInfo = []
@@ -135,15 +136,29 @@ def goToGoal(env, obs, get_action):
     while not done:
         action = get_action(obs)
         obs, rew, done, info = env.step(action)
+        obs_raw = env_raw.get_raw_obs()
 
-        time.sleep(0.03)
+
+        # print("obs is: ", obs)
+        # print("obs raw is: ", obs_raw)
+        # time.sleep(0.03)
         episodeAcs.append(action)
         episodeInfo.append(info)
-        episodeObs.append(obs)
-        env.render()
-        
+        episodeObs.append(obs_raw)
+        # env.render()
+    
 
-    return episodeAcs, episodeInfo, episodeObs
+    # print("rew is: ", rew)
+    # print("info is: ", info)
+
+    success = info['is_success'].copy()
+
+    # if info['is_success'] is True:
+    #     success = True
+    # else:
+    #     success = True
+
+    return episodeAcs, episodeInfo, episodeObs, success
 
 
 
@@ -153,6 +168,7 @@ if __name__ == "__main__":
     parser.add_argument('--fpath', type=str, default=None)
     parser.add_argument('--itr', '-i', type=int, default=-1)
     parser.add_argument("--env", type=str, default="FetchMotionPlan-v0")
+    # parser.add_argument('--env', type=str, default='FetchJointPlan-v1')
     parser.add_argument("--collect", action="store_true")
 
     args = parser.parse_args()

@@ -171,6 +171,9 @@ class DDPG(object):
             obs, acts, goals, achieved_goals = [], [] ,[] ,[]
             i = 0
             for transition in range(self.T - 1):
+                # print("self.num_demo: ", self.num_demo)
+                # print("self.T: ", self.T)
+                # print("epsd {} and transition{}".format(epsd, transition))
                 obs.append([demo_data_obs[epsd][transition].get('observation')])
                 acts.append([demo_data_acs[epsd][transition]])
                 goals.append([demo_data_obs[epsd][transition].get('desired_goal')])
