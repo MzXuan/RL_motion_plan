@@ -14,25 +14,25 @@ class WsPathGen():
 
     def sample_path(self, start, end):
         waypoints = np.linspace(start, end, num=10)
-        waypoints += (np.random.rand(waypoints.shape[0],waypoints.shape[1])-0.5)*0.05
+        waypoints[1:-1,:] += (np.random.rand(waypoints.shape[0]-2,waypoints.shape[1])-0.5)*0.05
         self.path = waypoints
 
 
     def next_goal(self, center, r):
         dists = np.linalg.norm((self.path-center),axis=1)
-        print("dist is: ", dists)
+        # print("dist is: ", dists)
         indices = np.where(dists < r)[0]
 
-        print("indices", indices)
+        # print("indices", indices)
 
         inverse_indices = np.flip(indices)
 
         for i in inverse_indices: # from end to start
             if i+1 < len(dists): # not meet limit
-                print("current i is: ", i)
+                # print("current i is: ", i)
                 p_insect = self.calculate_interaction(center, r, self.path[i], self.path[i+1])
                 if p_insect is not None:
-                    print("returned intersection is: ", p_insect)
+                    # print("returned intersection is: ", p_insect)
                     return p_insect
             else:
                 #the end, return the last way point
@@ -66,15 +66,15 @@ class WsPathGen():
         try:
             t=max(t_cons)
         except:
-            print("not found valid solution")
+            # print("not found valid solution")
             return None
         else:
-            print("solved root are: ", t_roots)
-            print("t_cons are: ", t_cons)
+            # print("solved root are: ", t_roots)
+            # print("t_cons are: ", t_cons)
             #find intersection
             point_intersect = p0*[1-t]+p1*t
-            print("p0 {} and p1 {}".format(p0,p1))
-            print("point_intersect is: ", point_intersect)
+            # print("p0 {} and p1 {}".format(p0,p1))
+            # print("point_intersect is: ", point_intersect)
             return point_intersect
 
 

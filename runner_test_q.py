@@ -7,6 +7,7 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 import random
+import time
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -244,13 +245,26 @@ def main(args):
         success_count = 0
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
-        for _ in range(8000):
+        for iteras in range(100):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
                 actions, Q, _, _ = model.step_with_q(obs)
-                print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
+
+            env_raw = env.envs[0]
+            # change radius
+            if iteras % 18 == 0:
+                r_list = np.arange(0.05, 0.4, 0.03)
+                for r in r_list:
+                    env_raw.set_sphere_radius(r)
+                    obs = env_raw.public_get_obs()
+                    # print("obs is: ", obs)
+                    actions, Q, _, _ = model.step_with_q(obs)
+                    print("r is {} and Q is {}".format(env_raw.sphere_radius, Q))
+                    env.render()
+                    time.sleep(0.5)
+
 
 
             episode_rew += rew

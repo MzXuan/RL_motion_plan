@@ -1,9 +1,13 @@
 # her:
-python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=20000 --save_path=~/models/fetch_reach_her --log_path=~/log/fetch_reach_her
+python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=200000 --save_path=~/models/fetch_reach_her10 --log_path=~/log/fetch_reach_her10
 
 python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=5000 --load_path=~/models/fetch_reach_her --play
 
-python runner.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=5000 --load_path=~/models/fetch_reach_her --play
+python runner.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
+
+# test q value function:
+python runner_test_q.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
+
 
 
 # how to train:

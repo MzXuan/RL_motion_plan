@@ -19,9 +19,10 @@ INITIAL_QPOS = {
 
 
 class Moving_obstacle():
-    def __init__(self, name):
+    def __init__(self, name, max_speed=0.008):
         self.name = name
         self.moving_speed = np.asarray([0,0,0])
+        self.max_speed = max_speed
 
     def move_obstacle(self,sim):
         try:
@@ -33,7 +34,7 @@ class Moving_obstacle():
         obstable_center = sim.model.body_pos[body_num]
         if np.linalg.norm(obstable_center-self.goal)<0.01:
             self.goal = self.random_obstacle_goal(sim)
-        self.moving_speed = 0.008*(self.goal-obstable_center)/np.linalg.norm(obstable_center-self.goal)
+        self.moving_speed = self.max_speed *(self.goal-obstable_center)/np.linalg.norm(obstable_center-self.goal)
         sim.model.body_pos[body_num] = obstable_center+ self.moving_speed
 
     def random_obstacle_goal(self, sim):
@@ -60,7 +61,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
     def __init__(
         self, model_path=MODEL_XML_PATH, n_substeps=20, gripper_extra_height=0.2, block_gripper=True,
         has_object=False, target_in_the_air=True, target_offset=0.0, obj_range=0.15, target_range=0.4,
-        distance_threshold=0.05, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False):
+        distance_threshold=0.02, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False, obstacle_speed=0.008):
         """Initializes a new Fetch environment.
 
         Args:
@@ -89,7 +90,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
 
         self.early_stop = early_stop
         self.obstacle_name_list = ['obstacle0', 'obstacle1', 'obstacle2']
-        self.obstacles_cls = [Moving_obstacle(obs_name) for obs_name in self.obstacle_name_list]
+        self.obstacles_cls = [Moving_obstacle(obs_name, obstacle_speed) for obs_name in self.obstacle_name_list]
 
         super(FetchReachV2Env, self).__init__(
             model_path=model_path, n_substeps=n_substeps, n_actions=3,
