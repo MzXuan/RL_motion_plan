@@ -245,6 +245,8 @@ def main(args):
         success_count = 0
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
+        env_raw = env.envs[0]
+        env_raw.set_sphere_radius(0.05)
         for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
@@ -256,7 +258,7 @@ def main(args):
 
 
             episode_rew += rew
-            env.render()
+            # env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
                 if info[0]['is_collision'] is True:
@@ -265,6 +267,8 @@ def main(args):
                 elif info[0]['is_success'] == 1.0:
                     print('success')
                     success_count+=1
+                else:
+                    print("fail with unknown reason")
 
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
@@ -272,11 +276,14 @@ def main(args):
 
                 print("-------------end step {}----------".format(step_i))
 
-                # time.sleep(1)
-
+                seed+=1
+                np.random.seed(seed)
+                tf.set_random_seed(seed)
+                random.seed(seed)
                 # obs = env.reset()
+                # time.sleep(1)
                 # env.render()
-                # print("--------start----------")
+                print("--------start----------")
 
 
         print("success rate is: ", success_count/(fail_count+success_count))

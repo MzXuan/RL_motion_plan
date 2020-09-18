@@ -292,8 +292,6 @@ def value_pi(env_fn, critic=core.value_critic, ac_kwargs=dict(), seed=0,
 
 
 
-
-
     saved_df = pd.read_pickle("/home/xuan/Code/motion_style/data/mydata.pkl")
     print("local steps per epoch is: ", local_steps_per_epoch)
     print("row count is: ", saved_df.shape[0])
@@ -345,8 +343,8 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='FetchDynamicCollectReach-v2')
-    parser.add_argument('--hid', type=int, default=64)
-    parser.add_argument('--l', type=int, default=2)
+    parser.add_argument('--hid', type=int, default=128)
+    parser.add_argument('--l', type=int, default=8)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--cpu', type=int, default=1)

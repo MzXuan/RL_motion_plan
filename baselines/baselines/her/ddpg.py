@@ -124,6 +124,10 @@ class DDPG(object):
         actions = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'])
         return actions, None, None, None
 
+    def step_with_noise(self, obs, noise_eps=0.1, random_eps=0.1):
+        actions = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'],
+                                   noise_eps = noise_eps, random_eps=random_eps)
+        return actions, None, None, None
 
     def step_with_q(self, obs):
         actions, Q = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'], compute_Q=True)

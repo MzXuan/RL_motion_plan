@@ -18,17 +18,17 @@ register(
 register(
     id='FetchDynamicReach-v2',
     entry_point='gym_rlmp.envs:FetchReachV2Env',
-    max_episode_steps=100
+    max_episode_steps=150
 )
 
 register(
     id='FetchDynamicTestReach-v2',
     entry_point='gym_rlmp.envs:FetchDynamicReachTestEnv',
-    max_episode_steps=100
+    max_episode_steps=150
 )
 
 register(
     id='FetchDynamicCollectReach-v2',
     entry_point='gym_rlmp.envs:FetchDynamicReachCollectEnv',
-    max_episode_steps=100
+    max_episode_steps=150
 )

@@ -253,9 +253,9 @@ def flatten_obs(obs):
     return flat_obs
 
 
-def collect_data(model, env):
+def collect_data(model, env, total, name, seed):
     logger.log("Running trained model")
-    seed = 88
+    seed = seed
     np.random.seed(seed)
     tf.set_random_seed(seed)
     random.seed(seed)
@@ -274,7 +274,7 @@ def collect_data(model, env):
     buf = StateBuffer()
     trajs_count = 0
 
-    while trajs_count < 5000:
+    while trajs_count < total:
         actions, Q, _, _ = model.step_with_q(obs)
         # print("q is: ", Q)
         obs2, rew, done, info = env.step(actions)
@@ -304,8 +304,9 @@ def collect_data(model, env):
             obs = env.reset()
 
     try:
-        dfObj.to_pickle("./data/validate_mydata.pkl")
-        print("save data successfully")
+        file_name = "./data/"+name+".pkl"
+        dfObj.to_pickle(file_name)
+        print("save data {} successfully".format(file_name))
     except:
         print("fail to save data")
 
@@ -329,7 +330,9 @@ def main(args):
 
 
     if args.play:
-        collect_data(model, env)
+        collect_data(model, env, total = 30000, name="mydata",seed=3000)
+        collect_data(model, env, total=2000, name="valid_mydata", seed=0)
+
     env.close()
 
 if __name__ == '__main__':

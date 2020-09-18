@@ -50,8 +50,12 @@ class Moving_obstacle():
         sim.model.body_pos[body_num] = obstable_center+ self.moving_speed
 
 
-    def _set_obstacle_goal(self, sim, robot_goal):
-        self.goal = robot_goal
+    def _set_obstacle_goal(self, sim, robot_goal=None):
+        if robot_goal is None:
+            self.goal = self._sample_table_boder(sim)
+        else:
+            self.goal = robot_goal
+
         body_num = sim.model.body_name2id(self.name)
         obstable_center = sim.model.body_pos[body_num]
         self.moving_speed =np.random.uniform(0.005, self.max_speed)\
@@ -62,7 +66,7 @@ class Moving_obstacle():
     def random_obstacle_goal(self, sim):
         return self._sample_table_boder(sim)
 
-    def reset_obstacle(self, sim, robot_goal, robot_current = None):
+    def reset_obstacle(self, sim, robot_goal=None, robot_current = None):
         body_num = sim.model.body_name2id('table0')
         table_center = sim.model.body_pos[body_num]
         self.table_center = table_center
@@ -74,7 +78,7 @@ class Moving_obstacle():
             in_range = False
             while not in_range:
                 pos = self._sample_in_table(sim)
-                if np.linalg.norm(robot_current - pos) > 0.1 and np.linalg.norm(robot_current - pos) <0.4:
+                if np.linalg.norm(robot_current - pos) > 0.2 and np.linalg.norm(robot_current - pos) <0.5:
                     in_range = True
 
         #set pos
@@ -171,7 +175,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
 
 
         a1 = -1
-        a2 = -12
+        a2 = -5
         if self.reward_type == 'sparse':
             # print("force reward", force_reward)
             # reward_1 = a1*(d > self.distance_threshold).astype(np.float32)
@@ -380,9 +384,9 @@ class FetchReachV2Env(robot_env.RobotEnv):
                 #self collision
                 contact_count+=1
 
-            # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
-            # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
-            # print('--------contact_count {}--------'.format(contact_count))
+            print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+            print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+            print('--------contact_count {}--------'.format(contact_count))
 
         if contact_count > 0:
             return True
