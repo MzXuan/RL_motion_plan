@@ -1,5 +1,5 @@
 # her:
-python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=200000 --save_path=~/models/fetch_reach_her10 --log_path=~/log/fetch_reach_her10
+python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_12 --log_path=~/log/fetch_reach_her_12
 
 python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=5000 --load_path=~/models/fetch_reach_her --play
 
@@ -7,6 +7,23 @@ python runner.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --
 
 # test q value function:
 python runner_test_q.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
+
+
+# test data collection:
+python runner_test_load.py --alg=her --env=FetchDynamicCollectReach-v2 --env_type=robotics --num_timesteps=0 --load_path=~/models/fetch_reach_her --play
+
+# test collision V function:
+python runner_test_v.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play --fpath=/home/xuan/Code/motion_style/spinningup/data/value_pi/value_pi_s0
+
+
+# ddpg only:
+train:
+python runner.py --alg=ddpg --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_ddpg --log_path=~/log/fetch_ddpg --load_path=~/models/fetch_ddpg
+
+test:
+python runner.py --alg=ddpg --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_ddpg --play
+
+
 
 
 

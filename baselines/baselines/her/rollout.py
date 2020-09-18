@@ -60,10 +60,12 @@ class RolloutWorker:
         ag[:] = self.initial_ag
 
         # generate episodes
-        obs, achieved_goals, acts, goals, successes = [], [], [], [], []
+        obs, rews, achieved_goals, acts, goals, successes = [], [], [], [], [], []
         dones = []
         info_values = [np.empty((self.T - 1, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
+        # print("rollout: self.random_eps {} and self.noise_eps {}".format(self.random_eps, self.noise_eps))
+
         for t in range(self.T):
             policy_output = self.policy.get_actions(
                 o, ag, self.g,
@@ -86,7 +88,7 @@ class RolloutWorker:
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
             # compute new states and observations
-            obs_dict_new, _, done, info = self.venv.step(u)
+            obs_dict_new, rew, done, info = self.venv.step(u)
             o_new = obs_dict_new['observation']
             ag_new = obs_dict_new['achieved_goal']
             success = np.array([i.get('is_success', 0.0) for i in info])
@@ -108,6 +110,7 @@ class RolloutWorker:
 
             dones.append(done)
             obs.append(o.copy())
+            rews.append(rew)
             achieved_goals.append(ag.copy())
             successes.append(success.copy())
             acts.append(u.copy())
@@ -132,6 +135,7 @@ class RolloutWorker:
         if self.compute_Q:
             self.Q_history.append(np.mean(Qs))
         self.n_episodes += self.rollout_batch_size
+        self.episode_rew = np.mean(np.asarray(rews))
 
         return convert_episode_to_batch_major(episode)
 
@@ -161,6 +165,7 @@ class RolloutWorker:
         if self.compute_Q:
             logs += [('mean_Q', np.mean(self.Q_history))]
         logs += [('episode', self.n_episodes)]
+        logs+=[('episode_rew', self.episode_rew)]
 
         if prefix != '' and not prefix.endswith('/'):
             return [(prefix + '/' + key, val) for key, val in logs]

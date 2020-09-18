@@ -145,11 +145,11 @@ class DDPG(object):
             policy.u_tf: np.zeros((o.size // self.dimo, self.dimu), dtype=np.float32)
         }
 
-        result = self.sess.run(vals, feed_dict=feed)
+        ret = self.sess.run(vals, feed_dict=feed)
 
         # print("ret is: ", ret)
-        ret= [result[0]]
-        q = [result[1]]
+        # ret= [result[0]]
+        # q = [result[1]]
         # print("ret is {} and q is {} ", ret, q)
         # action postprocessing
         u = ret[0]
@@ -162,17 +162,22 @@ class DDPG(object):
         u = u.copy()
         ret[0] = u
 
-        if compute_Q:
-            if len(ret) == 1:
-                return ret[0], q[0]
-            else:
-                return ret, q
-
+        if len(ret) == 1:
+            return ret[0]
         else:
-            if len(ret) == 1:
-                return ret[0]
-            else:
-                return ret
+            return ret
+
+        # if compute_Q:
+        #     if len(ret) == 1:
+        #         return ret[0], q[0]
+        #     else:
+        #         return ret, q
+        #
+        # else:
+        #     if len(ret) == 1:
+        #         return ret[0]
+        #     else:
+        #         return ret
 
 
     def init_demo_buffer(self, demoDataFile, update_stats=True): #function that initializes the demo buffer

@@ -7,6 +7,7 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 import random
+import time
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -244,12 +245,13 @@ def main(args):
         success_count = 0
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
-        for _ in range(8000):
+        for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                actions, Q, _, _ = model.step_with_q(obs)
-                print("q is: ", Q)
+                # actions, Q, _, _ = model.step_with_q(obs)
+                actions, _, _, _ = model.step(obs)
+                # print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
 
 
@@ -267,6 +269,15 @@ def main(args):
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
+
+                print("-------------end step {}----------".format(step_i))
+
+                # time.sleep(1)
+
+                # obs = env.reset()
+                # env.render()
+                # print("--------start----------")
+
 
         print("success rate is: ", success_count/(fail_count+success_count))
 

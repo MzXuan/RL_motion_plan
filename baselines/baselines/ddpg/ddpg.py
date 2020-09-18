@@ -42,6 +42,7 @@ def learn(network, env,
           tau=0.01,
           eval_env=None,
           param_noise_adaption_interval=50,
+          load_path=None,
           **network_kwargs):
 
     set_global_seeds(seed)
@@ -59,6 +60,8 @@ def learn(network, env,
 
     nb_actions = env.action_space.shape[-1]
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
+
+
 
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
     critic = Critic(network=network, **network_kwargs)
@@ -90,7 +93,7 @@ def learn(network, env,
         gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
         batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
         actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
-        reward_scale=reward_scale)
+        reward_scale=reward_scale, load_path=load_path)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 

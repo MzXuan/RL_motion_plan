@@ -24,7 +24,13 @@ class Moving_obstacle():
         self.moving_speed = np.asarray([0,0,0])
         self.max_speed = max_speed
 
-    def move_obstacle(self,sim):
+        self.table_x = 0.2
+        self.table_y = 0.3
+
+        self.range = [0.15, 0.25, 0.4]
+
+
+    def move_obstacle(self,sim, robot_goal):
         try:
             self.goal
         except:
@@ -32,26 +38,79 @@ class Moving_obstacle():
 
         body_num = sim.model.body_name2id( self.name)
         obstable_center = sim.model.body_pos[body_num]
-        if np.linalg.norm(obstable_center-self.goal)<0.01:
-            self.goal = self.random_obstacle_goal(sim)
-        self.moving_speed = self.max_speed *(self.goal-obstable_center)/np.linalg.norm(obstable_center-self.goal)
+
+        #check reach table border
+        if obstable_center[0] > (self.table_center [0]+self.table_x) or \
+            obstable_center[0] < (self.table_center[0] - self.table_x) or \
+            obstable_center[1] > (self.table_center[1] + self.table_y) or \
+            obstable_center[1] < (self.table_center[1] - self.table_y):
+
+            self.reset_obstacle(sim, robot_goal)
+
         sim.model.body_pos[body_num] = obstable_center+ self.moving_speed
 
-    def random_obstacle_goal(self, sim):
-        body_num = sim.model.body_name2id('table0')
-        box_center = sim.model.body_pos[body_num]
-        obs_goal = box_center.copy()
-        # reset mocap to some place
 
-        if np.random.choice([0, 1]) == 0:
-            obs_goal[0] += np.random.choice([-0.15, 0.15])
-            obs_goal[1] += np.random.uniform(-0.25, 0.25)
+    def _set_obstacle_goal(self, sim, robot_goal):
+        self.goal = robot_goal
+        body_num = sim.model.body_name2id(self.name)
+        obstable_center = sim.model.body_pos[body_num]
+        self.moving_speed =np.random.uniform(0.005, self.max_speed)\
+                           * (self.goal - obstable_center) / np.linalg.norm(obstable_center - self.goal)
+        self.moving_speed[:2] +=(np.random.rand(2,)-0.5)*0.003
+
+
+    def random_obstacle_goal(self, sim):
+        return self._sample_table_boder(sim)
+
+    def reset_obstacle(self, sim, robot_goal, robot_current = None):
+        body_num = sim.model.body_name2id('table0')
+        table_center = sim.model.body_pos[body_num]
+        self.table_center = table_center
+
+        if robot_current is None:
+            pos = self._sample_table_boder(sim)
         else:
-            obs_goal[0] += np.random.uniform(-0.15, 0.15)
-            obs_goal[1] += np.random.choice([-0.25, 0.25])
+            #todo: sample winthin range
+            in_range = False
+            while not in_range:
+                pos = self._sample_in_table(sim)
+                if np.linalg.norm(robot_current - pos) > 0.1 and np.linalg.norm(robot_current - pos) <0.4:
+                    in_range = True
+
+        #set pos
+        body_num = sim.model.body_name2id(self.name)
+        sim.model.body_pos[body_num] = pos
+        self._set_obstacle_goal(sim, robot_goal)
+
+    def _sample_table_boder(self, sim):
+        body_num = sim.model.body_name2id('table0')
+        table_center = sim.model.body_pos[body_num]
+        self.table_center = table_center
+        obs_goal = table_center.copy()
+        if np.random.choice([0, 1]) == 0:
+            obs_goal[0] += np.random.choice([-self.table_x, self.table_x])
+            obs_goal[1] += np.random.uniform(-self.table_y, self.table_y)
+        else:
+            obs_goal[0] += np.random.uniform(-self.table_x, self.table_x)
+            obs_goal[1] += np.random.choice([-self.table_y, self.table_y])
 
         obs_goal[2] += np.random.uniform(0.25, 0.4)
         return obs_goal
+
+    def _sample_in_table(self, sim):
+        body_num = sim.model.body_name2id('table0')
+        table_center = sim.model.body_pos[body_num]
+        obs_pos = table_center.copy()
+
+        obs_pos[0] += np.random.uniform(-self.table_x, self.table_x)
+        obs_pos[1] += np.random.uniform(-self.table_y, self.table_y)
+        obs_pos[2] += np.random.uniform(0.25, 0.4)
+        return obs_pos
+
+
+
+
+
 
 
 class FetchReachV2Env(robot_env.RobotEnv):
@@ -61,7 +120,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
     def __init__(
         self, model_path=MODEL_XML_PATH, n_substeps=20, gripper_extra_height=0.2, block_gripper=True,
         has_object=False, target_in_the_air=True, target_offset=0.0, obj_range=0.15, target_range=0.4,
-        distance_threshold=0.02, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False, obstacle_speed=0.008):
+        distance_threshold=0.03, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False, obstacle_speed=0.015):
         """Initializes a new Fetch environment.
 
         Args:
@@ -89,7 +148,8 @@ class FetchReachV2Env(robot_env.RobotEnv):
         self.reward_type = reward_type
 
         self.early_stop = early_stop
-        self.obstacle_name_list = ['obstacle0', 'obstacle1', 'obstacle2']
+        # self.obstacle_name_list = ['obstacle0', 'obstacle1', 'obstacle2']
+        self.obstacle_name_list = ['obstacle0', 'obstacle1']
         self.obstacles_cls = [Moving_obstacle(obs_name, obstacle_speed) for obs_name in self.obstacle_name_list]
 
         super(FetchReachV2Env, self).__init__(
@@ -102,11 +162,29 @@ class FetchReachV2Env(robot_env.RobotEnv):
     def compute_reward(self, achieved_goal, goal, info):
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
-        force_reward = self._contact_force()
+        # force_reward = self._contact_force()
+        _is_collision = info['is_collision']
+        if isinstance(_is_collision, np.ndarray):
+            _is_collision = _is_collision.flatten()
+
+        # print(_is_collision)
+
+
         a1 = -1
-        a2 = -15
-        reward = a1*(d > self.distance_threshold).astype(np.float32)+a2*force_reward
+        a2 = -12
+        if self.reward_type == 'sparse':
+            # print("force reward", force_reward)
+            # reward_1 = a1*(d > self.distance_threshold).astype(np.float32)
+            # reward_2 = a2*force_reward
+            # print("reward1{} and reward2  {} ".format(reward_1, reward_2))
+
+            reward = a1*(d > self.distance_threshold).astype(np.float32)\
+                     +a2*(_is_collision>0)
+        else:
+            reward = a1*d + a2*(_is_collision>0)
+        # print("reward: ", reward)
         return reward
+
 
 
 
@@ -115,7 +193,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
         for obstacle in self.obstacles_cls:
-            obstacle.move_obstacle(self.sim)
+            obstacle.move_obstacle(self.sim, self.goal)
         self.sim.step()
         self._step_callback()
         obs = self._get_obs()
@@ -185,6 +263,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
         obstable_center_lst = []
         obstacle_rel_pos_lst = []
         obstacle_v_lst = []
+        obstacle_rel_v_lst = []
 
         for obstacle in self.obstacles_cls:
             body_num = self.sim.model.body_name2id(obstacle.name)
@@ -192,13 +271,13 @@ class FetchReachV2Env(robot_env.RobotEnv):
             obstable_center_lst.append(obstable_center)
             obstacle_rel_pos_lst.append(obstable_center - grip_pos)
             obstacle_v_lst.append(obstacle.moving_speed)
+            obstacle_rel_v_lst.append(obstacle.moving_speed - grip_velp)
 
         achieved_goal = grip_pos.copy()
 
         obs = np.concatenate([
-            grip_pos, np.asarray(obstable_center_lst).ravel(), np.asarray(obstacle_rel_pos_lst).ravel(), gripper_state,
-            np.asarray(obstacle_v_lst).ravel(), grip_velp, gripper_vel,
-        ])
+            grip_pos, grip_velp,
+            np.asarray(obstacle_rel_pos_lst).ravel(), np.asarray(obstacle_rel_v_lst).ravel()])
 
         # obs = np.concatenate([
         #     grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
@@ -227,26 +306,26 @@ class FetchReachV2Env(robot_env.RobotEnv):
         self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
         self.sim.forward()
 
-    def _contact_force(self):
-        for i in range(self.sim.data.ncon):
-            # Note that the contact array has more than `ncon` entries,
-            # so be careful to only read the valid entries.
-            contact = self.sim.data.contact[i]
-            # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
-            # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
-            if self.sim.model.geom_id2name(contact.geom1) is None or \
-                    self.sim.model.geom_id2name(contact.geom2) is None:
-                continue
-
-            if "obstacle" in self.sim.model.geom_id2name(contact.geom1) and \
-                "robot0" in self.sim.model.geom_id2name(contact.geom2):
-                return 1.0
-
-            elif "robot0" in self.sim.model.geom_id2name(contact.geom1) and \
-                "obstacle" in self.sim.model.geom_id2name(contact.geom2):
-                return 1.0
-
-        return 0.0
+    # def _contact_force(self):
+    #     for i in range(self.sim.data.ncon):
+    #         # Note that the contact array has more than `ncon` entries,
+    #         # so be careful to only read the valid entries.
+    #         contact = self.sim.data.contact[i]
+    #         # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+    #         # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+    #         if self.sim.model.geom_id2name(contact.geom1) is None or \
+    #                 self.sim.model.geom_id2name(contact.geom2) is None:
+    #             continue
+    #
+    #         if "obstacle" in self.sim.model.geom_id2name(contact.geom1) and \
+    #             "robot0" in self.sim.model.geom_id2name(contact.geom2):
+    #             return 1.0
+    #
+    #         elif "robot0" in self.sim.model.geom_id2name(contact.geom1) and \
+    #             "obstacle" in self.sim.model.geom_id2name(contact.geom2):
+    #             return 1.0
+    #
+    #     return 0.0
 
 
     def _contact_dection(self):
@@ -284,15 +363,26 @@ class FetchReachV2Env(robot_env.RobotEnv):
             contact = self.sim.data.contact[i]
             if self.sim.model.geom_id2name(contact.geom1) is None or \
                 self.sim.model.geom_id2name(contact.geom2) is None:
-                pass
-            elif "obstacle" in self.sim.model.geom_id2name(contact.geom1) and \
+                # no collision
+                continue
+
+            if "obstacle" in self.sim.model.geom_id2name(contact.geom1) and \
+                    "robot0" in self.sim.model.geom_id2name(contact.geom2):
+                contact_count += 1
+
+
+            elif "robot0" in self.sim.model.geom_id2name(contact.geom1) and \
                 "obstacle" in self.sim.model.geom_id2name(contact.geom2):
-                pass
-            else:
-                # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
-                # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
-                # print('--------------------------')
                 contact_count +=1
+
+            elif "robot0" in self.sim.model.geom_id2name(contact.geom1) and \
+                "robot0" in self.sim.model.geom_id2name(contact.geom2):
+                #self collision
+                contact_count+=1
+
+            # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+            # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+            # print('--------contact_count {}--------'.format(contact_count))
 
         if contact_count > 0:
             return True
@@ -307,12 +397,19 @@ class FetchReachV2Env(robot_env.RobotEnv):
         # In this case, we just keep randomizing until we eventually achieve a valid initial
         # configuration.
         did_reset_sim = False
+
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
 
         self.time_step = 0
         self.goal = self._sample_goal().copy()
+
         obs = self._get_obs()
+
+        # send goal to obstacles
+        for obstacle in self.obstacles_cls:
+            obstacle.reset_obstacle(self.sim, self.goal, robot_current =  obs['achieved_goal'])
+
         self.last_dist = goal_distance(
             obs['achieved_goal'], self.goal)
         return obs
@@ -321,6 +418,8 @@ class FetchReachV2Env(robot_env.RobotEnv):
 
     def _reset_arm(self):
         collision_flag = True
+        keep_distance = False
+        # while collision_flag and not keep_distance:
         while collision_flag:
             body_num = self.sim.model.body_name2id('table0')
             box_center = self.sim.model.body_pos[body_num]
@@ -338,11 +437,15 @@ class FetchReachV2Env(robot_env.RobotEnv):
             for _ in range(10):
                 self.sim.step()
             collision_flag = self._contact_dection()
+            # keep_distance = self._check_distance(grip_pos)
             # collision_flag = False
 
 
     def _reset_sim(self):
         self.sim.set_state(self.initial_state)
+
+        # for obstacle in self.obstacles_cls:
+        #     obstacle.reset_obstacle(self.sim)
 
         self._reset_arm()
 
@@ -350,22 +453,38 @@ class FetchReachV2Env(robot_env.RobotEnv):
         return True
 
     def _sample_goal(self):
-        if self.has_object:
-            goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-self.target_range, self.target_range, size=3)
-            goal += self.target_offset
-            goal[2] = self.height_offset
-            if self.target_in_the_air and self.np_random.uniform() < 0.5:
-                goal[2] += self.np_random.uniform(0, 0.45)
-        else:
-            body_num = self.sim.model.body_name2id('table0')
-            box_center = self.sim.model.body_pos[body_num]
-            # reset mocap to some place
-            goal = np.zeros(3)
-            goal[0] = box_center[0] + np.random.uniform(-0.2, 0.2)
-            goal[1] = box_center[1] + np.random.uniform(-0.25, 0.25)
-            goal[2] = box_center[2] + np.random.uniform(0.25, 0.41)
-        return goal.copy()
+        #todo: keep distance to obstacles
+        body_num = self.sim.model.body_name2id('table0')
+        box_center = self.sim.model.body_pos[body_num]
+        goal = np.zeros(3)
+        goal[0] = box_center[0] + np.random.uniform(-0.2, 0.2)
+        goal[1] = box_center[1] + np.random.uniform(-0.25, 0.25)
+        goal[2] = box_center[2] + np.random.uniform(0.25, 0.41)
 
+        return goal.copy()
+        # # reset mocap to some place
+        # keep_distance = False
+        # while not keep_distance:
+        #     goal = np.zeros(3)
+        #     goal[0] = box_center[0] + np.random.uniform(-0.2, 0.2)
+        #     goal[1] = box_center[1] + np.random.uniform(-0.25, 0.25)
+        #     goal[2] = box_center[2] + np.random.uniform(0.3, 0.41)
+        #     keep_distance = self._check_distance(goal)
+        #
+        # return goal.copy()
+
+    def _check_distance(self, goal, threshold = 0.2):
+        pos_list = []
+        for obstacle in self.obstacles_cls:
+            body_num = self.sim.model.body_name2id(obstacle.name)
+            pos_list.append(self.sim.model.body_pos[body_num])
+        for p in pos_list:
+            # dist = np.linalg.norm([goal-p])
+            # print("dist is, ", dist)
+
+            if np.linalg.norm([goal-p]) < threshold:
+                return False
+        return True
 
     def _is_success(self, achieved_goal, desired_goal):
         d = goal_distance(achieved_goal, desired_goal)

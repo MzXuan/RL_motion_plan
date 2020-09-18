@@ -2,8 +2,8 @@ import time
 import gym
 import gym_rlmp
 
-env = gym.make('FetchDynamicTestReach-v2')
-# env = gym.make('FetchDynamicReach-v2')
+# env = gym.make('FetchDynamicTestReach-v2')
+env = gym.make('FetchDynamicReach-v2')
 # env = gym.make('FetchMotionPlan-v0')
 # env = gym.make('FetchJointPlan-v1')
 

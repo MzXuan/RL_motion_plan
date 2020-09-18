@@ -170,6 +170,8 @@ def learn(*, network, env, total_timesteps,
     n_cycles = params['n_cycles']
     n_epochs = total_timesteps // n_cycles // rollout_worker.T // rollout_worker.rollout_batch_size
 
+    # print("n cycles is {}, T {}, batch {}".format(n_cycles, rollout_worker.T, rollout_worker.rollout_batch_size))
+
     return train(
         save_path=save_path, policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],

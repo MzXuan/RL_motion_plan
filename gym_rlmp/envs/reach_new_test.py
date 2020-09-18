@@ -7,12 +7,37 @@ from .ws_path_gen import WsPathGen
 
 
 # Ensure we get the path separator correct on windows
-MODEL_XML_PATH = os.path.join('fetch', 'reach_xz.xml')
+MODEL_XML_PATH = os.path.join('fetch', 'reach_xz_test.xml')
 
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
     return np.linalg.norm(goal_a - goal_b, axis=-1)
+
+
+class FetchDynamicReachCollectEnv(FetchReachV2Env, gym_utils.EzPickle):
+    def __init__(self, reward_type='sparse'):
+        initial_qpos = {
+            'robot0:slide0': 0.4049,
+            'robot0:slide1': 0.48,
+            'robot0:slide2': 0.0,
+        }
+        FetchReachV2Env.__init__(
+            self, MODEL_XML_PATH, has_object=False, block_gripper=True, n_substeps=10,
+            gripper_extra_height=0.2, target_in_the_air=True, target_offset=0.0,
+            obj_range=0.15, target_range=0.4, distance_threshold=0.04,
+            initial_qpos=initial_qpos, reward_type=reward_type, early_stop=True, obstacle_speed=0.008)
+        gym_utils.EzPickle.__init__(self)
+
+
+    def compute_reward(self, achieved_goal, goal, info):
+        # Compute distance between goal and the achieved goal.
+        # d = goal_distance(achieved_goal, goal)
+        force_reward = self._contact_force()
+        # a1 = -1
+        a2 = -1
+        reward = a2*force_reward
+        return reward
 
 
 class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
@@ -26,9 +51,9 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
             self, MODEL_XML_PATH, has_object=False, block_gripper=True, n_substeps=20,
             gripper_extra_height=0.2, target_in_the_air=True, target_offset=0.0,
             obj_range=0.15, target_range=0.4, distance_threshold=0.04,
-            initial_qpos=initial_qpos, reward_type=reward_type, early_stop=True, obstacle_speed=0.008)
+            initial_qpos=initial_qpos, reward_type=reward_type, early_stop=False, obstacle_speed=0.015)
         gym_utils.EzPickle.__init__(self)
-        self.sphere_radius = 0.08
+        self.sphere_radius = 0.4
 
     def reset(self):
         # Attempt to reset the simulator. Since we randomize initial conditions, it
@@ -41,7 +66,6 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
             did_reset_sim = self._reset_sim()
 
         self.time_step = 0
-
         self.final_goal = self._sample_goal().copy()
         grip_pos = self.sim.data.get_site_xpos('robot0:grip')
         self.ws_path_gen = WsPathGen(grip_pos, self.final_goal)
@@ -50,6 +74,10 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
         obs = self._get_obs()
         self.last_dist = goal_distance(
             obs['achieved_goal'], self.goal)
+
+        # send goal to obstacles
+        for obstacle in self.obstacles_cls:
+            obstacle.reset_obstacle(self.sim, self.goal, robot_current=self.final_goal)
         return obs
 
     # def _sample_trajectory(self, goal):
@@ -59,9 +87,18 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
     def set_sphere_radius(self, r):
         self.sphere_radius = r
 
+    def compute_reward(self, achieved_goal, goal, info):
+        # Compute distance between goal and the achieved goal.
+        # d = goal_distance(achieved_goal, goal)
+        force_reward = self._contact_force()
+        # a1 = -1
+        a2 = -15
+        reward = a2*force_reward
+        return reward
 
     def _get_obs(self):
         #todo: follow path goal
+        #todo: reduce deminision of grippers
         # positions
         grip_pos = self.sim.data.get_site_xpos('robot0:grip')
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
@@ -74,6 +111,7 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
         obstable_center_lst = []
         obstacle_rel_pos_lst = []
         obstacle_v_lst = []
+        obstacle_rel_v_lst = []
 
         for obstacle in self.obstacles_cls:
             body_num = self.sim.model.body_name2id(obstacle.name)
@@ -81,6 +119,7 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
             obstable_center_lst.append(obstable_center)
             obstacle_rel_pos_lst.append(obstable_center - grip_pos)
             obstacle_v_lst.append(obstacle.moving_speed)
+            obstacle_rel_v_lst.append(obstacle.moving_speed - grip_velp)
 
         achieved_goal = grip_pos.copy()
 
@@ -89,11 +128,21 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
         except:
             print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
 
+        # print("obstacle_rel_pos_lst: ", obstacle_rel_pos_lst)
 
         obs = np.concatenate([
-            grip_pos, np.asarray(obstable_center_lst).ravel(), np.asarray(obstacle_rel_pos_lst).ravel(), gripper_state,
-            np.asarray(obstacle_v_lst).ravel(), grip_velp, gripper_vel,
-        ])
+            grip_pos, grip_velp,
+            np.asarray(obstacle_rel_pos_lst).ravel(), np.asarray(obstacle_rel_v_lst).ravel()])
+
+        # obs = np.concatenate([
+        #     grip_pos, np.asarray(obstable_center_lst).ravel(), np.asarray(obstacle_rel_pos_lst).ravel(),
+        #     np.asarray(obstacle_v_lst).ravel(), grip_velp
+        # ])
+
+        # obs = np.concatenate([
+        #     grip_pos, np.asarray(obstable_center_lst).ravel(), np.asarray(obstacle_rel_pos_lst).ravel(), gripper_state,
+        #     np.asarray(obstacle_v_lst).ravel(), grip_velp, gripper_vel,
+        # ])
 
 
         return {
@@ -103,12 +152,13 @@ class FetchDynamicReachTestEnv(FetchReachV2Env, gym_utils.EzPickle):
         }
 
 
+
     def step(self, action):
         self.time_step += 1
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
         for obstacle in self.obstacles_cls:
-            obstacle.move_obstacle(self.sim)
+            obstacle.move_obstacle(self.sim, self.goal)
         self.sim.step()
         self._step_callback()
         obs = self._get_obs()
