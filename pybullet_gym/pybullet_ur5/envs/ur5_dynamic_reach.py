@@ -112,6 +112,35 @@ class UR5DynamicReachEnv(gym.Env):
         self.is_training = True
 
 
+        self.target_off_set=0.2
+        self.safe_dist_threshold = 0.6
+
+        self.distance_threshold = distance_threshold
+        self.early_stop=early_stop
+        self.reward_type = reward_type
+
+
+
+        # self.reset()
+        # self.goal = np.zeros(3)
+        # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
+        # obs = self._get_obs()
+        self.action_space = gym.spaces.Box(-1., 1., shape=(3,), dtype='float32')
+        # self.observation_space = gym.spaces.Dict(dict(
+        #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
+        #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
+        #     observation=gym.spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
+        # ))
+
+        self.observation_space = gym.spaces.Dict(dict(
+            desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+            achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(35,), dtype='float32'),
+        ))
+
+        print("self.observation space: ", self.observation_space)
+
+
         # Set observation and action spaces
         self.agents_observation_space = Tuple([
             agent.observation_space for agent in self.agents
@@ -120,24 +149,18 @@ class UR5DynamicReachEnv(gym.Env):
             agent.action_space for agent in self.agents
         ])
 
-        obs_dim, act_dim = 0, 0
-        for agent in self.agents:
-            obs_dim += agent.observation_space.shape[0]
-            act_dim += agent.action_space.shape[0]
+        # obs_dim, act_dim = 0, 0
+        # for agent in self.agents:
+        #     obs_dim += agent.observation_space.shape[0]
+        #     act_dim += agent.action_space.shape[0]
+        #
+        # obs_dim+=22
+        #
+        # high = np.ones([act_dim])
+        # self.action_space = gym.spaces.Box(-high, high)
+        # high = np.inf * np.ones([obs_dim])
+        # self.observation_space = gym.spaces.Box(-high, high)
 
-        obs_dim+=22
-
-        high = np.ones([act_dim])
-        self.action_space = gym.spaces.Box(-high, high)
-        high = np.inf * np.ones([obs_dim])
-        self.observation_space = gym.spaces.Box(-high, high)
-
-        self.target_off_set=0.2
-        self.safe_dist_threshold = 0.6
-
-        self.distance_threshold = distance_threshold
-        self.early_stop=early_stop
-        self.reward_type = reward_type
 
 
     def create_single_player_scene(self, bullet_client):
