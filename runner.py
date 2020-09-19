@@ -246,19 +246,19 @@ def main(args):
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
         env_raw = env.envs[0]
-        env_raw.set_sphere_radius(0.05)
+        env_raw.set_sphere_radius(0.4)
         for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                # actions, Q, _, _ = model.step_with_q(obs)
-                actions, _, _, _ = model.step(obs)
-                # print("q is: ", Q)
+                actions, Q, _, _ = model.step_with_q(obs)
+                # actions, _, _, _ = model.step(obs)
+                print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
 
 
             episode_rew += rew
-            # env.render()
+            env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
                 if info[0]['is_collision'] is True:

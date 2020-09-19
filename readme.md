@@ -1,3 +1,8 @@
+## bullet runner
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_5 --log_path=~/log/ur5_reach_her_5 --load_path=~/models/ur5_reach_her_5
+
+
+
 # her:
 python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_5 --log_path=~/log/fetch_reach_her_5 --load_path=~/models/fetch_reach_her_5
 

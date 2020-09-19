@@ -1,0 +1,49 @@
+<?xml version="0.0" ?>
+<robot name="manshoe">
+  <material name="gray">
+    <color rgba="0 0 0.0 0.3"/>
+  </material>
+  <link name="manshoeLink">
+    <contact>
+      <lateral_friction value="1.0"/>
+    </contact>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+       <mass value=".0"/>
+       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+				<mesh filename="manshoe.dae" scale="1.0 1.0 1.0"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+	 	    <mesh filename="manshoe.dae" scale="1.0 1.0 1.0"/>
+      </geometry>
+    </collision>
+  </link>
+<!--   <link name="workspace">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+       <mass value=".0"/>
+       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.4 0.4"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+  <joint name="workspace_joint" type="fixed">
+    <parent link="manshoeLink"/>
+    <child link="workspace"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.12 0.25 0.15"/>
+  </joint> -->
+
+</robot>
+

@@ -3,7 +3,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import gym
-import pybullet_ur5
+import gym_rlmp
 
 import time
 import spinup.algos.tf1.legible_ppo.core as core
@@ -176,6 +176,7 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     np.random.seed(seed)
 
     env = env_fn()
+    env = gym.wrappers.FlattenObservation(env)
     obs_dim = env.observation_space.shape
     act_dim = env.action_space.shape
     
@@ -329,13 +330,13 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='UR5HumanSharedEnv-v0')
+    parser.add_argument('--env', type=str, default='FetchDynamicReach-v2')
     parser.add_argument('--hid', type=int, default=128)
     parser.add_argument('--l', type=int, default=3)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', '-s', type=int, default=21)
     parser.add_argument('--cpu', type=int, default=8)
-    parser.add_argument('--steps', type=int, default=4000)
+    parser.add_argument('--steps', type=int, default=8000)
     parser.add_argument('--epochs', type=int, default=2000)
     parser.add_argument('--exp_name', type=str, default='legible_ppo')
     parser.add_argument('--load', action='store_true')

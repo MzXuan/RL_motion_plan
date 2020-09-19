@@ -124,7 +124,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
     def __init__(
         self, model_path=MODEL_XML_PATH, n_substeps=20, gripper_extra_height=0.2, block_gripper=True,
         has_object=False, target_in_the_air=True, target_offset=0.0, obj_range=0.15, target_range=0.4,
-        distance_threshold=0.03, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False, obstacle_speed=0.015):
+        distance_threshold=0.03, initial_qpos=INITIAL_QPOS, reward_type='dense', early_stop=False, obstacle_speed=0.015):
         """Initializes a new Fetch environment.
 
         Args:
@@ -294,6 +294,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
             'desired_goal': self.goal.copy(),
         }
 
+
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id('robot0:gripper_link')
         lookat = self.sim.data.body_xpos[body_id]
@@ -384,9 +385,9 @@ class FetchReachV2Env(robot_env.RobotEnv):
                 #self collision
                 contact_count+=1
 
-            print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
-            print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
-            print('--------contact_count {}--------'.format(contact_count))
+            # print('geom1', contact.geom1, self.sim.model.geom_id2name(contact.geom1))
+            # print('geom2', contact.geom2, self.sim.model.geom_id2name(contact.geom2))
+            # print('--------contact_count {}--------'.format(contact_count))
 
         if contact_count > 0:
             return True

@@ -1,0 +1,34 @@
+import gym
+from gym.envs.registration import registry, make, spec
+
+
+def register(id, *args, **kvargs):
+  if id in registry.env_specs:
+    return
+  else:
+    return gym.envs.registration.register(id, *args, **kvargs)
+
+
+
+# ------------bullet-------------
+
+register(
+    id='PyFetchReachEnv-v0',
+    entry_point='pybullet_ur5.envs.fetch:FetchReachEnv',
+    max_episode_steps=1000,
+    reward_threshold=20000.0,
+)
+
+
+register(
+    id='UR5DynamicReachEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_reach:UR5DynamicReachEnv',
+    max_episode_steps=10000,
+    reward_threshold=20000.0,
+)
+
+
+
+def getList():
+  btenvs = ['- ' + spec.id for spec in gym.envs.registry.all() if spec.id.find('Bullet') >= 0]
+  return btenvs
