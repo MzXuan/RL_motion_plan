@@ -7,7 +7,7 @@ os.sys.path.insert(0, currentdir)
 
 import assets
 from scenes.stadium import StadiumScene, PlaneScene
-from humanoid import EefHumanoid, SelfMoveHumanoid, SelfMoveAwayHumanoid
+from humanoid import SelfMoveHumanoid
 from ur5_rg2 import UR5RG2Robot
 from ur5eef import UR5EefRobot
 
@@ -84,6 +84,9 @@ def goal_distance(goal_a, goal_b):
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
+
+
+
 class UR5DynamicReachEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
@@ -91,6 +94,7 @@ class UR5DynamicReachEnv(gym.Env):
                  early_stop=False,  distance_threshold=0.03, reward_type="sparse"):
         self.distance_close = 0.3
 
+        self.collision_weight = 0
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -109,8 +113,6 @@ class UR5DynamicReachEnv(gym.Env):
         self._cam_pitch = 30
         self._render_width = 320
         self._render_height = 240
-        self.is_training = True
-
 
         self.target_off_set=0.2
         self.safe_dist_threshold = 0.6
@@ -149,17 +151,7 @@ class UR5DynamicReachEnv(gym.Env):
             agent.action_space for agent in self.agents
         ])
 
-        # obs_dim, act_dim = 0, 0
-        # for agent in self.agents:
-        #     obs_dim += agent.observation_space.shape[0]
-        #     act_dim += agent.action_space.shape[0]
-        #
-        # obs_dim+=22
-        #
-        # high = np.ones([act_dim])
-        # self.action_space = gym.spaces.Box(-high, high)
-        # high = np.inf * np.ones([obs_dim])
-        # self.observation_space = gym.spaces.Box(-high, high)
+
 
 
 
@@ -183,7 +175,7 @@ class UR5DynamicReachEnv(gym.Env):
 
                 id_temp = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
                                                               "scenes_data", "targetbox/targetbox.urdf"),
-                                                 [x, y, z], [0.000000, 0.000000, 0.0, 1])
+                                                 [x, y, z], [0.000000, 0.000000, 0.0, 0.1])
                 if j == 1:
                     self.box_ids.append(id_temp)
                     self.box_pos.append([x, y, z])
@@ -279,10 +271,10 @@ class UR5DynamicReachEnv(gym.Env):
             self.robot_start_eef = robot_eef_pose
 
 
-            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.2, -1.1],
-                                      base_rotation=[0, 0, 0.7068252, 0.7073883], is_training=self.is_training)
+            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.0, -1.1],
+                                      base_rotation=[0, 0, 0.7068252, 0.7073883])
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base, base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-            print("reset to robot eef pose, ", self.robot_start_eef)
+            # print("reset to robot eef pose, ", self.robot_start_eef)
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
                 continue
@@ -290,10 +282,12 @@ class UR5DynamicReachEnv(gym.Env):
             self._p.stepSimulation()
             obs = self._get_obs()
             collision_flag = self._contact_detection()
-            print("collision_flag is :", collision_flag)
+            # print("collision_flag is :", collision_flag)
         s = []
         s.append(ar)
         s.append(ah)
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
+
 
         return obs
 
@@ -455,7 +449,6 @@ class UR5DynamicReachEnv(gym.Env):
         }
 
 
-
     def compute_reward(self, achieved_goal, goal, info):
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
@@ -466,14 +459,13 @@ class UR5DynamicReachEnv(gym.Env):
             _is_collision = _is_collision.flatten()
 
         a1 = -1
-        a2 = -5
+        a2 = self.collision_weight
         if self.reward_type == 'sparse':
             reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                      + a2 * (_is_collision > 0)
         else:
             reward = a1 * d + a2 * (_is_collision > 0)
         return reward
-
 
     def _contact_detection(self):
         # collision detection
@@ -536,5 +528,6 @@ class UR5DynamicReachEnv(gym.Env):
         _render = render
         _reset = reset
         _seed = seed
+
 
 

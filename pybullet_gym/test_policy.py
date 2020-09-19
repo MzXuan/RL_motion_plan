@@ -125,7 +125,7 @@ def main(fpath, env, itr):
         # print("action: ", action)
         # print("reward: ", rew)
         # print("obs is: ", obs['observation'][7:13])
-        print("info is:", info)
+        # print("info is:", info)
 
 
         if done == True:
@@ -152,7 +152,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--fpath', type=str, default=None)
     parser.add_argument('--itr', '-i', type=int, default=-1)
-    parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v0")
+    # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5DynamicTestEnv-v0")
 
     args = parser.parse_args()
     main(args.fpath, args.env, args.itr)

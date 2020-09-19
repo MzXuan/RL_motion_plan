@@ -27,6 +27,14 @@ register(
     reward_threshold=20000.0,
 )
 
+register(
+    id='UR5DynamicTestEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_test:UR5DynamicTestEnv',
+    max_episode_steps=200,
+    reward_threshold=20000.0,
+)
+
+
 
 
 def getList():

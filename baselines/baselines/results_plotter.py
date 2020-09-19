@@ -64,11 +64,15 @@ def plot_curves(xy_list, xaxis, yaxis, title):
 
 
 def split_by_task(taskpath):
-    return taskpath['dirname'].split('/')[-1].split('-')[0]
+
+    # return taskpath.split('/')[-1].split('-')[0]
+
+    return taskpath.dirname.split('/')[-1]
+    # return taskpath['dirname'].split('/')[-1].split('-')[0]
 
 def plot_results(dirs, num_timesteps=10e6, xaxis=X_TIMESTEPS, yaxis=Y_REWARD, title='', split_fn=split_by_task):
     results = plot_util.load_results(dirs)
-    plot_util.plot_results(results, xy_fn=lambda r: ts2xy(r['monitor'], xaxis, yaxis), split_fn=split_fn, average_group=True, resample=int(1e6))
+    plot_util.plot_results(results, xy_fn=lambda r: ts2xy(r.monitor, xaxis, yaxis), split_fn=split_fn, average_group=True, resample=int(1e6))
 
 # Example usage in jupyter-notebook
 # from baselines.results_plotter import plot_results
@@ -80,7 +84,8 @@ def main():
     import argparse
     import os
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dirs', help='List of log directories', nargs = '*', default=['./log'])
+    # parser.add_argument('--dirs', help='List of log directories', nargs = '*', default=['./log'])
+    parser.add_argument('--dirs', help='List of log directories', nargs='*', default=['/home/xuan/log/ur5_reach_her_5'])
     parser.add_argument('--num_timesteps', type=int, default=int(10e6))
     parser.add_argument('--xaxis', help = 'Varible on X-axis', default = X_TIMESTEPS)
     parser.add_argument('--yaxis', help = 'Varible on Y-axis', default = Y_REWARD)

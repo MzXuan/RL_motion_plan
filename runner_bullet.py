@@ -231,9 +231,9 @@ def main(args):
         model.save(save_path)
 
     if args.play:
-        pybullet.connect(pybullet.DIRECT)
-        env = gym.make("UR5DynamicReachEnv-v0")
-        env.render("human")
+        # pybullet.connect(pybullet.DIRECT)
+        env = gym.make(args.env)
+        # env.render("human")
 
         logger.log("Running trained model")
         seed = 100
@@ -251,7 +251,7 @@ def main(args):
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
 
-        env.render(mode="human")
+        # env.render(mode="human")
         for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
@@ -261,10 +261,10 @@ def main(args):
                 # print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
 
-            print("info", info)
+            # print("info", info)
 
             episode_rew += rew
-            env.render()
+            # env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
 

@@ -28,7 +28,6 @@ class Humanoid(robot_bases.MJCFBasedRobot):
         # 17 joints, 4 of them important for walking (hip, knee), others may as well be turned off, 17/4 = 4.25
         self.random_yaw = random_yaw
         self.random_lean = random_lean
-        self.is_training = True
 
         self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
         self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true"]
@@ -163,53 +162,22 @@ class Humanoid(robot_bases.MJCFBasedRobot):
         return 0
 
 
-class EefHumanoid(Humanoid):
-    def __init__(self,action_dim=3, obs_dim=3):
-        super(EefHumanoid, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
 
-    def calc_state(self):
-        state = self._p.getLinkState(self.robot_body.bodies[0], \
-                                     self.parts['left_hand_true'].bodyPartIndex,\
-                                     computeLinkVelocity=1)
-        # print("link state is: ", state)
-        position = np.asarray(list(state[0]))
-        velocity = np.asarray(list(state[-2]))
-        # obs = np.concatenate( (velocity, position))
-        return position
-
-    def apply_action(self, a):
-        assert (np.isfinite(a).all())
-        self.jdict["right_shoulder1"].set_position(0)
-        self.jdict["right_shoulder2"].set_position(0)
-        self.jdict["right_elbow"].set_position(0)
-        # scale
-        max_eef_velocity = 0.02
-        scale = max_eef_velocity
-        state = self._p.getLinkState(self.robot_body.bodies[0],  self.parts['left_hand_true'].bodyPartIndex)
-        # print("link state is: ", state)
-        position = list(state[0])
-
-        for i in range((self.action_space.shape)[0]):
-            position[i] += a[i] * scale
-        jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0],  \
-                                                        self.parts['left_hand_true'].bodyPartIndex,
-                                                        position)
-
-        self.jdict["left_shoulder1"].reset_position(jointPoses[14], 0)
-        self.jdict["left_shoulder2"].reset_position(jointPoses[15], 0)
-        self.jdict["left_elbow"].reset_position(jointPoses[16], 0)
 
 
 class SelfMoveHumanoid(Humanoid):
-    def __init__(self,action_dim=3, obs_dim=12):
+    def __init__(self,action_dim=3, obs_dim=12, is_training=True, move_base=False, noise=False):
 
         super(SelfMoveHumanoid, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
         self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
         # self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true"]
         self.select_links = ["left_lower_arm", "left_hand_true"]
+        self.is_training = is_training
+        self.move_base = move_base
+        self.noise = noise
 
 
-    def reset(self, bullet_client, base_position=[0, 0, -1.4], base_rotation=[0, 0, 0, 1], is_training =True):
+    def reset(self, bullet_client, base_position=[0, 0, -1.4], base_rotation=[0, 0, 0, 1]):
         self._p = bullet_client
         # print("Created bullet_client with id=", self._p._client)
         if (self.doneLoading == 0):
@@ -227,8 +195,7 @@ class SelfMoveHumanoid(Humanoid):
                     self._p, self.objects)
 
 
-        self.is_training = is_training
-        self.robot_specific_reset(self._p, base_position, base_rotation, is_training =is_training)
+        self.robot_specific_reset(self._p, base_position, base_rotation, is_training =self.is_training)
 
         self.jdict['left_shoulder1'].max_velocity = 2.0
         self.jdict['left_shoulder2'].max_velocity = 1.8
@@ -255,10 +222,6 @@ class SelfMoveHumanoid(Humanoid):
         self.start_center = np.asarray([-0.2, -1.0, 0])
 
 
-        # self.left_hand_end = np.asarray([np.random.uniform(-0.4, 0.4),
-        #                                 np.random.uniform(0.3, 0.6),
-        #                                 np.random.uniform(1.1,1.5)])
-
         while True:
             ran = np.random.choice([0, 1])
             if ran == 0 :
@@ -275,16 +238,6 @@ class SelfMoveHumanoid(Humanoid):
             else:
                 break
 
-
-        # try:
-        #     self.goal_positions
-        # except:
-        #     self.left_hand_end = np.asarray([0, 0.1, 1.2])
-        # else:
-        #     self.left_hand_end =np.asarray(random.choice(self.goal_positions))
-        # print("left hand end is", self.left_hand_end)
-        # print("self.goal_positions", self.goal_positions)
-
         self.jdict["abdomen_z"].reset_position(0.0, 0)
         self.jdict["abdomen_y"].reset_position(0.0, 0)
         self.jdict["abdomen_x"].reset_position(0.0, 0)
@@ -300,7 +253,7 @@ class SelfMoveHumanoid(Humanoid):
         self.jdict["right_shoulder2"].reset_position(0, 0)
         self.jdict["right_elbow"].reset_position(0, 0)
 
-        self.time = np.random.uniform(0,30)
+        self.time = np.random.uniform(0,50)
         # self.time = 0
         self.is_training = is_training
 
@@ -319,7 +272,11 @@ class SelfMoveHumanoid(Humanoid):
         # position = [a[0], a[1], a[2]]
         # position = self.human_static_motion()
         position = self.human_motion_generator()
-        self.time += 2
+
+        if self.noise is True:
+            self.time += np.random.uniform(1,5)
+        else:
+            self.time += 2
 
         self.jdict["right_shoulder1"].reset_position(-0.5, 0)
         self.jdict["right_shoulder2"].reset_position(-0.9, 0)
@@ -337,16 +294,22 @@ class SelfMoveHumanoid(Humanoid):
         self.jdict["abdomen_x"].reset_position(jointPoses[2], 0)
 
 
+        if self.move_base is True:
+            id = self.objects[0]
+            base_pose = self._p.getBasePositionAndOrientation(id)
+            position = np.asarray(base_pose[0])
+            position[0] +=np.random.uniform(-0.05,0.05)
+            self._p.resetBasePositionAndOrientation(id, position, base_pose[1])
+            # self.robot_body.reset_pose(base_position, base_rotation)
+
+
+
 
     def calc_state(self):
         link_position = np.asarray([self.parts[j].get_position() for j in self.select_links if j in self.parts])
         velocity = link_position-self.last_link_position
-
-        # print("link position is {} and velocity is {}".format(link_position, velocity))
         obs = np.concatenate((np.asarray(link_position.flatten()), np.asarray(velocity.flatten())))
-        # obs = np.asarray(link_position.flatten())
         self.last_link_position = link_position
-        # obs = np.concatenate( (velocity, position))
         return obs
 
     def human_static_motion(self):
@@ -396,82 +359,9 @@ class SelfMoveHumanoid(Humanoid):
             z = mean[2] + var[2] * math.cos(t / 15) + 0 * (np.random.random() - 0.5) * 2
 
             h_action = [x, y, z]
+
+        if self.noise is True:
+            h_action[0]+=np.random.uniform(-0.01,0.01)
+            h_action[1] += np.random.uniform(-0.01, 0.01)
+            h_action[2] += np.random.uniform(-0.01, 0.1)
         return h_action
-
-
-class SelfMoveAwayHumanoid(SelfMoveHumanoid):
-    def __init__(self,action_dim=3, obs_dim=12):
-        super(SelfMoveAwayHumanoid, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
-
-    def robot_specific_reset(self, bullet_client, base_position, base_rotation, is_training=True):
-        # WalkerBase.robot_specific_reset(self, bullet_client)
-        self._p = bullet_client
-        for j in self.ordered_joints:
-            j.reset_current_position(self.np_random.uniform(low=-0.1, high=0.1), 0)
-        self.robot_body.reset_pose(base_position, base_rotation)
-        self.feet = [self.parts[f] for f in self.foot_list]
-        self.feet_contact = np.array([0.0 for f in self.foot_list], dtype=np.float32)
-        self.scene.actor_introduce(self)
-        self.initial_z = None
-
-        self.start_center = np.asarray([-0.2, -0.8, 0.4])
-
-
-        while True:
-            self.left_hand_end = np.asarray([np.random.uniform(-0.4, 0.4),
-                                             np.random.uniform(-0.3, -0.6),
-                                             np.random.uniform(1.1, 1.3)])
-            for pp in self.goal_positions:
-                dist = np.linalg.norm((pp - np.asarray(self.left_hand_end)))
-                if dist < 0.2:
-                    continue
-            else:
-                break
-
-        self.jdict["abdomen_z"].reset_position(0.0, 0)
-        self.jdict["abdomen_y"].reset_position(0.0, 0)
-        self.jdict["abdomen_x"].reset_position(0.0, 0)
-        self.jdict["right_hip_x"].reset_position(0.0, 0)
-        self.jdict["right_hip_z"].reset_position(0.0, 0)
-        self.jdict["right_hip_y"].reset_position(0.0, 0)
-        self.jdict["right_knee"].reset_position(0, 0)
-        self.jdict["left_hip_x"].reset_position(0.0, 0)
-        self.jdict["left_hip_z"].reset_position(0.0, 0)
-        self.jdict["left_hip_y"].reset_position(0.0, 0)
-        self.jdict["left_knee"].reset_position(0.0, 0)
-        self.jdict["right_shoulder1"].reset_position(0, 0)
-        self.jdict["right_shoulder2"].reset_position(0, 0)
-        self.jdict["right_elbow"].reset_position(0, 0)
-
-        self.time = 100
-        self.is_training = is_training
-
-        self.motor_names = ["right_shoulder1", "right_shoulder2", "right_elbow"]
-        self.motor_power = [75, 75, 75]
-        self.motor_names += ["left_shoulder1", "left_shoulder2", "left_elbow"]
-        self.motor_power += [75, 75, 75]
-        self.motors = [self.jdict[n] for n in self.motor_names]
-
-
-    def apply_action(self, a):
-        assert (np.isfinite(a).all())
-        # position = [a[0], a[1], a[2]]
-        position = self.human_motion_generator()
-        self.time += np.random.uniform(0,3)
-
-        self.jdict["right_shoulder1"].reset_position(-0.5, 0)
-        self.jdict["right_shoulder2"].reset_position(-0.9, 0)
-        self.jdict["right_elbow"].reset_position(0, 0)
-
-        jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], \
-                                                        self.parts['left_hand_true'].bodyPartIndex,
-                                                        position)
-        self.jdict["left_shoulder1"].reset_position(jointPoses[14], 0)
-        self.jdict["left_shoulder2"].reset_position(jointPoses[15], 0)
-        self.jdict["left_elbow"].reset_position(jointPoses[16], 0)
-
-        self.jdict["abdomen_z"].reset_position(jointPoses[0], 0)
-        self.jdict["abdomen_y"].reset_position(jointPoses[1], 0)
-        self.jdict["abdomen_x"].reset_position(jointPoses[2], 0)
-
-
