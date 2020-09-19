@@ -53,6 +53,8 @@ class UR5EefRobot(UR5Robot):
 
 	def select_ik_solution(self, solutions):
 		feasible_solution = []
+
+		contact_free_solution = []
 		for jointPoses in solutions:
 			self.jdict['shoulder_pan_joint'].reset_position(jointPoses[0], 0)
 			self.jdict['shoulder_lift_joint'].reset_position(jointPoses[1], 0)
@@ -60,11 +62,19 @@ class UR5EefRobot(UR5Robot):
 			self.jdict['wrist_1_joint'].reset_position(jointPoses[3], 0)
 			self.jdict['wrist_2_joint'].reset_position(jointPoses[4], 0)
 			self.jdict['wrist_3_joint'].reset_position(jointPoses[5], 0)
+			self._p.stepSimulation()
 
 			if self._contact_detection() is False:
-				# print("feasible_solution", feasible_solution)
-				if self._is_in_range(jointPoses):
-					feasible_solution.append(jointPoses)
+				contact_free_solution.append(jointPoses)
+
+		if contact_free_solution == []:
+			print("can not find contact free solution")
+		else:
+			for jp in contact_free_solution:
+				if self._is_in_range(jp):
+					feasible_solution.append(jp)
+		if feasible_solution == []:
+			print("can not find in range solution")
 
 		return feasible_solution
 
@@ -85,14 +95,16 @@ class UR5EefRobot(UR5Robot):
 		for c in collisions:
 			bodyinfo1 = self._p.getBodyInfo(c[1])
 			bodyinfo2 = self._p.getBodyInfo(c[2])
-			# print("bodyinfo1: ", bodyinfo1, "bodyinfo2: ", bodyinfo2)
-			# # print("collisions", collisions)
-			# print("linkid 1 ", c[3])
-			# print("linkid 2", c[4])
+
 			if c[3] ==3 and c[4] ==5:
 				continue
 			if c[3] ==0 or c[4] ==0:
 				continue
+
+			# print("bodyinfo1: ", bodyinfo1, "bodyinfo2: ", bodyinfo2)
+			# print("collisions", collisions)
+			# print("linkid 1 ", c[3])
+			# print("linkid 2", c[4])
 			#
 			# print("robot parts", self.agents[0].parts)
 			# p = self._p.getLinkState(c[1], c[3])[0]
@@ -113,13 +125,11 @@ class UR5EefRobot(UR5Robot):
 
 	def robot_specific_reset(self, bullet_client, base_position, base_rotation,
 							 eef_position=None, eef_orienration=[0, 0.841471, 0, 0.5403023 ]):
-		for n in self.select_joints:
-			self.jdict[n].reset_current_position(
-				self.np_random.uniform(low=-self.TARG_LIMIT, high=self.TARG_LIMIT), 0)
+		# for n in self.select_joints:
+		# 	self.jdict[n].reset_current_position(
+		# 		self.np_random.uniform(low=-self.TARG_LIMIT, high=self.TARG_LIMIT), 0)
 
 		self.robot_body.reset_pose(base_position, base_rotation)
-
-		success = None
 
 		ik_fn = ikfast_ur5.get_ik
 
@@ -132,8 +142,9 @@ class UR5EefRobot(UR5Robot):
 
 		feasible_solutions = self.select_ik_solution(n_conf_list)
 		if feasible_solutions == []:
+			print("can not find feasible soltion for robot eef: ", eef_position)
 			return False
-		print("feasible solutions", feasible_solutions)
+		# print("feasible solutions", feasible_solutions)
 		jointPoses = feasible_solutions[0]
 
 		self.jdict['shoulder_pan_joint'].reset_position(jointPoses[0], 0)
@@ -144,11 +155,11 @@ class UR5EefRobot(UR5Robot):
 		self.jdict['wrist_3_joint'].reset_position(jointPoses[5], 0)
 
 		self.last_position = list(self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)[0])
-		# self.last_state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)
-		# print("link state is: ", state)
 
-	def reset(self, bullet_client, base_position=[0, 0, -1.2], base_rotation=[0, 0, 0, 1], eef_pose=None):
+
+	def reset(self, bullet_client, client_id, base_position=[0, 0, -1.2], base_rotation=[0, 0, 0, 1], eef_pose=None):
 		self._p = bullet_client
+		self.client_id = client_id
 		self.ordered_joints = []
 
 		# print(os.path.join(os.path.dirname(__file__), "data", self.model_urdf))
@@ -219,14 +230,7 @@ class UR5EefRobot(UR5Robot):
 		self.jdict['wrist_2_joint'].reset_position(jointPoses[4], 0)
 		self.jdict['wrist_3_joint'].reset_position(jointPoses[5], 0)
 
-		# self.jdict['shoulder_pan_joint'].set_position(jointPoses[0])
-		# self.jdict['shoulder_lift_joint'].set_position(jointPoses[1])
-		# self.jdict['elbow_joint'].set_position(jointPoses[2])
-		# self.jdict['wrist_1_joint'].set_position(jointPoses[3])
-		# self.jdict['wrist_2_joint'].set_position(jointPoses[4])
-		# self.jdict['wrist_3_joint'].set_position(jointPoses[5])
 
-		# self.last_position=list(self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)[0])
 
 	def calc_state(self):
 		# state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex, computeLinkVelocity=1)

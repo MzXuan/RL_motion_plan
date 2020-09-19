@@ -97,7 +97,7 @@ def main(fpath, env, itr):
 
     if fpath is None:
         # get_action=lambda obs: [-0.1, 0.1, 0.1, 0, 0, 0]
-        get_action = lambda obs: [-0.1, 0, 0.1, 0, 0, 0]
+        get_action = lambda obs: [-0.1, 0, -0.1]
     else:
         get_action = load_tf_policy(fpath, itr)
 
@@ -124,7 +124,8 @@ def main(fpath, env, itr):
         #
         # print("action: ", action)
         # print("reward: ", rew)
-        print("obs is: ", obs['observation'][7:13])
+        # print("obs is: ", obs['observation'][7:13])
+        print("info is:", info)
 
 
         if done == True:

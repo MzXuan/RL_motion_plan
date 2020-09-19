@@ -88,7 +88,7 @@ class UR5DynamicReachEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True,  distance_threshold=0.03, reward_type="sparse"):
+                 early_stop=False,  distance_threshold=0.03, reward_type="sparse"):
         self.distance_close = 0.3
 
         self.iter_num = 0
@@ -120,12 +120,12 @@ class UR5DynamicReachEnv(gym.Env):
         self.reward_type = reward_type
 
 
-
+        self.n_actions=3
         # self.reset()
         # self.goal = np.zeros(3)
         # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
         # obs = self._get_obs()
-        self.action_space = gym.spaces.Box(-1., 1., shape=(3,), dtype='float32')
+        self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
         # self.observation_space = gym.spaces.Dict(dict(
         #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
         #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
@@ -216,6 +216,10 @@ class UR5DynamicReachEnv(gym.Env):
             a.np_random = self.np_random  # use the same np_randomizer for robot as for env
         return [seed]
 
+    def set_render(self):
+        self.physicsClientId = -1
+        self.isRender = True
+
     def reset(self):
         self.last_human_eef = [0, 0, 0]
         self.last_robot_eef = [0, 0, 0]
@@ -257,7 +261,6 @@ class UR5DynamicReachEnv(gym.Env):
 
         collision_flag = True
         while collision_flag:
-            print("contact reset")
             # # ---random goal in space---#
             # self.goal = np.zeros(3)
             # while np.linalg.norm(self.goal) < 0.3:
@@ -267,7 +270,7 @@ class UR5DynamicReachEnv(gym.Env):
             #
             # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
 
-            x = np.random.uniform(0.3, 0.45)
+            x = np.random.uniform(0.2, 0.5)
             y = np.random.uniform(-0.5, -0.4)
             z = np.random.uniform(0.2, 0.3)
 
@@ -275,19 +278,22 @@ class UR5DynamicReachEnv(gym.Env):
 
             self.robot_start_eef = robot_eef_pose
 
-            s = []
-            ar = self.agents[0].reset(self._p, base_position=self.robot_base, base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-            if ar is False:
-                continue
-            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.2, -1.1], \
+
+            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.2, -1.1],
                                       base_rotation=[0, 0, 0.7068252, 0.7073883], is_training=self.is_training)
-            s.append(ar)
-            s.append(ah)
+            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base, base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
+            print("reset to robot eef pose, ", self.robot_start_eef)
+            if ar is False:
+                # print("failed to find valid robot solution of pose", robot_eef_pose)
+                continue
 
+            self._p.stepSimulation()
             obs = self._get_obs()
-            # self.step()
             collision_flag = self._contact_detection()
-
+            print("collision_flag is :", collision_flag)
+        s = []
+        s.append(ar)
+        s.append(ah)
 
         return obs
 
@@ -480,7 +486,7 @@ class UR5DynamicReachEnv(gym.Env):
             # print("collisions", collisions)
             # print("linkid 1 ", c[3])
             # print("linkid 2", c[4])
-            #
+
             # print("robot parts",self.agents[0].parts)
 
 
@@ -492,12 +498,10 @@ class UR5DynamicReachEnv(gym.Env):
             collision_bodies.append(bodyinfo1[1].decode("utf-8"))
             collision_bodies.append(bodyinfo2[1].decode("utf-8"))
 
-        # todo: check collision bodies
-
-        # print("collision_bodies: ", collision_bodies)
 
         if len(collision_bodies) != 0:
             if "ur5" in collision_bodies:  # robot collision
+                print("collision_bodies: ", collision_bodies)
                 return True
             else:
                 return False

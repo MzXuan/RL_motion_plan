@@ -8,6 +8,7 @@ import tensorflow as tf
 import numpy as np
 import random
 import time
+import pybullet
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -230,6 +231,10 @@ def main(args):
         model.save(save_path)
 
     if args.play:
+        pybullet.connect(pybullet.DIRECT)
+        env = gym.make("UR5DynamicReachEnv-v0")
+        env.render("human")
+
         logger.log("Running trained model")
         seed = 100
         np.random.seed(seed)
@@ -244,26 +249,29 @@ def main(args):
         success_count = 0
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
-        env_raw = env.envs[0]
-        env_raw.set_sphere_radius(0.4)
+
+
+        env.render(mode="human")
         for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
                 actions, Q, _, _ = model.step_with_q(obs)
                 # actions, _, _, _ = model.step(obs)
-                print("q is: ", Q)
+                # print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
 
+            print("info", info)
 
             episode_rew += rew
             env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
-                if info[0]['is_collision'] is True:
+
+                if info['is_collision'] is True:
                     print("fail")
                     fail_count+=1
-                elif info[0]['is_success'] == 1.0:
+                elif info['is_success'] == 1.0:
                     print('success')
                     success_count+=1
                 else:
@@ -279,7 +287,7 @@ def main(args):
                 np.random.seed(seed)
                 tf.set_random_seed(seed)
                 random.seed(seed)
-                # obs = env.reset()
+                obs = env.reset()
                 # time.sleep(1)
                 # env.render()
                 print("--------start----------")
