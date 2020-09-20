@@ -231,12 +231,12 @@ def main(args):
         model.save(save_path)
 
     if args.play:
-        pybullet.connect(pybullet.DIRECT)
+        # pybullet.connect(pybullet.DIRECT)
         env = gym.make(args.env)
-        env.render("human")
+        # env.render("human")
 
         logger.log("Running trained model")
-        seed = 100
+        seed = 781
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -253,7 +253,11 @@ def main(args):
 
         min_dist_list = []
         # env.render(mode="human")
-        for step_i in range(8000):
+        traj_count = 0
+        success_rg_dist=[]
+        fail_rg_dist=[]
+        while traj_count < 300:
+            # time.sleep(0.03)
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
@@ -263,9 +267,20 @@ def main(args):
             obs, rew, done, info = env.step(actions)
 
 
-            safe_distance = info['safe_threshold']
 
-            min_dist_list.append(info['min_dist'])
+            safe_distance = info['safe_threshold']
+            # print("min dist is: ", info['min_dist'])
+            if info['min_dist']<0.6:
+                min_dist_list.append(info['min_dist'])
+
+            r_g_dist = np.linalg.norm(obs['achieved_goal']-obs['desired_goal'])
+            if info['min_dist'] < 0.2:
+                if info['is_collision'] is True:
+                    fail_rg_dist.append(r_g_dist)
+                else:
+                    success_rg_dist.append(r_g_dist)
+
+
 
 
 
@@ -273,25 +288,29 @@ def main(args):
             # env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
+                print("random seed is: ", seed)
 
                 if info['is_collision'] is True:
+                    print("min dist", info['min_dist'])
+                    # robot goal distance
                     print("fail")
                     fail_count+=1
                 elif info['is_success'] == 1.0:
                     print('success')
                     success_count+=1
                 else:
+                    fail_count+=1
                     print("fail with unknown reason")
 
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
 
-                print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
-                print("safe distance is: ", safe_distance)
-                print("-------------end step {}----------".format(step_i))
 
-                seed+=1
+
+                print("-------------end step {}----------".format(traj_count))
+                traj_count+=1
+                seed +=1
                 np.random.seed(seed)
                 tf.set_random_seed(seed)
                 random.seed(seed)
@@ -300,7 +319,10 @@ def main(args):
                 # env.render()
                 print("--------start----------")
 
-
+        print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
+        print("safe distance is: ", safe_distance)
+        print("for minimum dist < 0.1, success rg dist mean is: ", np.asarray(success_rg_dist).mean())
+        print("for minimum dist < 0.1, fail rg dist mean is: ", np.asarray(fail_rg_dist).mean())
         print("success rate is: ", success_count/(fail_count+success_count))
 
     env.close()

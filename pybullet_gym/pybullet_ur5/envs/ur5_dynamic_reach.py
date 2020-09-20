@@ -68,7 +68,7 @@ class UR5DynamicReachEnv(gym.Env):
 
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.03,
-                 max_obs_dist = 0.6 ,dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 max_obs_dist = 0.6 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.distance_close = 0.3
 
@@ -232,7 +232,7 @@ class UR5DynamicReachEnv(gym.Env):
 
         # ---select goal from boxes---#
         self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
-        self.goal[2]+=0.1
+        self.goal[2]+=np.random.uniform(0.1,0.3)
         self.goal_orient = [0.0, 0.707, 0.0, 0.707]
 
 
@@ -276,7 +276,8 @@ class UR5DynamicReachEnv(gym.Env):
         return obs
 
     def _set_safe_distance(self):
-        return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
+        return 0.1
+        # return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
 
 
@@ -391,15 +392,15 @@ class UR5DynamicReachEnv(gym.Env):
 
 
 
-        # ------ drawing ------#
-        # check human hand and elbow position
-        self._p.addUserDebugLine(humanoid_states[-3:], humanoid_states[-6:-3], \
-                                 lineColorRGB=[1, 0, 0], lineWidth=2, lifeTime=10)
-
-        self._p.addUserDebugLine(self.last_human_eef, humanoid_eef_position, \
-                                 lineColorRGB=[1, 0, 0], lineWidth=2, lifeTime=10)
-        self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
-                                 lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        # # ------ drawing ------#
+        # # check human hand and elbow position
+        # self._p.addUserDebugLine(humanoid_states[-3:], humanoid_states[-6:-3], \
+        #                          lineColorRGB=[1, 0, 0], lineWidth=2, lifeTime=10)
+        #
+        # self._p.addUserDebugLine(self.last_human_eef, humanoid_eef_position, \
+        #                          lineColorRGB=[1, 0, 0], lineWidth=2, lifeTime=10)
+        # self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
+        #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
 
         # todo: warning. update may need to replace
         self.last_human_eef = humanoid_eef_position
@@ -459,13 +460,27 @@ class UR5DynamicReachEnv(gym.Env):
             min_dist = min_dist.flatten()
             safe_dist = safe_dist.flatten()
 
+        distance = safe_dist - min_dist
+        if isinstance(distance, np.ndarray):
+            distance[(distance < 0)] = 0
+        else:
+            distance = 0 if distance<0 else distance
+
         # sum of reward
         a1 = -1
-        a2 = -5
+        a2 = -20
         a3 = -0.1
         if self.reward_type == 'sparse':
+            # reward = a1 * (d > self.distance_threshold).astype(np.float32) \
+            #          + a2 * (_is_collision > 0) + a3 * (min_dist < safe_dist).astype(np.float32)
+
+            # reward = a1 * (d > self.distance_threshold).astype(np.float32) \
+            #          + a2 * (_is_collision > 0) + a3 * (safe_dist/min_dist)
+
+
             reward = a1 * (d > self.distance_threshold).astype(np.float32) \
-                     + a2 * (_is_collision > 0) + a3 * (min_dist < safe_dist).astype(np.float32)
+                     + a2 * (_is_collision > 0) + a3 * distance
+
         else:
             reward = a1 * d + a2 * (_is_collision > 0)
         return reward

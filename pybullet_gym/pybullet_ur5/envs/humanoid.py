@@ -289,9 +289,22 @@ class SelfMoveHumanoid(Humanoid):
         self.jdict["left_shoulder2"].reset_position(jointPoses[15], 0)
         self.jdict["left_elbow"].reset_position(jointPoses[16], 0)
 
-        self.jdict["abdomen_z"].reset_position(jointPoses[0],0)
-        self.jdict["abdomen_y"].reset_position(jointPoses[1], 0)
-        self.jdict["abdomen_x"].reset_position(jointPoses[2], 0)
+        self.jdict["abdomen_z"].reset_position(0,0)
+        self.jdict["abdomen_y"].reset_position(0, 0)
+        self.jdict["abdomen_x"].reset_position(0, 0)
+
+        self.jdict['right_hip_x'].reset_position(0,0)
+        self.jdict['right_hip_y'].reset_position(0, 0)
+        self.jdict['right_hip_z'].reset_position(0, 0)
+
+        self.jdict['left_hip_x'].reset_position(0, 0)
+        self.jdict['left_hip_y'].reset_position(0, 0)
+        self.jdict['left_hip_z'].reset_position(0, 0)
+
+
+        self.jdict["left_knee"].reset_position(0, 0)
+        self.jdict["right_knee"].reset_position(0, 0)
+
 
 
         if self.move_base is True:
