@@ -37,30 +37,6 @@ from pkg_resources import parse_version
 from mpi4py import MPI
 
 
-def calculate_bc_loss(p_rob, reference_traj):
-    dist = []
-    for p_ref in reference_traj:
-        dist.append(np.linalg.norm([p_rob-p_ref]))
-    dist = np.asarray(dist)
-    min_dist = np.min(dist)
-    progress = np.argmin(dist)/len(dist)
-    return min_dist, progress
-
-def calculate_bc_ratio(p_rob, reference_traj, ph, pl):
-    dist = []
-    for p_ref in reference_traj:
-        dist.append(np.linalg.norm([p_rob-p_ref]))
-    dist = np.asarray(dist)
-    min_dist = np.min(dist)
-    progress = np.argmin(dist) / len(dist)
-
-    if min_dist < pl:
-        ratio = 0
-    elif min_dist>ph:
-        ratio = 1
-    else:
-        ratio = ((min_dist-pl)/(ph-pl))**2
-    return (1-ratio), progress
 
 def normalize_conf(start, end):
     circle = 6.2831854
@@ -91,10 +67,11 @@ class UR5DynamicReachEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False,  distance_threshold=0.03, reward_type="sparse"):
+                 early_stop=False, distance_threshold = 0.03,
+                 max_obs_dist = 0.6 ,dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 reward_type="sparse"):
         self.distance_close = 0.3
 
-        self.collision_weight = 0
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -115,29 +92,35 @@ class UR5DynamicReachEnv(gym.Env):
         self._render_height = 240
 
         self.target_off_set=0.2
-        self.safe_dist_threshold = 0.6
+        self.distance_threshold = distance_threshold #for success
 
-        self.distance_threshold = distance_threshold
+        self.max_obs_dist_threshold = max_obs_dist
+        self.safe_dist_lowerlimit= dist_lowerlimit
+        self.safe_dist_upperlimit = dist_upperlimit
+
+        # self.distance_threshold = distance_threshold
         self.early_stop=early_stop
         self.reward_type = reward_type
 
 
-        self.n_actions=3
+        # self.n_actions=3
         # self.reset()
         # self.goal = np.zeros(3)
         # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
         # obs = self._get_obs()
-        self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
+        # self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
         # self.observation_space = gym.spaces.Dict(dict(
         #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
         #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
         #     observation=gym.spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
         # ))
 
+        self.n_actions = 3
+        self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(35,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(36,), dtype='float32'),
         ))
 
         print("self.observation space: ", self.observation_space)
@@ -212,10 +195,12 @@ class UR5DynamicReachEnv(gym.Env):
         self.physicsClientId = -1
         self.isRender = True
 
+
     def reset(self):
         self.last_human_eef = [0, 0, 0]
         self.last_robot_eef = [0, 0, 0]
         self.last_robot_joint = np.zeros(6)
+        self.current_safe_dist = self._set_safe_distance()
 
 
         if (self.physicsClientId < 0):
@@ -288,9 +273,10 @@ class UR5DynamicReachEnv(gym.Env):
         s.append(ah)
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
-
         return obs
 
+    def _set_safe_distance(self):
+        return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
 
 
@@ -363,10 +349,13 @@ class UR5DynamicReachEnv(gym.Env):
         obs = self._get_obs()
 
         done = False
+
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
             'is_collision': self._contact_detection(),
-            'alternative_goals': obs['observation'][-6:]
+            'alternative_goals': obs['observation'][-6:],
+            'min_dist':obs['observation'][-2],
+            'safe_threshold':obs['observation'][-1]
         }
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
 
@@ -422,8 +411,10 @@ class UR5DynamicReachEnv(gym.Env):
 
         # human to robot base minimum distance
         pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
-                                       self.agents[1].robot_body.bodies[0], self.safe_dist_threshold)
-        min_dist = self.safe_dist_threshold
+                                       self.agents[1].robot_body.bodies[0],
+                                       distance = self.max_obs_dist_threshold)  # max perception threshold
+        min_dist = self.max_obs_dist_threshold
+        # print("pts: ", pts)
         for i in range(len(pts)):
             if pts[i][8] < min_dist:
                 min_dist = pts[i][8]
@@ -436,10 +427,12 @@ class UR5DynamicReachEnv(gym.Env):
             obs_human_states = humanoid_states
 
 
+        # self.current_safe_dist = np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
+
         achieved_goal = ur5_eef_position
 
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
-                              np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+                              np.asarray(self.goal).flatten(), np.asarray([min_dist, self.current_safe_dist])])
 
 
         return {
@@ -452,17 +445,27 @@ class UR5DynamicReachEnv(gym.Env):
     def compute_reward(self, achieved_goal, goal, info):
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
-        # force_reward = self._contact_force()
+
+        #collision
         _is_collision = info['is_collision']
-        # print("_is_collision: ", _is_collision)
         if isinstance(_is_collision, np.ndarray):
             _is_collision = _is_collision.flatten()
 
+        #safe distance
+        min_dist = info['min_dist']
+        safe_dist = info ['safe_threshold']
+
+        if isinstance(min_dist, np.ndarray):
+            min_dist = min_dist.flatten()
+            safe_dist = safe_dist.flatten()
+
+        # sum of reward
         a1 = -1
-        a2 = self.collision_weight
+        a2 = -5
+        a3 = -0.1
         if self.reward_type == 'sparse':
             reward = a1 * (d > self.distance_threshold).astype(np.float32) \
-                     + a2 * (_is_collision > 0)
+                     + a2 * (_is_collision > 0) + a3 * (min_dist < safe_dist).astype(np.float32)
         else:
             reward = a1 * d + a2 * (_is_collision > 0)
         return reward

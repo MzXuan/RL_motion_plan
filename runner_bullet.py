@@ -231,9 +231,9 @@ def main(args):
         model.save(save_path)
 
     if args.play:
-        # pybullet.connect(pybullet.DIRECT)
+        pybullet.connect(pybullet.DIRECT)
         env = gym.make(args.env)
-        # env.render("human")
+        env.render("human")
 
         logger.log("Running trained model")
         seed = 100
@@ -251,6 +251,7 @@ def main(args):
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
 
+        min_dist_list = []
         # env.render(mode="human")
         for step_i in range(8000):
             if state is not None:
@@ -261,7 +262,12 @@ def main(args):
                 # print("q is: ", Q)
             obs, rew, done, info = env.step(actions)
 
-            # print("info", info)
+
+            safe_distance = info['safe_threshold']
+
+            min_dist_list.append(info['min_dist'])
+
+
 
             episode_rew += rew
             # env.render()
@@ -281,6 +287,8 @@ def main(args):
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
 
+                print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
+                print("safe distance is: ", safe_distance)
                 print("-------------end step {}----------".format(step_i))
 
                 seed+=1
