@@ -34,6 +34,13 @@ register(
     reward_threshold=20000.0,
 )
 
+register(
+    id='UR5RealTestEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_real_test:UR5RealTestEnv',
+    max_episode_steps=1000,
+    reward_threshold=20000.0,
+)
+
 
 
 

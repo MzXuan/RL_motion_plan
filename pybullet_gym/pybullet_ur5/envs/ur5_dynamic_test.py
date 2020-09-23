@@ -30,7 +30,7 @@ class UR5DynamicTestEnv(UR5DynamicReachEnv):
         self.ownsPhysicsClient = 0
         self.isRender = render
 
-        self.agents = [UR5EefRobot(3, ), SelfMoveHumanoid(0, 12)]
+        self.agents = [UR5EefRobot(3, ), SelfMoveHumanoid(0, 12, noise=True, move_base=True)]
         # self.agents = [UR5EefRobot(3, ),
         #                SelfMoveHumanoid(0, 12, is_training=True, move_base=True, noise=True)]
 
@@ -60,7 +60,7 @@ class UR5DynamicTestEnv(UR5DynamicReachEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(36,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(35,), dtype='float32'),
         ))
 
 

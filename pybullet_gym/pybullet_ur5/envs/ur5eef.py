@@ -45,7 +45,7 @@ class UR5EefRobot(UR5Robot):
 		self.upper_limits = [6, 0, 6, 0, 6, 6]
 		# self.orientation = [0, 0.7071068, 0, 0.7071068]
 		# self.orientation = [0.707, 0, 0.707, 0]
-		self.orientation = None
+		self.orientation = [0, 0.841471, 0, 0.5403023]
 
 
 		super(UR5EefRobot, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
@@ -78,6 +78,7 @@ class UR5EefRobot(UR5Robot):
 
 		return feasible_solution
 
+
 	def _is_in_range(self, jointPoses):
 		for i in range(0, 6):
 			if jointPoses[i] < self.upper_limits[i] and jointPoses[i] > self.lower_limits[i]:
@@ -85,7 +86,6 @@ class UR5EefRobot(UR5Robot):
 			else:
 				return False
 		return True
-
 
 
 	def _contact_detection(self):
@@ -111,10 +111,6 @@ class UR5EefRobot(UR5Robot):
 			collision_bodies.append(bodyinfo1[1].decode("utf-8"))
 			collision_bodies.append(bodyinfo2[1].decode("utf-8"))
 
-		# todo: check collision bodies
-
-		# print("collision_bodies: ", collision_bodies)
-
 		if len(collision_bodies) != 0:
 			if "ur5" in collision_bodies:  # robot collision
 				return True
@@ -133,9 +129,14 @@ class UR5EefRobot(UR5Robot):
 
 		ik_fn = ikfast_ur5.get_ik
 
-		# print("eef position, ", eef_position)
-		rot = np.array(self._p.getMatrixFromQuaternion(eef_orienration)).reshape(3, 3)
-		solutions = ik_fn(list(eef_position), list(rot), [1])
+
+		pose = self._p.multiplyTransforms(positionA=[0, 0, 0], orientationA=[0, 0, -1, 0],
+										  positionB=eef_position, orientationB=eef_orienration)
+
+
+		position = np.asarray(pose[0])
+		rotation = np.array(self._p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
+		solutions = ik_fn(position, rotation, [1])
 
 		n_conf_list = [normalize_conf(np.asarray([0,0,0,0,0,0]), conf) for conf in solutions]
 
@@ -201,26 +202,22 @@ class UR5EefRobot(UR5Robot):
 	def apply_action(self, a):
 		# todo: add dynamic limitation
 		assert (np.isfinite(a).all())
+
+
 		#scale
-		max_eef_velocity = 0.02
+		max_eef_velocity = 0.01
 		scale = max_eef_velocity
-		# state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)
-		# # print("link state is: ", state)
-		# position = list(state[0])
 
 		position = self.last_position.copy()
 		for i in range((self.action_space.shape)[0]):
 			position[i]+=a[i] * scale
 
-		# #---for debug---#
-		# debug_v = a *scale
-		# print("velocity is: ", debug_v)
-		# #---end debug---#
+
 
 		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														position
+														position, self.orientation
 														)
-		#velocity
+		# #velocity
 		self.last_position=position
 
 		self.jdict['shoulder_pan_joint'].reset_position(jointPoses[0], 0)
@@ -233,13 +230,6 @@ class UR5EefRobot(UR5Robot):
 
 
 	def calc_state(self):
-		# state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex, computeLinkVelocity=1)
-		# # print("link state is: ", state)
-		# position = np.asarray(list(state[0]))
-		# velocity = np.asarray(list(state[-2]))
-		# # obs = np.concatenate( (velocity, position))
-		# print("!!!!!!!!!!!!!obs shape is: ", position.shape)
-		# return position
 
 		# link_position = np.asarray([self.parts[j].get_position() for j in self.select_links if j in self.parts])
 

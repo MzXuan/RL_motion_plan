@@ -19,6 +19,7 @@ from pybullet_utils import bullet_client
 
 import utils
 import random
+import time
 
 # from pybullet_planning import link_from_name, get_moving_links, get_link_name
 # from pybullet_planning import get_joint_names, get_movable_joints
@@ -81,7 +82,7 @@ class UR5DynamicReachEnv(gym.Env):
         self.isRender = render
         # self.agents = [UR5RG2Robot(), SelfMoveHumanoid(0, 12)]
         # self.agents = [UR5Robot(), SelfMoveAwayHumanoid(0, 12)]
-        self.agents = [UR5EefRobot(3,), SelfMoveHumanoid(0, 12)]
+        self.agents = [UR5EefRobot(3,), SelfMoveHumanoid(0, 12, noise=True)]
 
         self._n_agents = 2
         self.seed()
@@ -120,7 +121,7 @@ class UR5DynamicReachEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(36,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(35,), dtype='float32'),
         ))
 
         print("self.observation space: ", self.observation_space)
@@ -137,7 +138,6 @@ class UR5DynamicReachEnv(gym.Env):
 
 
 
-
     def create_single_player_scene(self, bullet_client):
         self.stadium_scene = PlaneScene(bullet_client, gravity=9.8, timestep=0.0165 / 4, frame_skip=4)
 
@@ -150,16 +150,16 @@ class UR5DynamicReachEnv(gym.Env):
         self.box_pos = []
 
         self.human_pos = []
-        for i in range(6):
+        for i in range(4):
             for j in range(2):
-                x = (i - 3.0) / 5
-                y = (j - 4) / 6
+                x = (i - 1.5) / 5
+                y = (j - 3.5) / 5
                 z = 0
 
                 id_temp = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
                                                               "scenes_data", "targetbox/targetbox.urdf"),
                                                  [x, y, z], [0.000000, 0.000000, 0.0, 0.1])
-                if j == 1:
+                if j >0 :
                     self.box_ids.append(id_temp)
                     self.box_pos.append([x, y, z])
 
@@ -256,7 +256,7 @@ class UR5DynamicReachEnv(gym.Env):
             self.robot_start_eef = robot_eef_pose
 
 
-            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.0, -1.1],
+            ah = self.agents[1].reset(self._p, base_position=[0.0, -1.1, -1.1],
                                       base_rotation=[0, 0, 0.7068252, 0.7073883])
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base, base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
             # print("reset to robot eef pose, ", self.robot_start_eef)
@@ -279,6 +279,8 @@ class UR5DynamicReachEnv(gym.Env):
         return 0.1
         # return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
+    def get_obs(self):
+        return self._get_obs()
 
 
     def _is_close(self, p, threshold = 0.3):
@@ -333,6 +335,7 @@ class UR5DynamicReachEnv(gym.Env):
     def step(self, actions):
         self.iter_num += 1
 
+
         for i, agent in enumerate(self.agents):
             act_dim = self.agents_action_space[i].shape[0]
             if i == 0:
@@ -345,19 +348,25 @@ class UR5DynamicReachEnv(gym.Env):
 
             agent.apply_action(act)
 
+
+
+
         self.scene.global_step()
 
         obs = self._get_obs()
 
+
         done = False
+
 
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
             'is_collision': self._contact_detection(),
             'alternative_goals': obs['observation'][-6:],
-            'min_dist':obs['observation'][-2],
-            'safe_threshold':obs['observation'][-1]
+            'min_dist': self.obs_min_safe_dist,
+            'safe_threshold': self.current_safe_dist
         }
+
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
 
 
@@ -366,6 +375,7 @@ class UR5DynamicReachEnv(gym.Env):
         if self.early_stop:
             if info["is_success"] or info["is_collision"]:
                 done = True
+
         return obs, reward, done, info
 
 
@@ -415,6 +425,8 @@ class UR5DynamicReachEnv(gym.Env):
                                        self.agents[1].robot_body.bodies[0],
                                        distance = self.max_obs_dist_threshold)  # max perception threshold
         min_dist = self.max_obs_dist_threshold
+
+
         # print("pts: ", pts)
         for i in range(len(pts)):
             if pts[i][8] < min_dist:
@@ -431,9 +443,17 @@ class UR5DynamicReachEnv(gym.Env):
         # self.current_safe_dist = np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
         achieved_goal = ur5_eef_position
+        self.obs_min_safe_dist = min_dist
+
 
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
-                              np.asarray(self.goal).flatten(), np.asarray([min_dist, self.current_safe_dist])])
+                              np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+
+        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
+        #                       np.asarray(self.goal).flatten()])
+
+        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
+        #                       np.asarray(self.goal).flatten(), np.asarray([min_dist, self.current_safe_dist])])
 
 
         return {

@@ -230,100 +230,58 @@ def main(args):
         save_path = osp.expanduser(args.save_path)
         model.save(save_path)
 
+    env.close()
+
+    start_t = time.time()
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        env = gym.make(args.env)
+        env = gym.make("UR5RealTestEnv-v0")
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 781
+        seed = 2
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
 
-        state = model.initial_state if hasattr(model, 'initial_state') else None
-        dones = np.zeros((1,))
-
-        fail_count = 0
-        success_count = 0
-
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
 
-        min_dist_list = []
-        # env.render(mode="human")
         traj_count = 0
-        success_rg_dist=[]
-        fail_rg_dist=[]
+        total_steps = 1
+
         while traj_count < 300:
-            time.sleep(0.03)
-            if state is not None:
-                actions, _, state, _ = model.step(obs,S=state, M=dones)
-            else:
-                actions, Q, _, _ = model.step_with_q(obs)
-                # actions, _, _, _ = model.step(obs)
-                # print("q is: ", Q)
-            obs, rew, done, info = env.step(actions)
+            try:
+                time.sleep(0.01)
+
+                obs = env.get_obs() #0.001
+                actions, _, _, _ = model.step(obs)  #0.002s
+                obs, rew, done, info = env.step(actions) #0.01s
+
+                print("actions is: ",actions)
 
 
-
-            safe_distance = info['safe_threshold']
-            # print("min dist is: ", info['min_dist'])
-            if info['min_dist']<0.6:
-                min_dist_list.append(info['min_dist'])
-
-            r_g_dist = np.linalg.norm(obs['achieved_goal']-obs['desired_goal'])
-            if info['min_dist'] < 0.2:
-                if info['is_collision'] is True:
-                    fail_rg_dist.append(r_g_dist)
-                else:
-                    success_rg_dist.append(r_g_dist)
-
-
-
-
-
-            episode_rew += rew
-            # env.render()
-            done_any = done.any() if isinstance(done, np.ndarray) else done
-            if done_any:
-                print("random seed is: ", seed)
-
-                if info['is_collision'] is True:
-                    print("min dist", info['min_dist'])
-                    # robot goal distance
-                    print("fail")
-                    fail_count+=1
-                elif info['is_success'] == 1.0:
-                    print('success')
-                    success_count+=1
-                else:
-                    fail_count+=1
-                    print("fail with unknown reason")
-
-                for i in np.nonzero(done)[0]:
-                    print('episode_rew={}'.format(episode_rew[i]))
-                    episode_rew[i] = 0
-
-
-
-                print("-------------end step {}----------".format(traj_count))
-                traj_count+=1
-                seed +=1
-                np.random.seed(seed)
-                tf.set_random_seed(seed)
-                random.seed(seed)
-                obs = env.reset()
-                # time.sleep(1)
+                episode_rew += rew
+                total_steps+=1
                 # env.render()
-                print("--------start----------")
+                done_any = done.any() if isinstance(done, np.ndarray) else done
+                if done_any:
+                    for i in np.nonzero(done)[0]:
+                        print('episode_rew={}'.format(episode_rew[i]))
+                        episode_rew[i] = 0
 
-        print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
-        print("safe distance is: ", safe_distance)
-        print("for minimum dist < 0.1, success rg dist mean is: ", np.asarray(success_rg_dist).mean())
-        print("for minimum dist < 0.1, fail rg dist mean is: ", np.asarray(fail_rg_dist).mean())
-        print("success rate is: ", success_count/(fail_count+success_count))
+                    print("total steps is {} and spend time {}".format(total_steps, time.time()-start_t))
+                    print("-------------end step {}---------".format(traj_count))
+                    traj_count+=1
+                    seed +=1
+                    obs = env.reset()
+
+                    print("--------start----------")
+            except KeyboardInterrupt:
+                env.close()
+                raise
+
 
     env.close()
 

@@ -275,8 +275,9 @@ class SelfMoveHumanoid(Humanoid):
 
         if self.noise is True:
             self.time += np.random.uniform(1,5)
+            # self.time+=np.random.uniform(4,10)
         else:
-            self.time += 2
+            self.time += 1
 
         self.jdict["right_shoulder1"].reset_position(-0.5, 0)
         self.jdict["right_shoulder2"].reset_position(-0.9, 0)
@@ -372,9 +373,9 @@ class SelfMoveHumanoid(Humanoid):
             z = mean[2] + var[2] * math.cos(t / 15) + 0 * (np.random.random() - 0.5) * 2
 
             h_action = [x, y, z]
-
+        #
         if self.noise is True:
             h_action[0]+=np.random.uniform(-0.01,0.01)
             h_action[1] += np.random.uniform(-0.01, 0.01)
-            h_action[2] += np.random.uniform(-0.01, 0.1)
+            h_action[2] += np.random.uniform(-0.01, 0.01)
         return h_action
