@@ -80,9 +80,14 @@ class UR5DynamicReachEnv(gym.Env):
         self.physicsClientId = -1
         self.ownsPhysicsClient = 0
         self.isRender = render
+
+        self.hz = 240
+        self.sim_dt = 1.0 / self.hz
+        self.frame_skip = 4
+
         # self.agents = [UR5RG2Robot(), SelfMoveHumanoid(0, 12)]
         # self.agents = [UR5Robot(), SelfMoveAwayHumanoid(0, 12)]
-        self.agents = [UR5EefRobot(3,), SelfMoveHumanoid(0, 12, noise=True)]
+        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3 ), SelfMoveHumanoid(0, 12, noise=True)]
 
         self._n_agents = 2
         self.seed()
@@ -104,17 +109,6 @@ class UR5DynamicReachEnv(gym.Env):
         self.reward_type = reward_type
 
 
-        # self.n_actions=3
-        # self.reset()
-        # self.goal = np.zeros(3)
-        # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
-        # obs = self._get_obs()
-        # self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
-        # self.observation_space = gym.spaces.Dict(dict(
-        #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
-        #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
-        #     observation=gym.spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
-        # ))
 
         self.n_actions = 3
         self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
@@ -138,8 +132,9 @@ class UR5DynamicReachEnv(gym.Env):
 
 
 
+
     def create_single_player_scene(self, bullet_client):
-        self.stadium_scene = PlaneScene(bullet_client, gravity=9.8, timestep=0.0165 / 4, frame_skip=4)
+        self.stadium_scene = PlaneScene(bullet_client, gravity=0, timestep=self.sim_dt, frame_skip=self.frame_skip)
 
         # self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
         #                        [-1, -0.9, -1.0],
@@ -150,9 +145,9 @@ class UR5DynamicReachEnv(gym.Env):
         self.box_pos = []
 
         self.human_pos = []
-        for i in range(4):
+        for i in range(6):
             for j in range(2):
-                x = (i - 1.5) / 5
+                x = (i - 2.5) / 5
                 y = (j - 3.5) / 5
                 z = 0
 
@@ -211,6 +206,9 @@ class UR5DynamicReachEnv(gym.Env):
             else:
                 self._p = bullet_client.BulletClient()
 
+            self._p.setGravity(0, 0, -9.81)
+            self._p.setTimeStep(self.sim_dt)
+
             self.physicsClientId = self._p._client
             self._p.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
 
@@ -232,7 +230,9 @@ class UR5DynamicReachEnv(gym.Env):
 
         # ---select goal from boxes---#
         self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
-        self.goal[2]+=np.random.uniform(0.1,0.3)
+        self.goal[0] += np.random.uniform(-0.1,0.1)
+        self.goal[1] += np.random.uniform(-0.2, 0)
+        self.goal[2] += np.random.uniform(0.1,0.3)
         self.goal_orient = [0.0, 0.707, 0.0, 0.707]
 
 
@@ -247,9 +247,9 @@ class UR5DynamicReachEnv(gym.Env):
             #
             # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
 
-            x = np.random.uniform(0.2, 0.5)
-            y = np.random.uniform(-0.5, -0.4)
-            z = np.random.uniform(0.2, 0.3)
+            x = np.random.uniform(0.2, 0.8)
+            y = np.random.uniform(-0.6, -0.2)
+            z = np.random.uniform(0.2, 0.5)
 
             robot_eef_pose = [np.random.choice([-1, 1])*x, y, z]
 
@@ -298,6 +298,7 @@ class UR5DynamicReachEnv(gym.Env):
     def render(self, mode='human', close=False):
         if mode == "human":
             self.isRender = True
+
         if mode != "rgb_array":
             return np.array([])
 
@@ -305,6 +306,8 @@ class UR5DynamicReachEnv(gym.Env):
         if (hasattr(self, 'robot')):
             if (hasattr(self.robot, 'body_xyz')):
                 base_pos = self.robot.body_xyz
+
+        self._p.setRealTimeSimulation(0)
 
         view_matrix = self._p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos,
                                                                 distance=self._cam_dist,
@@ -347,7 +350,6 @@ class UR5DynamicReachEnv(gym.Env):
                 return False
 
             agent.apply_action(act)
-
 
 
 

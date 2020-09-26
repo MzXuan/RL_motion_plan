@@ -14,7 +14,6 @@ from ur5 import UR5Robot
 import random
 
 from ur5_control import UR5Control
-import time
 
 import ikfast_ur5
 
@@ -179,7 +178,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         assert (np.isfinite(a).all())
         # scale
 
-        max_eef_velocity = 0.2
+        max_eef_velocity = 0.008
         scale = max_eef_velocity
 
         current_position = self.ur5_rob_control.get_tool_state()[:3]
@@ -193,11 +192,19 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
                                                         self.parts['ee_link'].bodyPartIndex,
                                                         next_position))
 
+        joint_position, joint_velocity = self.ur5_rob_control.get_joint_state()
 
-        joint_v = next_joint - current_joint
+        joint_v = (next_joint - current_joint)/(1/60)
+
+        print("joint velocity: ", joint_velocity)
+        print("joint v: ", joint_v)
+        print("acc is ", joint_v-joint_velocity)
 
         #todo: set joint v
         # print("robot joint velocity is: ", joint_v)
+
+
+
         self.ur5_rob_control.set_joint_velocity(joint_v)
 
 

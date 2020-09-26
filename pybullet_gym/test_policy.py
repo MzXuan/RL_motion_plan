@@ -97,7 +97,7 @@ def main(fpath, env, itr):
 
     if fpath is None:
         # get_action=lambda obs: [-0.1, 0.1, 0.1, 0, 0, 0]
-        get_action = lambda obs: [-1, 0, -1]
+        get_action = lambda obs: [1, 0, 0]
     else:
         get_action = load_tf_policy(fpath, itr)
 
@@ -112,8 +112,7 @@ def main(fpath, env, itr):
     print("obs initial", obs)
     id=0
 
-    env.render(mode="human")
-
+    env.render()
     ## start simulation loop ##
 
     while(id<300):
@@ -121,16 +120,18 @@ def main(fpath, env, itr):
             time.sleep(0.03)
             obs = env.get_obs()
             action = get_action(obs)
+            # print("action: ", action)
             obs, rew, done, info = env.step(action)
             #
-            # print("action: ", action)
+
             # print("reward: ", rew)
             # print("obs is: ", obs['observation'][7:13])
             # print("info is:", info)
 
             if done == True:
                 #reset all
-                time.sleep(0.1)
+                print("reset")
+
                 env.reset()
                 # save data
                 #reset
@@ -153,8 +154,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--fpath', type=str, default=None)
     parser.add_argument('--itr', '-i', type=int, default=-1)
-    # parser.add_argument("--env", type=str, default="UR5RealTestEnv-v0")
-    parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5RealTestEnv-v0")
+    # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v0")
     # parser.add_argument("--env", type=str, default="UR5DynamicTestEnv-v0")
 
     args = parser.parse_args()

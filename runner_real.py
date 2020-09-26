@@ -232,11 +232,11 @@ def main(args):
 
     env.close()
 
-    start_t = time.time()
+
     if args.play:
-        pybullet.connect(pybullet.DIRECT)
+        # pybullet.connect(pybullet.DIRECT)
         env = gym.make("UR5RealTestEnv-v0")
-        env.render("human")
+        # env.render("human")
 
         logger.log("Running trained model")
         seed = 2
@@ -253,13 +253,12 @@ def main(args):
 
         while traj_count < 300:
             try:
-                time.sleep(0.01)
+                # time.sleep(0.01)
 
                 obs = env.get_obs() #0.001
                 actions, _, _, _ = model.step(obs)  #0.002s
                 obs, rew, done, info = env.step(actions) #0.01s
 
-                print("actions is: ",actions)
 
 
                 episode_rew += rew
@@ -267,11 +266,11 @@ def main(args):
                 # env.render()
                 done_any = done.any() if isinstance(done, np.ndarray) else done
                 if done_any:
-                    for i in np.nonzero(done)[0]:
-                        print('episode_rew={}'.format(episode_rew[i]))
-                        episode_rew[i] = 0
+                    # for i in np.nonzero(done)[0]:
+                    #     print('episode_rew={}'.format(episode_rew[i]))
+                    #     episode_rew[i] = 0
 
-                    print("total steps is {} and spend time {}".format(total_steps, time.time()-start_t))
+
                     print("-------------end step {}---------".format(traj_count))
                     traj_count+=1
                     seed +=1

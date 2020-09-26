@@ -6,7 +6,13 @@ os.sys.path.insert(0, parentdir)
 os.sys.path.insert(0, currentdir)
 from humanoid import SelfMoveHumanoid
 from ur5_real import UR5RealRobot
+from ur5eef import UR5EefRobot
+from humanoid_real import RealHumanoid
 from .ur5_dynamic_reach import UR5DynamicReachEnv
+
+
+import assets
+from scenes.stadium import StadiumScene, PlaneScene
 
 import gym, gym.spaces, gym.utils, gym.utils.seeding
 from gym.spaces import Tuple
@@ -33,7 +39,13 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.ownsPhysicsClient = 0
         self.isRender = render
 
-        self.agents = [UR5RealRobot(3, ), SelfMoveHumanoid(0, 12, noise=False, move_base=False)]
+        self.hz = 240
+        self.sim_dt = 1.0 / self.hz
+        self.frame_skip = 4
+
+        # self.agents = [UR5RealRobot(3, ), SelfMoveHumanoid(0, 12, noise=False, move_base=False)]
+
+        self.agents = [UR5EefRobot(3, ), RealHumanoid()]
         # self.agents = [UR5EefRobot(3, ),
         #                SelfMoveHumanoid(0, 12, is_training=True, move_base=True, noise=True)]
 
@@ -72,11 +84,12 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.agents_observation_space = Tuple([
             agent.observation_space for agent in self.agents
         ])
-        self.agents_action_space = Tuple([
-            agent.action_space for agent in self.agents
-        ])
+        # self.agents_action_space = Tuple([
+        #     agent.action_space for agent in self.agents
+        # ])
 
         self.first_reset = True
+
 
     def reset(self):
         self.last_human_eef = [0, 0, 0]
@@ -118,13 +131,25 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.goal[1] += np.random.uniform(-0.2, 0)
         self.goal[2]+=np.random.uniform(0.1,0.3)
         self.goal_orient = [0.0, 0.707, 0.0, 0.707]
-        ah = self.agents[1].reset(self._p, base_position=[0.0, -1.1, -1.1],
-                                  base_rotation=[0, 0, 0.7068252, 0.7073883])
+        ah = self.agents[1].reset(self._p)
 
-        if self.first_reset is True:
-            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
-        else:
-            ar = self.agents[0].calc_state()
+        x = np.random.uniform(0.2, 0.8)
+        y = np.random.uniform(-0.6, -0.2)
+        z = np.random.uniform(0.2, 0.5)
+
+        robot_eef_pose = [np.random.choice([-1, 1]) * x, y, z]
+
+        self.robot_start_eef = robot_eef_pose
+
+        ah = self.agents[1].reset(self._p)
+        ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
+                                  base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
+
+
+        # if self.first_reset is True:
+        #     ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
+        # else:
+        #     ar = self.agents[0].calc_state()
 
         self._p.stepSimulation()
         obs = self._get_obs()
@@ -135,6 +160,46 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
+
+    def create_single_player_scene(self, bullet_client):
+        self.stadium_scene = PlaneScene(bullet_client, gravity=0, timestep=self.sim_dt, frame_skip=self.frame_skip)
+
+        # self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
+        #                        [-1, -0.9, -1.0],
+        #                        [0.000000, 0.000000, 0.0, 1])
+
+        # add target box goals
+        self.box_ids = []
+        self.box_pos = []
+
+        self.human_pos = []
+        for i in range(6):
+            for j in range(2):
+                x = (i - 2.5) / 5
+                y = (j - 3.5) / 5
+                z = 0
+
+                id_temp = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
+                                                              "scenes_data", "targetbox/targetbox.urdf"),
+                                                 [x, y, z], [0.000000, 0.000000, 0.0, 0.1])
+                if j >0 :
+                    self.box_ids.append(id_temp)
+                    self.box_pos.append([x, y, z])
+
+
+                bullet_client.changeVisualShape(id_temp, -1, rgbaColor=[1,1,0,1])
+                self.human_pos.append([x,y,z])
+
+
+
+        self.goal_id = bullet_client.loadURDF(
+            os.path.join(assets.getDataPath(), "scenes_data", "targetball/targetball.urdf"),
+            [0, 0, 0],
+            [0.000000, 0.000000, 0.0, 1])
+
+
+
+        return self.stadium_scene
 
     def _set_safe_distance(self):
             return 0.1
@@ -173,9 +238,14 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         # human to robot base minimum distance
 
+        # pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
+        #                                self.agents[1].robot_body.bodies[0],
+        #                                distance=self.max_obs_dist_threshold)  # max perception threshold
+
         pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
-                                       self.agents[1].robot_body.bodies[0],
+                                       self.agents[1].robot_id,
                                        distance=self.max_obs_dist_threshold)  # max perception threshold
+
         min_dist = self.max_obs_dist_threshold
 
         # print("pts: ", pts)
@@ -205,6 +275,38 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
+    def step(self, actions):
+        self.iter_num += 1
+
+
+
+        self.agents[0].apply_action(actions)
+
+        self.scene.global_step()
+
+        obs = self._get_obs()
+
+        done = False
+
+        info = {
+            'is_success': self._is_success(obs['achieved_goal'], self.goal),
+            'is_collision': self._contact_detection(),
+            'alternative_goals': obs['observation'][-6:],
+            'min_dist': self.obs_min_safe_dist,
+            'safe_threshold': self.current_safe_dist
+        }
+
+        reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
+
+        if self.iter_num > self.max_episode_steps:
+            done = True
+        if self.early_stop:
+            if info["is_success"] or info["is_collision"]:
+                done = True
+
+        return obs, reward, done, info
+
 
 
 

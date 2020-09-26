@@ -29,8 +29,8 @@ class UR5Control():
 
 
     def set_joint_velocity(self, target):
-        target = target.clip(min=-0.08, max=0.08)
-        self.rob.speedj(target,acc=0.3, min_time=10)
+        target = target.clip(min=-0.04, max=0.04)
+        self.rob.speedj(target,acc=0.2, min_time=10)
 
 
     def stop(self):
@@ -54,12 +54,14 @@ if __name__ == '__main__':
     print("tool state, ", tool_state)
 
     target_v = np.asarray(robjv)-0.02
-    ur5.set_joint_velocity(target_v)
+    # ur5.set_joint_velocity(target_v)
 
     while True:
         try:
             print("target v", target_v)
             robjp, robjv = ur5.get_joint_state()
+            test = ur5.get_tool_state()
+            ur5.set_joint_velocity(target_v)
             print("robv", robjv)
 
         except KeyboardInterrupt:

@@ -25,6 +25,7 @@ class PlaneScene(Scene):
 
 
 
+
 class StadiumScene(Scene):
 	multiplayer = False
 	zero_at_running_strip_start_line = True   # if False, center of coordinates (0,0,0) will be at the middle of the stadium
