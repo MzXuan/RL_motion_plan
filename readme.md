@@ -1,22 +1,22 @@
 ## bullet runner
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=3e5 --save_path=~/models/ur5_reach_c20_0924_1 --log_path=~/log/ur5_reach_c20_0924_1
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=5e5 --save_path=~/models/ur5_reach_c20_0930_1 --log_path=~/log/ur5_reach_c20_0930_1 --load_path=~/models/ur5_reach_c20_0930_1
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_8 --log_path=~/log/ur5_reach_her_8
 
 ### bullet play
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_0924_1 --play
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_0930_1 --play
 
 
 ## real robot test env: (BE CAREFUL!!!!)
-python runner_real.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=0 --load_path=~/models/ur5_reach_c20_0922_3 --play
+python runner_real.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_0930_1 --play
 
-
+__
 # her:
 python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_5 --log_path=~/log/fetch_reach_her_5 --load_path=~/models/fetch_reach_her_5
 
 python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=5000 --load_path=~/models/fetch_reach_her --play
 
-python runner.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
+python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_her --play
 
 # test q value function:
 python runner_test_q.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
@@ -35,10 +35,10 @@ python runner_test_v.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robo
 
 # ddpg only:
 train:
-python runner.py --alg=ddpg --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_ddpg --log_path=~/log/fetch_ddpg --load_path=~/models/fetch_ddpg
+python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_her --log_path=~/log/fetch_her 
 
 test:
-python runner.py --alg=ddpg --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_ddpg --play
+python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_timesteps=0 --load_path=~/models/fetch_her --play
 
 __
 

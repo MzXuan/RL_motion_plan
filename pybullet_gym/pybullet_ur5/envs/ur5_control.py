@@ -13,23 +13,30 @@ class UR5Control():
 
     def get_joint_state(self):
         robjp, robjv = self.rob.getj(getv=True)
-
         return robjp, robjv
 
     def get_tool_state(self):
-        p = self.rob.get_pos().array
-        ori = self.rob.get_orientation().quaternion.array #x,y,z,w
-        return np.concatenate([p, ori])
+        pose = self.rob.get_tcp_speed()
+        vel = pose.array
+        p,_ = self.rob.get_tcp_pose()
+        return p, vel
 
-    def set_tool_velocity(self):
-        return 0
+    def get_tool_state_2(self):
+        pos = self.rob.get_pos().array
+        return pos
 
-    def set_joint_position(self, target):
-        self.rob.movej(target, acc=0.2, vel=0.05)
+
+    def set_tool_velocity(self, velocity):
+        self.rob.speedl(velocities=velocity, acc=0.1, min_time=2)
+
+
+    def set_joint_position(self, target, wait=True):
+        self.rob.movej(target, acc=0.3, vel=0.1, wait=wait)
 
 
     def set_joint_velocity(self, target):
-        target = target.clip(min=-0.04, max=0.04)
+        # target = target.clip(min=-0.04, max=0.04)
+        print("target velocity", target)
         self.rob.speedj(target,acc=0.2, min_time=10)
 
 
@@ -53,20 +60,43 @@ if __name__ == '__main__':
     tool_state = ur5.get_tool_state()
     print("tool state, ", tool_state)
 
-    target_v = np.asarray(robjv)-0.02
+
+    #
+    tool_vel = [-0.01, 0, -0.01, 0, 0, 0]
+    # target_v = np.asarray(robjv)+0.02
     # ur5.set_joint_velocity(target_v)
+
 
     while True:
         try:
-            print("target v", target_v)
-            robjp, robjv = ur5.get_joint_state()
-            test = ur5.get_tool_state()
-            ur5.set_joint_velocity(target_v)
-            print("robv", robjv)
+
+            ur5.set_tool_velocity(tool_vel)
+            # print("target v", target_v)
+            # robjp, robjv = ur5.get_joint_state()
+            # p, vel = ur5.get_tool_state()
+            # print("postion, {} and vel {}".format(p, vel))
+            #
+            # ur5.set_joint_velocity(target_v)
+            # print("robv", robjv)
 
         except KeyboardInterrupt:
             ur5.close()
             raise
+    #
+    # target_v = np.asarray(robjv)-0.02
+    # # ur5.set_joint_velocity(target_v)
+    #
+    # while True:
+    #     try:
+    #         # print("target v", target_v)
+    #         robjp, robjv = ur5.get_joint_state()
+    #         test = ur5.get_tool_state()
+    #         ur5.set_joint_velocity(target_v)
+    #         # print("robv", robjv)
+    #
+    #     except KeyboardInterrupt:
+    #         ur5.close()
+    #         raise
 
     # target_p=np.asarray(robjp)-0.1
     #

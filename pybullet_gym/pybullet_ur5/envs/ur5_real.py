@@ -178,42 +178,62 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         assert (np.isfinite(a).all())
         # scale
 
-        max_eef_velocity = 0.008
+        max_eef_velocity = 0.05
         scale = max_eef_velocity
 
-        current_position = self.ur5_rob_control.get_tool_state()[:3]
+        # current_position,_ = self.ur5_rob_control.get_tool_state()
+
+        current_position = self.ur5_rob_control.get_tool_state_2()
         current_joint = self.ur5_rob_control.get_joint_state()[0]
         next_position = current_position.copy()
         for i in range((self.action_space.shape)[0]):
             next_position[i] += a[i] * scale
+        # print("current_tool_position",current_position)
+        # print("next_tool_position",next_position)
+        # print("action ", a)
 
 
-        next_joint = np.asarray(self._p.calculateInverseKinematics(self.robot_body.bodies[0],
-                                                        self.parts['ee_link'].bodyPartIndex,
-                                                        next_position))
+        # next_joint = np.asarray(self._p.calculateInverseKinematics(self.robot_body.bodies[0],
+        #                                                 self.parts['ee_link'].bodyPartIndex,
+        #                                                 next_position))
+
+        next_joint = np.asarray(self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+                                                        next_position, self.orientation
+                                                        ))
 
         joint_position, joint_velocity = self.ur5_rob_control.get_joint_state()
 
-        joint_v = (next_joint - current_joint)/(1/60)
+        joint_v = (next_joint - current_joint)
 
-        print("joint velocity: ", joint_velocity)
-        print("joint v: ", joint_v)
-        print("acc is ", joint_v-joint_velocity)
+        # print("joint velocity: ", joint_velocity)
+        # print("joint v: ", joint_v)
+        # print("acc is ", joint_v-joint_velocity)
 
         #todo: set joint v
         # print("robot joint velocity is: ", joint_v)
 
 
+        # self.ur5_rob_control.set_joint_position(next_joint, wait=False)
+        # self.ur5_rob_control.set_joint_velocity(joint_v)
+        delta_tool_position = next_position - current_position
+        delta_tool_orientation = [0,0,0]
 
-        self.ur5_rob_control.set_joint_velocity(joint_v)
+        self.ur5_rob_control.set_tool_velocity(np.concatenate([np.asarray(delta_tool_position), np.asarray(delta_tool_orientation)]))
 
 
 
     def calc_state(self):
         # todo: get from real robot
         joint_position, joint_velocity = self.ur5_rob_control.get_joint_state()
-        eef_pose = self.ur5_rob_control.get_tool_state()
-        obs = np.concatenate((eef_pose, np.asarray(joint_position), np.asarray(joint_velocity)))
+        # eef_pos, eef_vel = self.ur5_rob_control.get_tool_state()
+
+        eef_pos = self.ur5_rob_control.get_tool_state_2()
+        # joint_velocity = np.asarray(joint_velocity)*50
+        # obs = np.concatenate((eef_pose, np.asarray(joint_position), np.asarray(joint_velocity)))
+        # print("eef vel: ", eef_vel)
+
+        # obs = np.concatenate((eef_pos, np.asarray(joint_position)))
+        # obs = np.concatenate((eef_pos,eef_vel*1, np.asarray(joint_position)))
 
         # 同步obs 到simulator
         self.jdict['shoulder_pan_joint'].reset_position(joint_position[0], 0)
@@ -223,6 +243,8 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         self.jdict['wrist_2_joint'].reset_position(joint_position[4], 0)
         self.jdict['wrist_3_joint'].reset_position(joint_position[5], 0)
 
+        # print("joint_velocity,",joint_velocity)
+        obs = eef_pos
         return obs
 
     def stop(self):

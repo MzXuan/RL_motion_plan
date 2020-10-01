@@ -124,7 +124,7 @@ class FetchReachV2Env(robot_env.RobotEnv):
     def __init__(
         self, model_path=MODEL_XML_PATH, n_substeps=20, gripper_extra_height=0.2, block_gripper=True,
         has_object=False, target_in_the_air=True, target_offset=0.0, obj_range=0.15, target_range=0.4,
-        distance_threshold=0.03, initial_qpos=INITIAL_QPOS, reward_type='dense', early_stop=False, obstacle_speed=0.015):
+        distance_threshold=0.03, initial_qpos=INITIAL_QPOS, reward_type='sparse', early_stop=False, obstacle_speed=0.015):
         """Initializes a new Fetch environment.
 
         Args:
@@ -215,9 +215,6 @@ class FetchReachV2Env(robot_env.RobotEnv):
             if info["is_success"] or info["is_collision"]:
                 done = True
         return obs, reward, done, info
-
-
-
 
 
     # RobotEnv methods

@@ -274,10 +274,11 @@ class SelfMoveHumanoid(Humanoid):
         position = self.human_motion_generator()
 
         if self.noise is True:
-            self.time += np.random.uniform(1,3)
+            self.time += np.random.uniform(1,5)*0.5
+            # self.time += 0
             # self.time+=np.random.uniform(4,10)
         else:
-            self.time += 1
+            self.time += 0.5
 
         self.jdict["right_shoulder1"].reset_position(-0.5, 0)
         self.jdict["right_shoulder2"].reset_position(-0.9, 0)

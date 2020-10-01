@@ -230,13 +230,14 @@ def main(args):
         save_path = osp.expanduser(args.save_path)
         model.save(save_path)
 
+
     if args.play:
         pybullet.connect(pybullet.DIRECT)
         env = gym.make(args.env)
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 781
+        seed = 10
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -256,15 +257,22 @@ def main(args):
         traj_count = 0
         success_rg_dist=[]
         fail_rg_dist=[]
+
+        data_list = []
         while traj_count < 300:
             time.sleep(0.03)
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
                 actions, Q, _, _ = model.step_with_q(obs)
-                # actions, _, _, _ = model.step(obs)
-                # print("q is: ", Q)
+                data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+
+
+
             obs, rew, done, info = env.step(actions)
+
+            print("actions: ", actions)
+            print("info", info)
 
 
 
@@ -283,11 +291,14 @@ def main(args):
 
 
 
-
             episode_rew += rew
             # env.render()
             done_any = done.any() if isinstance(done, np.ndarray) else done
             if done_any:
+                np.savetxt("./simulate_data.csv", np.asarray(data_list), delimiter=",")
+                data_list = []
+                # break
+
                 print("random seed is: ", seed)
 
                 if info['is_collision'] is True:

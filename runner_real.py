@@ -9,6 +9,10 @@ import numpy as np
 import random
 import time
 import pybullet
+import cv2
+
+
+import pandas as pd
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -239,11 +243,12 @@ def main(args):
         # env.render("human")
 
         logger.log("Running trained model")
-        seed = 2
+        seed = 0
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
+        # env.render("rgb_array")
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
@@ -251,24 +256,45 @@ def main(args):
         traj_count = 0
         total_steps = 1
 
+
+        data_list = []
+
         while traj_count < 300:
             try:
-                # time.sleep(0.01)
-
+                time.sleep(0.01)
                 obs = env.get_obs() #0.001
+                # print("obs",obs)
                 actions, _, _, _ = model.step(obs)  #0.002s
+                data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+
                 obs, rew, done, info = env.step(actions) #0.01s
 
+                # img = env.render("rgb_array")
+                # cv2.imshow("image", img)
+                # cv2.waitKey(1)
+                print("actions:", actions)
 
+                print("achieved goal", obs['achieved_goal'])
+                print("desired goal", obs['desired_goal'])
 
                 episode_rew += rew
                 total_steps+=1
                 # env.render()
                 done_any = done.any() if isinstance(done, np.ndarray) else done
                 if done_any:
-                    # for i in np.nonzero(done)[0]:
-                    #     print('episode_rew={}'.format(episode_rew[i]))
-                    #     episode_rew[i] = 0
+                    np.savetxt("./real_data.csv", np.asarray(data_list), delimiter=",")
+                    data_list= []
+
+                    env.agents[0].stop()
+                    time.sleep(2)
+                    # break
+
+
+                    for i in np.nonzero(done)[0]:
+                        print('episode_rew={}'.format(episode_rew[i]))
+                        episode_rew[i] = 0
+
+
 
 
                     print("-------------end step {}---------".format(traj_count))

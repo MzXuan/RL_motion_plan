@@ -24,8 +24,8 @@ import time
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True,  distance_threshold=0.05,
-                 max_obs_dist=0.4, dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 early_stop=True,  distance_threshold=0.03,
+                 max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
         self.distance_close = 0.3
@@ -45,8 +45,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         # self.agents = [UR5RealRobot(3, ), SelfMoveHumanoid(0, 12, noise=False, move_base=False)]
 
-        self.agents = [UR5RealRobot(3, ), RealHumanoid()]
-        # self.agents = [UR5EefRobot(3, ), RealHumanoid()]
+        self.agents = [UR5EefRobot(3, ), RealHumanoid()]
         # self.agents = [UR5EefRobot(3, ),
         #                SelfMoveHumanoid(0, 12, is_training=True, move_base=True, noise=True)]
 
@@ -76,7 +75,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(19,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(35,), dtype='float32'),
         ))
 
 
@@ -89,9 +88,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         #     agent.action_space for agent in self.agents
         # ])
 
-
         self.first_reset = True
-
 
 
     def reset(self):
@@ -129,52 +126,33 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.robot_base = [0, 0, 0]
 
         # ---select goal from boxes---#
-        # self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
-        # self.goal[0] += np.random.uniform(-0.15, 0.15)
-        # self.goal[1] += np.random.uniform(-0.2, 0)
-        # self.goal[2]+=np.random.uniform(0.1,0.3)
-
-
-        #for gebug
-
-
-        #------------fake human--------------------------------
-        # ah = self.agents[1].reset(self._p, base_position=[0.0, -1.1, -1.1],
-        #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
-
-
-        # #------------------fake robot-------------------
-        # ah = self.agents[1].reset(self._p)
-        #
-        # x = np.random.uniform(0.2, 0.8)
-        # y = np.random.uniform(-0.6, -0.2)
-        # z = np.random.uniform(0.2, 0.5)
-        #
-        # robot_eef_pose = [np.random.choice([-1, 1]) * x, y, z]
-        #
-        # self.robot_start_eef = robot_eef_pose
-        # ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
-        #                           base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-
-        #---------------real human----------------------------#
+        self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
+        self.goal[0] += np.random.uniform(-0.15, 0.15)
+        self.goal[1] += np.random.uniform(-0.2, 0)
+        self.goal[2]+=np.random.uniform(0.1,0.3)
+        self.goal_orient = [0.0, 0.707, 0.0, 0.707]
         ah = self.agents[1].reset(self._p)
-        # # #----real robot-----------------------------------------------#
-        if self.first_reset is True:
-            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
-        else:
-            ar = self.agents[0].calc_state()
 
-        rob_eef = ar[:3]
-        self.goal = np.asarray(rob_eef.copy())
-        self.goal[0] += np.random.uniform(-0.3, 0.3)
-        self.goal[1] += np.random.uniform(-0.3, 0.3)
-        self.goal[2] += np.random.uniform(-0.3, 0.3)
+        x = np.random.uniform(0.2, 0.8)
+        y = np.random.uniform(-0.6, -0.2)
+        z = np.random.uniform(0.2, 0.5)
 
+        robot_eef_pose = [np.random.choice([-1, 1]) * x, y, z]
+
+        self.robot_start_eef = robot_eef_pose
+
+        ah = self.agents[1].reset(self._p)
+        ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
+                                  base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
+
+
+        # if self.first_reset is True:
+        #     ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
+        # else:
+        #     ar = self.agents[0].calc_state()
 
         self._p.stepSimulation()
-
         obs = self._get_obs()
-
 
         s = []
         s.append(ar)
@@ -219,8 +197,6 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
             [0, 0, 0],
             [0.000000, 0.000000, 0.0, 1])
 
-        #----for debug-------------------------------------------
-        # self.agents[1].set_goal_position(self.human_pos)
 
 
         return self.stadium_scene
@@ -251,25 +227,45 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         infos['succeed'] = dones
 
-        human_position = humanoid_states[:6].reshape(2,3)
 
 
-        d = [np.linalg.norm([p-ur5_eef_position]) for p in human_position]
-        min_dist =np.min(np.asarray(d))
-        if min_dist > self.max_obs_dist_threshold:
-            min_dist = self.max_obs_dist_threshold
+        # todo: warning. update may need to replace
+        # self.last_human_eef = humanoid_eef_position
+        # self.last_robot_eef = ur5_eef_position
+        # self.last_robot_joint = rob_joint_state
+        #
+        # self.robot_current_p = ((ur5_eef_position), (ur5_eef_oriention))
+
+        # human to robot base minimum distance
+
+        # pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
+        #                                self.agents[1].robot_body.bodies[0],
+        #                                distance=self.max_obs_dist_threshold)  # max perception threshold
+
+        pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
+                                       self.agents[1].robot_id,
+                                       distance=self.max_obs_dist_threshold)  # max perception threshold
+
+        min_dist = self.max_obs_dist_threshold
+
+        # print("pts: ", pts)
+        for i in range(len(pts)):
+            if pts[i][8] < min_dist:
+                min_dist = pts[i][8]
+        if len(pts) == 0:
+            # normalize
             obs_human_states = np.ones(len(humanoid_states))
+            # obs_human_states[0:6] = humanoid_states[0:6] / np.linalg.norm(humanoid_states[0:6]) * self.safe_dist_threshold
         else:
+            # add reward according to min_distance
             obs_human_states = humanoid_states
+
 
 
 
         achieved_goal = ur5_eef_position
         self.obs_min_safe_dist = min_dist
 
-
-        # print("human obs is: ", obs_human_states)
-        # print("humanoid_states: ", humanoid_states)
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
                               np.asarray(self.goal).flatten(), np.asarray([min_dist])])
 

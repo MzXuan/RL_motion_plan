@@ -246,7 +246,7 @@ def main(args):
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
         env_raw = env.envs[0]
-        env_raw.set_sphere_radius(0.4)
+        # env_raw.set_sphere_radius(0.4)
         for step_i in range(8000):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)

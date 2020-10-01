@@ -28,7 +28,7 @@ def normalize_conf(start, end):
 
 class UR5EefRobot(UR5Robot):
 	TARG_LIMIT = 0.27
-	def __init__(self, dt, action_dim=3, obs_dim=19):
+	def __init__(self, dt, action_dim=3, obs_dim=13):
 		# self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",\
 		# 					"wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
 		# self.select_links = ["shoulder_link", "upper_arm_link","forearm_link","ee_link"]
@@ -105,7 +105,7 @@ class UR5EefRobot(UR5Robot):
 			# print("collisions", collisions)
 			# print("linkid 1 ", c[3])
 			# print("linkid 2", c[4])
-			#
+			# #
 			# print("robot parts", self.agents[0].parts)
 			# p = self._p.getLinkState(c[1], c[3])[0]
 			collision_bodies.append(bodyinfo1[1].decode("utf-8"))
@@ -148,6 +148,13 @@ class UR5EefRobot(UR5Robot):
 		# print("feasible solutions", feasible_solutions)
 		jointPoses = feasible_solutions[0]
 
+		# #-------for debug-------#
+		# scale=3.1415926/180
+		# jointPoses = np.asarray(
+		# 	[1.6889784336, -1.1210921446, 1.5811595917, -2.7067106406, -1.3247616927, -3.5218845049])
+		# # jointPoses = np.asarray([88.98, -64.39,82,54,-142.99,-76.81,-171.22])*scale
+		# #----------------------------#
+
 		self.jdict['shoulder_pan_joint'].reset_position(jointPoses[0], 0)
 		self.jdict['shoulder_lift_joint'].reset_position(jointPoses[1], 0)
 		self.jdict['elbow_joint'].reset_position(jointPoses[2], 0)
@@ -156,6 +163,8 @@ class UR5EefRobot(UR5Robot):
 		self.jdict['wrist_3_joint'].reset_position(jointPoses[5], 0)
 
 		self.last_position = list(self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)[0])
+
+
 
 
 	def reset(self, bullet_client, client_id, base_position=[0, 0, -1.2], base_rotation=[0, 0, 0, 1], eef_pose=None):
@@ -194,71 +203,83 @@ class UR5EefRobot(UR5Robot):
 		self.jdict['wrist_2_joint'].max_velocity = 3.2
 		self.jdict['wrist_3_joint'].max_velocity = 3.2
 
+		self.last_eef_position = self.parts['ee_link'].get_position()
+
 		s = self.calc_state(
 		)  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 		self.potential = self.calc_potential()
 
 		return s
 
+	def stop(self):
+		return 0
 
-	def apply_action(self, a):
-		# todo: add dynamic limitation
+
+	def apply_action(self,a):
+		#set position without real dynamic
 		assert (np.isfinite(a).all())
 
 		#scale
-		max_eef_velocity = 1.5
+		max_eef_velocity = 10
 		step_max_velocity = max_eef_velocity*self.dt
 
-
-		ee_lin_pos, ee_lin_ori = self.getCurrentEEPos()
-
+		#------------  pose from simulator -------------#
+		ee_lin_pos, ee_lin_ori,_,_ = self.getCurrentEEPos()
 		target_position = ee_lin_pos + np.asarray(a)*step_max_velocity
-		# target_ee_pos = ee_lin_pos.copy()
-		# for i in range((self.action_space.shape)[0]):
-		# 	target_position[i] = ee_lin_pos[i] + a[i] * scale
-
-
 		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position, self.orientation
+														target_position,self.orientation
 														)
-		# current joint state
-		cur_joint_pos, cur_joint_vel = self.getCurrentJointPosVel()
 		target_jp = np.asarray(jointPoses[:6])
 
-		target_jv = (target_jp - cur_joint_pos)/self.dt
-
-		# if abs(np.max(target_jv)) > 1:
-		# 	target_jv = target_jv/abs(np.max(target_jv))*1
-
-
-		# print("target_jp {} and\n  cur_joint_pos {} ".format(target_jp, cur_joint_pos))
-		# print("current jv {} and\n  target jv {} ".format(cur_joint_vel, target_jv))
-		#
-		#
-		# joint_acc = np.asarray((target_jv - cur_joint_vel)/self.dt)
-		#
-		# if np.max(abs(joint_acc))>0.5:
-		# 	joint_acc_norm = joint_acc/np.max(abs(joint_acc))*0.5
-		# else:
-		# 	joint_acc_norm = joint_acc.copy()
-		#
-		# # joint_acc_norm = np.asarray((target_jv - cur_joint_vel) / self.dt).clip(min=-0.5, max=0.5)
-		#
-		# target_jv = cur_joint_vel+joint_acc_norm*self.dt
-		# print("joint acc norm is: ", joint_acc_norm)
-		# print("target_joint v is: ", target_jv)
-
-
-		# grav_comp_torque = self.computeGravityCompensationControlPolicy()
-		# self._p.setJointMotorControlArray(
-		# 	bodyIndex=self.robot_body.bodies[0],
-		# 	jointIndices=self.controlled_joints_id,
-		# 	controlMode=pybullet.TORQUE_CONTROL,
-		# 	forces=grav_comp_torque)
-
-
 		for i, joint_name in enumerate(self.select_joints):
-			self.jdict[joint_name].set_velocity(target_jv[i])
+			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.2)
+
+
+
+
+
+		# #---------- pose from last step ----------#
+		# target_position = self.last_eef_position + np.asarray(a)*step_max_velocity
+		#
+		# jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+		# 												target_position
+		# 												)
+		#
+		# self.last_eef_position = target_position
+		# target_jp = np.asarray(jointPoses[:6])
+		#
+		# for i, joint_name in enumerate(self.select_joints):
+		# 	self.jdict[joint_name].set_position(target_jp[i])
+
+
+
+
+	# def apply_action(self, a):
+	#   set velocity
+	# 	# todo: add dynamic limitation
+	# 	assert (np.isfinite(a).all())
+	#
+	# 	#scale
+	# 	max_eef_velocity = 1.5
+	# 	step_max_velocity = max_eef_velocity*self.dt
+	#
+	#
+	# 	ee_lin_pos, ee_lin_ori = self.getCurrentEEPos()
+	#
+	# 	target_position = ee_lin_pos + np.asarray(a)*step_max_velocity
+	#
+	# 	jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+	# 													target_position, self.orientation
+	# 													)
+	# 	# current joint state
+	# 	cur_joint_pos, cur_joint_vel = self.getCurrentJointPosVel()
+	# 	target_jp = np.asarray(jointPoses[:6])
+	#
+	# 	target_jv = (target_jp - cur_joint_pos)/self.dt
+	#
+	# 	for i, joint_name in enumerate(self.select_joints):
+	# 		self.jdict[joint_name].set_velocity(target_jv[i])
+
 
 	def getCurrentEEPos(self):
 		ee_state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
@@ -266,9 +287,9 @@ class UR5EefRobot(UR5Robot):
 									computeForwardKinematics=True)
 		ee_lin_pos = np.array(ee_state[0])
 		ee_lin_ori = np.array(ee_state[1])
-		# ee_lin_vel = np.array(ee_state[6])  # worldLinkLinearVelocity
-		# ee_ang_vel = np.array(ee_state[7])  # worldLinkAngularVelocity
-		return ee_lin_pos, ee_lin_ori
+		ee_lin_vel = np.array(ee_state[6])  # worldLinkLinearVelocity
+		ee_ang_vel = np.array(ee_state[7])  # worldLinkAngularVelocity
+		return ee_lin_pos, ee_lin_ori, ee_lin_vel, ee_ang_vel
 
 	def getCurrentJointPosVel(self):
 
@@ -297,9 +318,17 @@ class UR5EefRobot(UR5Robot):
 		joint_velocity = np.asarray(
 			[self.jdict[i].get_velocity() for i in self.select_joints if i in self.jdict])  # velocity
 
-		eef_pose = self.parts[self.ee_link].get_pose()  # position [0:3], orientation [3:7]
+		# eef_pose = self.parts[self.ee_link].get_pose()  # position [0:3], orientation [3:7]
+		ee_lin_pos, _, ee_lin_vel,_ = self.getCurrentEEPos()
+
 		# obs = np.concatenate((eef_pose, link_position.flatten()))
-		obs = np.concatenate((eef_pose, joint_position.flatten(), joint_velocity.flatten()))
+		# print("joint velocity: ", joint_velocity)
+
+		# obs = np.concatenate((ee_lin_pos, joint_position.flatten()))
+		# obs = np.concatenate((ee_lin_pos, ee_lin_vel,joint_position.flatten()))
+
+		obs = np.asarray(ee_lin_pos)
+
 		return obs
 
 
