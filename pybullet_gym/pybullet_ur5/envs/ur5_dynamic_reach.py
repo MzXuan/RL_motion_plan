@@ -118,7 +118,7 @@ class UR5DynamicReachEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(19,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
         ))
 
         print("self.observation space: ", self.observation_space)
@@ -170,7 +170,8 @@ class UR5DynamicReachEnv(gym.Env):
             [0, 0, 0],
             [0.000000, 0.000000, 0.0, 1])
 
-        self.agents[1].set_goal_position( self.human_pos)
+        # self.agents[1].set_goal_position( self.human_pos)
+
 
         return self.stadium_scene
 
@@ -246,30 +247,35 @@ class UR5DynamicReachEnv(gym.Env):
         collision_flag = True
         while collision_flag:
 
-            x = np.random.uniform(-0.7, 0.7)
-            y = np.random.uniform(-0.7, 0.7)
-            z = np.random.uniform(0.2, 0.6)
+            x = np.random.uniform(-0.6, 0.6)
+            y = np.random.uniform(-0.6, 0.6)
+            z = np.random.uniform(0.1, 0.5)
 
             self.robot_start_eef = [x, y, z]
 
             self.goal = np.asarray(self.robot_start_eef.copy())
-            self.goal[0] += np.random.uniform(-0.3, 0.3)
-            self.goal[1] += np.random.uniform(-0.3, 0.3)
-            self.goal[2] += np.random.uniform(-0.3, 0.3)
+            self.goal[0] += np.random.uniform(-0.4, 0.4)
+            self.goal[1] += np.random.uniform(-0.4, 0.4)
+            self.goal[2] += np.random.uniform(-0.4, 0.2)
+
+            self.agents[1].set_goal_position(self.goal)
 
 
             # ah = self.agents[1].reset(self._p, base_position=[0.0, -1.6, -1.1],
             #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
 
-            r = 1.2
+            # theta=np.arccos(self.goal[0]/ np.sqrt(self.goal[0]**2+self.goal[1]**2))
+
+            theta = np.arctan2(self.goal[1], self.goal[0])
+            r = np.linalg.norm(self.goal)+np.random.uniform(0.3,0.4)
+            # r = 1.1+np.random.uniform(-0.2,0.2)
             pi = 3.1415926
-            theta = np.random.uniform(-pi, pi)
 
             xh = r*np.cos(theta)
             yh = r*np.sin(theta)
             qh = pyquaternion.Quaternion(axis=[0, 0, 1], angle=theta+pi) # w, x, y, z
 
-            print("xh {} , yh {}, z {}".format(xh, yh, theta+pi))
+            # print("xh {} , yh {}, z {}".format(xh, yh, theta+pi))
 
             ah = self.agents[1].reset(self._p, base_position=[xh, yh, -1.1],
                                       base_rotation=[qh.q[1], qh.q[2], qh.q[3], qh.q[0]])

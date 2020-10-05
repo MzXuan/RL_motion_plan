@@ -14,6 +14,7 @@ import assets
 import robot_bases
 import math
 from scenes.stadium import StadiumScene, PlaneScene
+import pyquaternion
 
 
 class Humanoid(robot_bases.MJCFBasedRobot):
@@ -30,7 +31,8 @@ class Humanoid(robot_bases.MJCFBasedRobot):
         self.random_lean = random_lean
 
         self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
-        self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true"]
+        self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true",
+                             "right_upper_arm", "right_lower_arm", "right_hand_true"]
 
     def reset(self, bullet_client, base_position=[0, 0, -1.2], base_rotation=[0, 0, 0, 1], is_training =True):
         self._p = bullet_client
@@ -166,15 +168,16 @@ class Humanoid(robot_bases.MJCFBasedRobot):
 
 
 class SelfMoveHumanoid(Humanoid):
-    def __init__(self,action_dim=3, obs_dim=12, is_training=True, move_base=False, noise=False):
+    def __init__(self,action_dim=3, obs_dim=24, is_training=True, move_base=False, noise=False):
 
         super(SelfMoveHumanoid, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
         self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
         # self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true"]
-        self.select_links = ["left_lower_arm", "left_hand_true"]
+        self.select_links = ["left_lower_arm", "left_hand_true", "right_lower_arm", "right_hand_true"]
         self.is_training = is_training
         self.move_base = move_base
         self.noise = noise
+        self.initial_hand_pose = np.zeros(3)
 
 
     def reset(self, bullet_client, base_position=[0, 0, -1.4], base_rotation=[0, 0, 0, 1]):
@@ -219,24 +222,9 @@ class SelfMoveHumanoid(Humanoid):
         self.scene.actor_introduce(self)
         self.initial_z = None
 
-        self.start_center = np.asarray([-0.2, -1.0, 0])
+        # self.start_center = np.asarray([-0.2, -1.0, 0])
 
 
-        while True:
-            ran = np.random.choice([0, 1])
-            if ran == 0 :
-                self.left_hand_end = np.asarray([np.random.uniform(-0.4, 0.4),
-                                                 np.random.uniform(0.3, 0.6),
-                                                 np.random.uniform(-0.3, 0.0)])
-            else:
-                self.left_hand_end=np.asarray([0.0, 0.0, 0.2])
-
-            for pp in self.goal_positions:
-                dist = np.linalg.norm((pp - np.asarray(self.left_hand_end)))
-                if dist < 0.2:
-                    continue
-            else:
-                break
 
         self.jdict["abdomen_z"].reset_position(0.0, 0)
         self.jdict["abdomen_y"].reset_position(0.0, 0)
@@ -253,10 +241,12 @@ class SelfMoveHumanoid(Humanoid):
         self.jdict["right_shoulder2"].reset_position(0, 0)
         self.jdict["right_elbow"].reset_position(0, 0)
 
+
+        self.random_initial_pose()
+
         self.time = np.random.uniform(0,50)
         # self.time = 0
         self.is_training = is_training
-
 
         self.motor_names = ["right_shoulder1", "right_shoulder2", "right_elbow"]
         self.motor_power = [75, 75, 75]
@@ -264,14 +254,46 @@ class SelfMoveHumanoid(Humanoid):
         self.motor_power += [75, 75, 75]
         self.motors = [self.jdict[n] for n in self.motor_names]
 
-    def set_goal_position(self, goal_positon):
-        self.goal_positions = goal_positon
+        self.initial_hand_pose = {"left_hand_true": self.parts["left_hand_true"].get_position(),
+                                  "right_hand_true": self.parts["right_hand_true"].get_position()}
+        self.last_hand_pose = self.initial_hand_pose.copy()
+
+    def random_initial_pose(self):
+        self.jdict["right_shoulder1"].reset_position(np.random.uniform(-2,0), 0)
+        self.jdict["right_shoulder2"].reset_position(np.random.uniform(-2,0), 0)
+        self.jdict["right_elbow"].reset_position(np.random.uniform(-1.5,0), 0)
+        self.jdict["left_shoulder1"].reset_position(np.random.uniform(-2,0), 0)
+        self.jdict["left_shoulder2"].reset_position(np.random.uniform(-2,0), 0)
+        self.jdict["left_elbow"].reset_position(np.random.uniform(-1.5,0), 0)
+
+
+    def reset_base(self):
+
+        # self.jdict["left_shoulder1"].reset_position(0, 0)
+        # self.jdict["left_shoulder2"].reset_position(0, 0)
+        # self.jdict["left_elbow"].reset_position(-1.5, 0)
+        # self.initial_hand_pose = self.parts["left_hand_true"].get_position()
+
+        self.human_goal =  self.robot_goal+self.random_n([0.15,0.15, 0.15])
+
+        theta = np.arctan2(self.human_goal[1], self.human_goal[0])
+        r = np.linalg.norm(self.human_goal) + np.random.uniform(0.3, 0.4)
+        pi = 3.1415926
+
+        xh = r * np.cos(theta)
+        yh = r * np.sin(theta)
+        qh = pyquaternion.Quaternion(axis=[0, 0, 1], angle=theta + pi)  # w, x, y, z
+        self.reset(self._p, base_position=[xh, yh, -1.1],
+                                      base_rotation=[qh.q[1], qh.q[2], qh.q[3], qh.q[0]])
+
+
 
     def apply_action(self, a):
         assert (np.isfinite(a).all())
         # position = [a[0], a[1], a[2]]
         # position = self.human_static_motion()
-        position = self.human_motion_generator()
+        left_position = self.human_motion_generator("left_hand_true")
+        right_position = self.human_motion_generator("right_hand_true")
 
         if self.noise is True:
             self.time += np.random.uniform(1,5)*0.5
@@ -284,12 +306,20 @@ class SelfMoveHumanoid(Humanoid):
         self.jdict["right_shoulder2"].reset_position(-0.9, 0)
         self.jdict["right_elbow"].reset_position(0, 0)
 
-        jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], \
+        jointPoses_l = self._p.calculateInverseKinematics(self.robot_body.bodies[0], \
                                                         self.parts['left_hand_true'].bodyPartIndex,
-                                                        position)
-        self.jdict["left_shoulder1"].reset_position(jointPoses[14], 0)
-        self.jdict["left_shoulder2"].reset_position(jointPoses[15], 0)
-        self.jdict["left_elbow"].reset_position(jointPoses[16], 0)
+                                                        left_position)
+
+        jointPoses_r = self._p.calculateInverseKinematics(self.robot_body.bodies[0], \
+                                                        self.parts['right_hand_true'].bodyPartIndex,
+                                                        right_position)
+        self.jdict["left_shoulder1"].reset_position(jointPoses_l[14], 0)
+        self.jdict["left_shoulder2"].reset_position(jointPoses_l[15], 0)
+        self.jdict["left_elbow"].reset_position(jointPoses_l[16], 0)
+
+        self.jdict["right_shoulder1"].reset_position(jointPoses_r[11], 0)
+        self.jdict["right_shoulder2"].reset_position(jointPoses_r[12], 0)
+        self.jdict["right_elbow"].reset_position(jointPoses_r[13], 0)
 
         self.jdict["abdomen_z"].reset_position(0,0)
         self.jdict["abdomen_y"].reset_position(0, 0)
@@ -317,9 +347,6 @@ class SelfMoveHumanoid(Humanoid):
             self._p.resetBasePositionAndOrientation(id, position, base_pose[1])
             # self.robot_body.reset_pose(base_position, base_rotation)
 
-
-
-
     def calc_state(self):
         link_position = np.asarray([self.parts[j].get_position() for j in self.select_links if j in self.parts])
         velocity = link_position-self.last_link_position
@@ -327,56 +354,76 @@ class SelfMoveHumanoid(Humanoid):
         self.last_link_position = link_position
         return obs
 
+
     def human_static_motion(self):
         h_action = self.left_hand_end
         return h_action
 
 
-    def human_motion_generator(self):
-        #sine+cosine function for human motion
-        if self.is_training is True:
-            t= self.time
-            end = self.left_hand_end
+    def set_goal_position(self, goal_positon):
+        self.robot_goal = self.human_goal = goal_positon.copy()
+        self.approaching = True
 
-            mean = (self.start_center+end)/2
-            var = (self.start_center-end)/2
 
-            x = mean[0] + var[0] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
-            y = mean[1] + var[1] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
-            z = mean[2] + var[2] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
+    def human_motion_generator(self, hand_name):
+        dt = 0.05
 
-            curr_pos = np.asarray([x, y, z])
-            if np.linalg.norm(curr_pos - self.start_center) < 0.1:
-                self.left_hand_end =np.asarray(random.choice(self.goal_positions))
-                self.left_hand_end[2]+=np.random.uniform(0,0.3)
-                # end = self.left_hand_end
+        current_hand_pos = self.parts[hand_name].get_position()
 
-                mean = (self.start_center+end)/2
-                var = (self.start_center-end)/2
+        if np.linalg.norm(current_hand_pos-self.human_goal) > \
+                np.linalg.norm(self.last_hand_pose[hand_name] - self.human_goal) and self.approaching is True:
+            self.approaching = False
+        elif np.linalg.norm(current_hand_pos-self.initial_hand_pose[hand_name]) > \
+                np.linalg.norm(self.last_hand_pose[hand_name] - self.initial_hand_pose[hand_name])  and self.approaching is False:
+            self.approaching = True
+            self.reset_base()
 
-                x = mean[0] + var[0] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
-                y = mean[1] + var[1] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
-                z = mean[2] + var[2] * math.sin(1.57+t / 30) + 0*(np.random.random()-0.5)*2
-                h_action = [x, y, z]
-            else:
-                h_action = [x, y, z]
 
+        # print("humanoid approaching", self.approaching)
+        if self.approaching is True:
+            self.velocity = (self.human_goal - self.initial_hand_pose[hand_name])*np.random.uniform(0.3,1)
         else:
-            t = self.time
-            end = self.left_hand_end
+            self.velocity = -(self.human_goal - self.initial_hand_pose[hand_name])*np.random.uniform(0.3,1)
 
-            mean = (self.start_center + end) / 2
-            var = (self.start_center - end) / 2
+        self.last_hand_pose[hand_name] = current_hand_pos
 
 
-            x = mean[0] + var[0] * math.sin(1.57 + t / 30) + 0 * (np.random.random() - 0.5) * 2
-            y = mean[1] + var[1] * math.cos(t / 15) + 0 * (np.random.random() - 0.5) * 2
-            z = mean[2] + var[2] * math.cos(t / 15) + 0 * (np.random.random() - 0.5) * 2
+        hand_position = self.parts[hand_name].get_position()+self.velocity*dt
+        return hand_position
 
-            h_action = [x, y, z]
-        #
-        if self.noise is True:
-            h_action[0]+=np.random.uniform(-0.01,0.01)
-            h_action[1] += np.random.uniform(-0.01, 0.01)
-            h_action[2] += np.random.uniform(-0.01, 0.01)
-        return h_action
+
+
+    # def human_motion_generator(self, hand_name):
+    #     dt = 0.05
+    #
+    #     current_hand_pos = self.parts["left_hand_true"].get_position()
+    #
+    #     if np.linalg.norm(current_hand_pos-self.human_goal) > \
+    #             np.linalg.norm(self.last_hand_pose - self.human_goal) and self.approaching is True:
+    #         self.approaching = False
+    #     elif np.linalg.norm(current_hand_pos-self.initial_hand_pose) > \
+    #             np.linalg.norm(self.last_hand_pose - self.initial_hand_pose)  and self.approaching is False:
+    #         self.approaching = True
+    #         self.reset_base()
+    #
+    #
+    #     # print("humanoid approaching", self.approaching)
+    #     if self.approaching is True:
+    #         self.velocity = (self.human_goal+self.random_n([0.1,0.1,0.1]) - self.initial_hand_pose)
+    #     else:
+    #         self.velocity = -(self.human_goal - self.initial_hand_pose)
+    #
+    #     self.last_hand_pose = current_hand_pos
+    #
+    #
+    #     hand_position = self.parts["left_hand_true"].get_position()+self.velocity*dt
+    #     return hand_position
+
+    def random_n(self, max):
+        result = []
+        for m in max:
+            result.append(np.random.uniform(-m, m))
+        return np.asarray(result)
+
+
+
