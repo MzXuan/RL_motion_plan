@@ -220,7 +220,7 @@ class UR5EefRobot(UR5Robot):
 		assert (np.isfinite(a).all())
 
 		#scale
-		max_eef_velocity = 10
+		max_eef_velocity = 2
 		step_max_velocity = max_eef_velocity*self.dt
 
 		#------------  pose from simulator -------------#
@@ -232,7 +232,7 @@ class UR5EefRobot(UR5Robot):
 		target_jp = np.asarray(jointPoses[:6])
 
 		for i, joint_name in enumerate(self.select_joints):
-			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.2)
+			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.4)
 
 
 

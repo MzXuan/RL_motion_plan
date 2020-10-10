@@ -64,23 +64,23 @@
               <body name="right_upper_arm" pos="0 -0.21 0.06">
                 <joint armature="0.0068" axis="2 1 1" name="right_shoulder1" pos="0 0 0" range="-85 60" stiffness="1" type="hinge" velocity='1'/>
                 <joint armature="0.0051" axis="0 -1 1" name="right_shoulder2" pos="0 0 0" range="-85 60" stiffness="1" type="hinge" velocity='1'/>
-                <geom fromto="0 0 0 .20 -.20 -.20" name="right_uarm1" size="0.04 0.20" type="capsule"/>
+                <geom fromto="0 0 0 .20 -.20 -.20" name="right_uarm1" size="0.06 0.20" type="capsule"/>
                 <body name="right_lower_arm" pos=".20 -.20 -.20">
                     <joint armature="0.0028" axis="0 -1 1" name="right_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge" velocity='1'/>
-                    <geom fromto="0.01 0.01 0.01 .17 .17 .17" name="right_larm" size="0.031" type="capsule"/>
-                    <body name="right_hand" pos=".19 .19 .19" size="0.04" type="sphere"/>
-                    <body name="right_hand_true" pos=".19 .19 .19" size="0.04" type="sphere"/>
+                    <geom fromto="0.01 0.01 0.01 .17 .17 .17" name="right_larm" size="0.041" type="capsule"/>
+                    <body name="right_hand" pos=".19 .19 .19" size="0.06" type="sphere"/>
+                    <body name="right_hand_true" pos=".19 .19 .19" size="0.06" type="sphere"/>
                 </body>
             </body>
             <body name="left_upper_arm" pos="0 0.21 0.06">
                 <joint armature="0.0068" axis="2 -1 1" name="left_shoulder1" pos="0 0 0" range="-60 85" stiffness="1" type="hinge" velocity='1.0'/>
                 <joint armature="0.0051" axis="0 1 1" name="left_shoulder2" pos="0 0 0" range="-60 85" stiffness="1" type="hinge" velocity='1.0'/>
-                <geom fromto="0 0 0 .20 .20 -.20" name="left_uarm1" size="0.04 0.20" type="capsule"/>
+                <geom fromto="0 0 0 .20 .20 -.20" name="left_uarm1" size="0.06 0.20" type="capsule"/>
                 <body name="left_lower_arm" pos=".20 .20 -.20">
                     <joint armature="0.0028" axis="0 -1 -1" name="left_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge" velocity='1'/>
-                    <geom fromto="0.01 -0.01 0.01 .18 -.18 .18" name="left_larm" size="0.031" type="capsule"/>
-                    <geom name="left_hand" pos=".19 -.19 .19" size="0.04" type="sphere"/>
-                    <body name="left_hand_true" pos=".19 -.19 .19" size="0.04" type="sphere"/>
+                    <geom fromto="0.01 -0.01 0.01 .18 -.18 .18" name="left_larm" size="0.041" type="capsule"/>
+                    <geom name="left_hand" pos=".19 -.19 .19" size="0.06" type="sphere"/>
+                    <body name="left_hand_true" pos=".19 -.19 .19" size="0.06" type="sphere"/>
                 </body>
 
             </body>

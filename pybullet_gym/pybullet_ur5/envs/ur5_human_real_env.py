@@ -24,7 +24,7 @@ import time
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True,  distance_threshold=0.05,
+                 early_stop=False,  distance_threshold=0.05,
                  max_obs_dist=0.4, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
@@ -128,7 +128,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         self.robot_base = [0, 0, 0]
 
-        # ---select goal from boxes---#
+        # # ---select goal from boxes---#
         # self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
         # self.goal[0] += np.random.uniform(-0.15, 0.15)
         # self.goal[1] += np.random.uniform(-0.2, 0)
@@ -143,33 +143,44 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
 
 
-        # #------------------fake robot-------------------
-        # ah = self.agents[1].reset(self._p)
+        # # #------------------fake robot-------------------
         #
-        # x = np.random.uniform(0.2, 0.8)
-        # y = np.random.uniform(-0.6, -0.2)
+        #
+        # x = np.random.uniform(0.2, 0.4)
+        # y = np.random.uniform(-0.6, -0.1)
         # z = np.random.uniform(0.2, 0.5)
         #
         # robot_eef_pose = [np.random.choice([-1, 1]) * x, y, z]
         #
-        # self.robot_start_eef = robot_eef_pose
+        # self.robot_start_eef = robot_eef_pose.copy()
         # ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
         #                           base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
 
+
         #---------------real human----------------------------#
         ah = self.agents[1].reset(self._p)
-        # # #----real robot-----------------------------------------------#
+        # #----real robot-----------------------------------------------#
         if self.first_reset is True:
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
         else:
             ar = self.agents[0].calc_state()
 
         rob_eef = ar[:3]
-        self.goal = np.asarray(rob_eef.copy())
-        self.goal[0] += np.random.uniform(-0.3, 0.3)
-        self.goal[1] += np.random.uniform(-0.3, 0.3)
-        self.goal[2] += np.random.uniform(-0.3, 0.3)
+        self.robot_start_eef=rob_eef.copy()
+        #-----------------------------------------------------------------
 
+
+        #-------set goal---------
+        max_xyz=[0.6, 0.6, 0.45]
+        goal_reset = False
+        while not goal_reset:
+            self.goal = np.asarray(self.robot_start_eef.copy())
+            self.goal[0] += np.random.uniform(-0.5, 0.5)
+            self.goal[1] += np.random.uniform(-0.5, 0.5)
+            self.goal[2] += np.random.uniform(-0.2, 0.2)
+            if   np.linalg.norm(self.goal) <0.7 and self.goal[1]<-0.25 and self.goal[1]>-0.6 \
+                    and self.goal[2]<max_xyz[2] and self.goal[2]>0.05:
+                goal_reset=True
 
         self._p.stepSimulation()
 

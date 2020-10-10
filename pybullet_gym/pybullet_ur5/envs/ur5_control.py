@@ -18,20 +18,26 @@ class UR5Control():
     def get_tool_state(self):
         pose = self.rob.get_tcp_speed()
         vel = pose.array
-        p,_ = self.rob.get_tcp_pose()
-        return p, vel
+        p,rot = self.rob.get_tcp_pose()
+        return p, vel, rot
 
     def get_tool_state_2(self):
         pos = self.rob.get_pos().array
         return pos
 
-
     def set_tool_velocity(self, velocity):
-        self.rob.speedl(velocities=velocity, acc=0.1, min_time=2)
+        # ---- prevent from singaularity
+        p, vel,_ = self.get_tool_state()
+        if np.linalg.norm(p) > 0.75:
+            velocity = np.zeros(6)
+            velocity[:3] = -p/np.linalg.norm(p)*0.1
+        # print("p, velocity", p ,velocity)
+        # ---normal speedl command
+        self.rob.speedl(velocities=velocity, acc=0.2, min_time=2)
 
 
     def set_joint_position(self, target, wait=True):
-        self.rob.movej(target, acc=0.3, vel=0.1, wait=wait)
+        self.rob.movej(target, acc=0.3, vel=0.2, wait=wait)
 
 
     def set_joint_velocity(self, target):
@@ -62,7 +68,7 @@ if __name__ == '__main__':
 
 
     #
-    tool_vel = [-0.01, 0, -0.01, 0, 0, 0]
+    tool_vel = [-0.01, 0, +0.05, 0, 0, 0]
     # target_v = np.asarray(robjv)+0.02
     # ur5.set_joint_velocity(target_v)
 

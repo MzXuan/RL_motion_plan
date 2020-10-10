@@ -237,7 +237,7 @@ def main(args):
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 10
+        seed = 0
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -271,8 +271,12 @@ def main(args):
 
             obs, rew, done, info = env.step(actions)
 
-            print("actions: ", actions)
-            print("info", info)
+            print("actions:", actions)
+            print("achieved goal", obs['achieved_goal'])
+            print("desired goal", obs['desired_goal'])
+
+            # print("actions: ", actions)
+            # print("info", info)
 
 
 
@@ -316,7 +320,6 @@ def main(args):
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
-
 
 
                 print("-------------end step {}----------".format(traj_count))

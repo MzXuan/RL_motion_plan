@@ -6,16 +6,21 @@ from itertools import product, combinations
 
 
 class WsPathGen():
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-        self.sample_path(start, end)
+    def __init__(self, pos_path, vel_path):
+        self.path = pos_path
+        self.vel_path = vel_path
 
 
-    def sample_path(self, start, end):
-        waypoints = np.linspace(start, end, num=10)
-        waypoints[1:-1,:] += (np.random.rand(waypoints.shape[0]-2,waypoints.shape[1])-0.5)*0.05
-        self.path = waypoints
+    # def __init__(self, start, end):
+    #     self.start = start
+    #     self.end = end
+    #     self.sample_path(start, end)
+    #
+    #
+    # def sample_path(self, start, end):
+    #     waypoints = np.linspace(start, end, num=10)
+    #     waypoints[1:-1,:] += (np.random.rand(waypoints.shape[0]-2,waypoints.shape[1])-0.5)*0.05
+    #     self.path = waypoints
 
 
     def next_goal(self, center, r):
@@ -33,16 +38,16 @@ class WsPathGen():
                 p_insect = self.calculate_interaction(center, r, self.path[i], self.path[i+1])
                 if p_insect is not None:
                     # print("returned intersection is: ", p_insect)
-                    return p_insect
+                    return p_insect, self.vel_path[i]
             else:
                 #the end, return the last way point
-                return self.path[-1]
+                return self.path[-1], self.vel_path[-1]
 
         #no interection, return the waypoint with minimum distance
         # todo: or expand r please
         ####!!!!todo!!!! problem here######
         idx = np.argmin(dists)
-        return self.path[idx]
+        return self.path[idx], self.vel_path[idx]
 
 
     def calculate_interaction(self, center, r, p0, p1):

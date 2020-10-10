@@ -238,7 +238,7 @@ def main(args):
 
 
     if args.play:
-        # pybullet.connect(pybullet.DIRECT)
+        pybullet.connect(pybullet.DIRECT)
         env = gym.make("UR5RealTestEnv-v0")
         # env.render("human")
 
@@ -248,7 +248,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
-        # env.render("rgb_array")
+        env.render("rgb_array")
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
@@ -258,10 +258,12 @@ def main(args):
 
 
         data_list = []
+        last_time = time.time()
 
-        while traj_count < 300:
+        while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
             try:
-                time.sleep(0.01)
+                print(time.time())
+
                 obs = env.get_obs() #0.001
                 # print("obs",obs)
                 actions, _, _, _ = model.step(obs)  #0.002s
@@ -269,11 +271,10 @@ def main(args):
 
                 obs, rew, done, info = env.step(actions) #0.01s
 
-                # img = env.render("rgb_array")
-                # cv2.imshow("image", img)
-                # cv2.waitKey(1)
+                img = env.render("rgb_array")
+                cv2.imshow("image", img)
+                cv2.waitKey(1)
                 print("actions:", actions)
-
                 print("achieved goal", obs['achieved_goal'])
                 print("desired goal", obs['desired_goal'])
 
@@ -302,7 +303,8 @@ def main(args):
                     seed +=1
                     obs = env.reset()
 
-                    print("--------start----------")
+                last_time = time.time()
+
             except KeyboardInterrupt:
                 env.close()
                 raise

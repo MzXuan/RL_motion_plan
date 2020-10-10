@@ -54,8 +54,8 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self._cam_dist = 3
         self._cam_yaw = 0
         self._cam_pitch = 30
-        self._render_width = 320
-        self._render_height = 240
+        # self._render_width = 640
+        # self._render_height = 480
 
         self.target_off_set=0.2
         self.safe_dist_threshold = 0.6

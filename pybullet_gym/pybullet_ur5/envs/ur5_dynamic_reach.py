@@ -86,7 +86,7 @@ class UR5DynamicReachEnv(gym.Env):
 
         self.hz = 240
         self.sim_dt = 1.0 / self.hz
-        self.frame_skip = 16
+        self.frame_skip = 8
 
         # self.agents = [UR5RG2Robot(), SelfMoveHumanoid(0, 12)]
         # self.agents = [UR5Robot(), SelfMoveAwayHumanoid(0, 12)]
@@ -97,8 +97,8 @@ class UR5DynamicReachEnv(gym.Env):
         self._cam_dist = 1
         self._cam_yaw = 0
         self._cam_pitch = -30
-        self._render_width = 320
-        self._render_height = 240
+        # self._render_width = 640
+        # self._render_height = 480
 
         self.target_off_set=0.2
         self.distance_threshold = distance_threshold #for success
@@ -118,7 +118,7 @@ class UR5DynamicReachEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(19,), dtype='float32'),
         ))
 
         print("self.observation space: ", self.observation_space)
@@ -253,18 +253,27 @@ class UR5DynamicReachEnv(gym.Env):
 
             self.robot_start_eef = [x, y, z]
 
-            self.goal = np.asarray(self.robot_start_eef.copy())
-            self.goal[0] += np.random.uniform(-0.4, 0.4)
-            self.goal[1] += np.random.uniform(-0.4, 0.4)
-            self.goal[2] += np.random.uniform(-0.4, 0.2)
-
-            self.agents[1].set_goal_position(self.goal)
-
+            # # -------set goal---------
+            # max_xyz = [0.7, 0.7, 0.6]
+            # goal_reset = False
+            # while not goal_reset:
+            #     self.goal = np.asarray(self.robot_start_eef.copy())
+            #     self.goal[0] += np.random.uniform(-0.6, 0.6)
+            #     self.goal[1] += np.random.uniform(-0.6, 0.6)
+            #     self.goal[2] += np.random.uniform(-0.4, 0.5)
+            #     if abs(self.goal[0]) < max_xyz[0] and abs(self.goal[1]) < max_xyz[1] and abs(self.goal[2]) < max_xyz[2]:
+            #         goal_reset = True
+            #
+            #
 
             # ah = self.agents[1].reset(self._p, base_position=[0.0, -1.6, -1.1],
             #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
 
-            # theta=np.arccos(self.goal[0]/ np.sqrt(self.goal[0]**2+self.goal[1]**2))
+            self.goal = self.random_set_goal()
+            self.agents[1].set_goal_position(self.goal)
+
+
+
 
             theta = np.arctan2(self.goal[1], self.goal[0])
             r = np.linalg.norm(self.goal)+np.random.uniform(0.3,0.4)
@@ -296,6 +305,33 @@ class UR5DynamicReachEnv(gym.Env):
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
+
+    def random_set_goal(self):
+        max_xyz = [0.7, 0.7, 0.6]
+        goal_reset = False
+        while not goal_reset:
+            goal = np.asarray(self.robot_start_eef.copy())
+            goal[0] += np.random.uniform(-0.6, 0.6)
+            goal[1] += np.random.uniform(-0.6, 0.6)
+            goal[2] += np.random.uniform(-0.4, 0.5)
+            if abs(goal[0]) < max_xyz[0] and abs(goal[1]) < max_xyz[1]\
+                    and  abs(goal[1]) > 0.2 and abs(goal[2]) < max_xyz[2]:
+                goal_reset = True
+        return goal
+        # #-------set goal---------
+        # max_xyz=[0.7, 0.6, 0.55]
+        # goal_reset = False
+        # while not goal_reset:
+        #     goal = np.asarray(self.robot_start_eef.copy())
+        #     goal[0] += np.random.uniform(-0.5, 0.5)
+        #     goal[1] += np.random.uniform(-0.5, 0.5)
+        #     goal[2] += np.random.uniform(-0.2, 0.2)
+        #     if abs(goal[0])<max_xyz[0] and goal[1]<-0.25 and goal[1]>-0.6 \
+        #             and goal[2]<max_xyz[2] and goal[2]>0.05:
+        #         goal_reset=True
+        # return goal
+
+        # return 0
 
     def _set_safe_distance(self):
         return 0.1
@@ -330,24 +366,29 @@ class UR5DynamicReachEnv(gym.Env):
                 base_pos = self.robot.body_xyz
 
         # self._p.setRealTimeSimulation(0)
+        view_matrix = self.viewmat
+        proj_matrix = self.projmat
 
-        view_matrix = self._p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos,
-                                                                distance=self._cam_dist,
-                                                                yaw=self._cam_yaw,
-                                                                pitch=self._cam_pitch,
-                                                                roll=0,
-                                                                upAxisIndex=2)
-        proj_matrix = self._p.computeProjectionMatrixFOV(fov=90,
-                                                         aspect=float(self._render_width) /
-                                                                self._render_height,
-                                                         nearVal=0.1,
-                                                         farVal=1.0)
-        (_, _, px, _, _) = self._p.getCameraImage(width=self._render_width,
-                                                  height=self._render_height,
+        # view_matrix = self._p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos,
+        #                                                         distance=self._cam_dist,
+        #                                                         yaw=self._cam_yaw,
+        #                                                         pitch=self._cam_pitch,
+        #                                                         roll=0,
+        #                                                         upAxisIndex=2)
+        # proj_matrix = self._p.computeProjectionMatrixFOV(fov=90,
+        #                                                  aspect=float(self._render_width) /
+        #                                                         self._render_height,
+        #                                                  nearVal=0.1,
+        #                                                  farVal=1.0)
+        w = 320
+        h = 240
+        (_, _, px, _, _) = self._p.getCameraImage(width=w,
+                                                  height=h,
                                                   viewMatrix=view_matrix,
                                                   projectionMatrix=proj_matrix,
                                                   renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
-        rgb_array = np.reshape(np.array(px), (self._render_height, self._render_width, -1))
+
+        rgb_array = np.reshape(np.array(px), (h, w, -1))
         rgb_array = rgb_array[:, :, :3]
         return rgb_array
 
@@ -418,6 +459,8 @@ class UR5DynamicReachEnv(gym.Env):
         humanoid_states = self.agents[1].calc_state()
 
         infos['succeed'] = dones
+
+        # self.agents[1].set_goal_position((ur5_eef_position+self.goal)/2, first_set=False)
 
 
         # # ------ drawing ------#
@@ -497,7 +540,7 @@ class UR5DynamicReachEnv(gym.Env):
         # sum of reward
         a1 = -1
         a2 = -10
-        a3 = -0.1
+        a3 = -0.3
         if self.reward_type == 'sparse':
             reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                      + a2 * (_is_collision > 0) + a3 * distance

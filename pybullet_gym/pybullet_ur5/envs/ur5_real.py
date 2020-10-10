@@ -178,7 +178,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         assert (np.isfinite(a).all())
         # scale
 
-        max_eef_velocity = 0.05
+        max_eef_velocity = 0.1
         scale = max_eef_velocity
 
         # current_position,_ = self.ur5_rob_control.get_tool_state()
@@ -205,9 +205,6 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
 
         joint_v = (next_joint - current_joint)
 
-        # print("joint velocity: ", joint_velocity)
-        # print("joint v: ", joint_v)
-        # print("acc is ", joint_v-joint_velocity)
 
         #todo: set joint v
         # print("robot joint velocity is: ", joint_v)
@@ -217,6 +214,8 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         # self.ur5_rob_control.set_joint_velocity(joint_v)
         delta_tool_position = next_position - current_position
         delta_tool_orientation = [0,0,0]
+
+        print("ur5 real proposed velocity: ", np.asarray(delta_tool_position))
 
         self.ur5_rob_control.set_tool_velocity(np.concatenate([np.asarray(delta_tool_position), np.asarray(delta_tool_orientation)]))
 
