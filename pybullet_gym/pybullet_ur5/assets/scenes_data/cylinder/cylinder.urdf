@@ -1,5 +1,5 @@
 <?xml version="0.0" ?>
-<robot name="targetball">
+<robot name="cylinder">
   <material name="red">
     <color rgba="0.8 0.0 0.0 1 "/>
   </material>
@@ -12,7 +12,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder radius="0.05" length="0.25"/>
+        <cylinder radius="0.06" length="0.25"/>
       </geometry>
       <material name="red"/>
     </visual>
@@ -20,7 +20,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder radius="0.05" length="0.25"/>
+        <cylinder radius="0.06" length="0.25"/>
       </geometry>
       <material name="red"/>
     </collision>

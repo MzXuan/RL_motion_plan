@@ -8,7 +8,7 @@ python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotic
 
 
 ## real robot test env: (BE CAREFUL!!!!)
-python runner_real.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1010_5 --play
+python runner_real.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1010_4 --play
 
 __
 # her:
