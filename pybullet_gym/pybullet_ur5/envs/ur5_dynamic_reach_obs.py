@@ -64,10 +64,78 @@ def goal_distance(goal_a, goal_b):
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
+#
+# class Moving_obstacle():
+#     def __init__(self, name, max_speed=0.008):
+#         self.name = name
+#         self.moving_speed = np.asarray([0,0,0])
+#         self.max_speed = max_speed
+#
+#         self.table_x = 0.2
+#         self.table_y = 0.3
+#
+#         self.range = [0.15, 0.25, 0.4]
+#
+#
+#     def move_obstacle(self,sim, robot_goal):
+#         try:
+#             self.goal
+#         except:
+#             self.goal = self.random_obstacle_goal(sim)
+#
+#         body_num = sim.model.body_name2id( self.name)
+#         obstable_center = sim.model.body_pos[body_num]
+#
+#         #check reach table border
+#         if obstable_center[0] > (self.table_center [0]+self.table_x) or \
+#             obstable_center[0] < (self.table_center[0] - self.table_x) or \
+#             obstable_center[1] > (self.table_center[1] + self.table_y) or \
+#             obstable_center[1] < (self.table_center[1] - self.table_y):
+#
+#             self.reset_obstacle(sim, robot_goal)
+#
+#         sim.model.body_pos[body_num] = obstable_center+ self.moving_speed
+#
+#
+#     def _set_obstacle_goal(self, sim, robot_goal=None):
+#         if robot_goal is None:
+#             self.goal = self._sample_table_boder(sim)
+#         else:
+#             self.goal = robot_goal
+#
+#         body_num = sim.model.body_name2id(self.name)
+#         obstable_center = sim.model.body_pos[body_num]
+#         self.moving_speed =np.random.uniform(0.005, self.max_speed)\
+#                            * (self.goal - obstable_center) / np.linalg.norm(obstable_center - self.goal)
+#         self.moving_speed[:2] +=(np.random.rand(2,)-0.5)*0.003
+#
+#
+#     def random_obstacle_goal(self, sim):
+#         return self._sample_table_boder(sim)
+#
+#     def reset_obstacle(self, sim, robot_goal=None, robot_current = None):
+#         body_num = sim.model.body_name2id('table0')
+#         table_center = sim.model.body_pos[body_num]
+#         self.table_center = table_center
+#
+#         if robot_current is None:
+#             pos = self._sample_table_boder(sim)
+#         else:
+#             #todo: sample winthin range
+#             in_range = False
+#             while not in_range:
+#                 pos = self._sample_in_table(sim)
+#                 if np.linalg.norm(robot_current - pos) > 0.2 and np.linalg.norm(robot_current - pos) <0.5:
+#                     in_range = True
+#
+#         #set pos
+#         body_num = sim.model.body_name2id(self.name)
+#         sim.model.body_pos[body_num] = pos
+#         self._set_obstacle_goal(sim, robot_goal)
 
 
 
-class UR5DynamicReachEnv(gym.Env):
+class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
@@ -88,11 +156,10 @@ class UR5DynamicReachEnv(gym.Env):
         self.sim_dt = 1.0 / self.hz
         self.frame_skip = 8
 
-        # self.agents = [UR5RG2Robot(), SelfMoveHumanoid(0, 12)]
-        # self.agents = [UR5Robot(), SelfMoveAwayHumanoid(0, 12)]
-        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3), SelfMoveHumanoid(0, 12, noise=False)]
 
-        self._n_agents = 2
+        self.agent = UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3)
+
+        self._n_agents = 1
         self.seed()
         self._cam_dist = 1
         self._cam_yaw = 0
@@ -119,16 +186,9 @@ class UR5DynamicReachEnv(gym.Env):
             observation=gym.spaces.Box(-np.inf, np.inf, shape=(19,), dtype='float32'),
         ))
 
-        print("self.observation space: ", self.observation_space)
-
-
         # Set observation and action spaces
-        self.agents_observation_space = Tuple([
-            agent.observation_space for agent in self.agents
-        ])
-        self.agents_action_space = Tuple([
-            agent.action_space for agent in self.agents
-        ])
+        self.agents_observation_space = self.agent.observation_space
+        self.agents_action_space = self.agent.action_space
 
 
 
@@ -142,25 +202,11 @@ class UR5DynamicReachEnv(gym.Env):
         # add target box goals
         self.box_ids = []
         self.box_pos = []
-
         self.human_pos = []
-        for i in range(6):
-            for j in range(2):
-                x = (i - 2.5) / 5
-                y = (j - 3.5) / 5
-                z = 0
 
-                id_temp = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
-                                                              "scenes_data", "targetbox/targetbox.urdf"),
-                                                 [x, y, z], [0.000000, 0.000000, 0.0, 0.1])
-                if j >0 :
-                    self.box_ids.append(id_temp)
-                    self.box_pos.append([x, y, z])
-
-
-                bullet_client.changeVisualShape(id_temp, -1, rgbaColor=[1,1,0,1])
-                self.human_pos.append([x,y,z])
-
+        bullet_client.loadURDF(os.path.join(assets.getDataPath(),
+                                            "scenes_data", "cylinder/cylinder.urdf"),
+                               [0, -0.5, 0.1], [0.000000, 0.000000, 0.0, 0.1])
 
 
         self.goal_id = bullet_client.loadURDF(
@@ -169,21 +215,21 @@ class UR5DynamicReachEnv(gym.Env):
             [0.000000, 0.000000, 0.0, 1])
 
         # self.agents[1].set_goal_position( self.human_pos)
-
-
         return self.stadium_scene
+
 
     def set_training(self, is_training):
         self.is_training = is_training
 
-    def configure(self, args):
-        self.agents[0].args = args[0]
-        self.agents[1].args = args[1]
+    # def configure(self, args):
+    #
+    #
+    #     self.agents[0].args = args[0]
+    #     self.agents[1].args = args[1]
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
-        for a in self.agents:
-            a.np_random = self.np_random  # use the same np_randomizer for robot as for env
+        self.agent.np_random = self.np_random
         return [seed]
 
     def set_render(self):
@@ -220,24 +266,13 @@ class UR5DynamicReachEnv(gym.Env):
 
         self.camera_adjust()
 
-        for a in self.agents:
-            a.scene = self.scene
+        self.agent.scene = self.scene
+
 
         self.frame = 0
         self.iter_num = 0
 
         self.robot_base = [0, 0, 0]
-
-        # ---select goal from boxes---#
-        # self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
-        # self.goal[0] += np.random.uniform(-0.1,0.1)
-        # self.goal[1] += np.random.uniform(-0.2, 0.1)
-        # self.goal[2] += np.random.uniform(0.1,0.3)
-        # self.goal_orient = [0.0, 0.707, 0.0, 0.707]
-
-        #-------------for debug------------------------------------
-        # self.goal = np.asarray([0.1, -0.5, 0.2097627008])
-        #---------------------------------------------------
 
         #---- random goal -----#
         self.goal=np.zeros(3)
@@ -251,44 +286,12 @@ class UR5DynamicReachEnv(gym.Env):
 
             self.robot_start_eef = [x, y, z]
 
-            # # -------set goal---------
-            # max_xyz = [0.7, 0.7, 0.6]
-            # goal_reset = False
-            # while not goal_reset:
-            #     self.goal = np.asarray(self.robot_start_eef.copy())
-            #     self.goal[0] += np.random.uniform(-0.6, 0.6)
-            #     self.goal[1] += np.random.uniform(-0.6, 0.6)
-            #     self.goal[2] += np.random.uniform(-0.4, 0.5)
-            #     if abs(self.goal[0]) < max_xyz[0] and abs(self.goal[1]) < max_xyz[1] and abs(self.goal[2]) < max_xyz[2]:
-            #         goal_reset = True
-            #
-            #
-
-            # ah = self.agents[1].reset(self._p, base_position=[0.0, -1.6, -1.1],
-            #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
 
             self.goal = self.random_set_goal()
-            self.agents[1].set_goal_position(self.goal)
 
 
-
-
-            theta = np.arctan2(self.goal[1], self.goal[0])
-            r = np.linalg.norm(self.goal)+np.random.uniform(0.3,0.4)
-            # r = 1.1+np.random.uniform(-0.2,0.2)
-            pi = 3.1415926
-
-            xh = r*np.cos(theta)
-            yh = r*np.sin(theta)
-            qh = pyquaternion.Quaternion(axis=[0, 0, 1], angle=theta+pi) # w, x, y, z
-
-            # print("xh {} , yh {}, z {}".format(xh, yh, theta+pi))
-
-            ah = self.agents[1].reset(self._p, base_position=[xh, yh, -1.1],
-                                      base_rotation=[qh.q[1], qh.q[2], qh.q[3], qh.q[0]])
-            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base,
+            ar = self.agent.reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base,
                                       base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-            # print("reset to robot eef pose, ", self.robot_start_eef)
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
                 continue
@@ -299,7 +302,6 @@ class UR5DynamicReachEnv(gym.Env):
             # print("collision_flag is :", collision_flag)
         s = []
         s.append(ar)
-        s.append(ah)
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
@@ -316,20 +318,7 @@ class UR5DynamicReachEnv(gym.Env):
                     and  abs(goal[1]) > 0.2 and abs(goal[2]) < max_xyz[2]:
                 goal_reset = True
         return goal
-        # #-------set goal---------
-        # max_xyz=[0.7, 0.6, 0.55]
-        # goal_reset = False
-        # while not goal_reset:
-        #     goal = np.asarray(self.robot_start_eef.copy())
-        #     goal[0] += np.random.uniform(-0.5, 0.5)
-        #     goal[1] += np.random.uniform(-0.5, 0.5)
-        #     goal[2] += np.random.uniform(-0.2, 0.2)
-        #     if abs(goal[0])<max_xyz[0] and goal[1]<-0.25 and goal[1]>-0.6 \
-        #             and goal[2]<max_xyz[2] and goal[2]>0.05:
-        #         goal_reset=True
-        # return goal
 
-        # return 0
 
     def _set_safe_distance(self):
         return 0.1
@@ -367,17 +356,7 @@ class UR5DynamicReachEnv(gym.Env):
         view_matrix = self.viewmat
         proj_matrix = self.projmat
 
-        # view_matrix = self._p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos,
-        #                                                         distance=self._cam_dist,
-        #                                                         yaw=self._cam_yaw,
-        #                                                         pitch=self._cam_pitch,
-        #                                                         roll=0,
-        #                                                         upAxisIndex=2)
-        # proj_matrix = self._p.computeProjectionMatrixFOV(fov=90,
-        #                                                  aspect=float(self._render_width) /
-        #                                                         self._render_height,
-        #                                                  nearVal=0.1,
-        #                                                  farVal=1.0)
+
         w = 320
         h = 240
         (_, _, px, _, _) = self._p.getCameraImage(width=w,
@@ -390,44 +369,39 @@ class UR5DynamicReachEnv(gym.Env):
         rgb_array = rgb_array[:, :, :3]
         return rgb_array
 
+
     def close(self):
         if (self.ownsPhysicsClient):
             if (self.physicsClientId >= 0):
                 self._p.disconnect()
         self.physicsClientId = -1
 
-    def step(self, actions):
+
+    def step(self, action):
         self.iter_num += 1
 
-
-        for i, agent in enumerate(self.agents):
-            act_dim = self.agents_action_space[i].shape[0]
-            if i == 0:
-                act = actions[:act_dim]
-            elif i == 1:
-                act = actions[-act_dim:]
-            else:
-                print("ERROR: Cannot support more than two agents!")
-                return False
-
-            agent.apply_action(act)
-
-
-
+        self.agent.apply_action(action)
         self.scene.global_step()
 
         obs = self._get_obs()
-
-
         done = False
 
-
+        #------- for debug----------
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
             'is_collision': self._contact_detection(),
-            'min_dist': self.obs_min_safe_dist,
+            'min_dist': 0.2,
             'safe_threshold': self.current_safe_dist
         }
+        #-------------------------------------------
+
+
+        # info = {
+        #     'is_success': self._is_success(obs['achieved_goal'], self.goal),
+        #     'is_collision': self._contact_detection(),
+        #     'min_dist': self.obs_min_safe_dist,
+        #     'safe_threshold': self.current_safe_dist
+        # }
 
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
 
@@ -452,9 +426,8 @@ class UR5DynamicReachEnv(gym.Env):
         '''
         infos = {}
         dones = [False for _ in range(self._n_agents)]
-        ur5_states = self.agents[0].calc_state()
+        ur5_states = self.agent.calc_state()
         ur5_eef_position = ur5_states[:3]
-        humanoid_states = self.agents[1].calc_state()
 
         infos['succeed'] = dones
 
@@ -467,26 +440,26 @@ class UR5DynamicReachEnv(gym.Env):
 
 
 
-
-        # human to robot base minimum distance
-        pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
-                                       self.agents[1].robot_body.bodies[0],
-                                       linkIndexA=self.agents[0].parts['ee_link'].bodyPartIndex,
-                                       distance = self.max_obs_dist_threshold)  # max perception threshold
-        min_dist = self.max_obs_dist_threshold
-
-
-        # print("pts: ", pts)
-        for i in range(len(pts)):
-            if pts[i][8] < min_dist:
-                min_dist = pts[i][8]
-        if len(pts) == 0:
-            # normalize
-            obs_human_states = np.ones(len(humanoid_states))
-            # obs_human_states[0:6] = humanoid_states[0:6] / np.linalg.norm(humanoid_states[0:6]) * self.safe_dist_threshold
-        else:
-            # add reward according to min_distance
-            obs_human_states = humanoid_states
+        #
+        # # human to robot base minimum distance
+        # pts = self._p.getClosestPoints(self.agents[0].robot_body.bodies[0],
+        #                                self.agents[1].robot_body.bodies[0],
+        #                                linkIndexA=self.agents[0].parts['ee_link'].bodyPartIndex,
+        #                                distance = self.max_obs_dist_threshold)  # max perception threshold
+        # min_dist = self.max_obs_dist_threshold
+        #
+        #
+        # # print("pts: ", pts)
+        # for i in range(len(pts)):
+        #     if pts[i][8] < min_dist:
+        #         min_dist = pts[i][8]
+        # if len(pts) == 0:
+        #     # normalize
+        #     obs_human_states = np.ones(len(humanoid_states))
+        #     # obs_human_states[0:6] = humanoid_states[0:6] / np.linalg.norm(humanoid_states[0:6]) * self.safe_dist_threshold
+        # else:
+        #     # add reward according to min_distance
+        #     obs_human_states = humanoid_states
 
 
         # #--------for debug-----------------------------------------
@@ -495,15 +468,19 @@ class UR5DynamicReachEnv(gym.Env):
         # #--------------------------------------------------
 
         achieved_goal = ur5_eef_position
-        self.obs_min_safe_dist = min_dist
+        # self.obs_min_safe_dist = min_dist
 
 
         # print("human stets", obs_human_states)
         # print("min_dist", min_dist)
 
 
-        obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
-                              np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+        obs = np.zeros(19)
+
+        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
+        #                       np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+
+
 
         return {
             'observation': obs.copy(),

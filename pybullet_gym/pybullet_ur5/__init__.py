@@ -28,12 +28,15 @@ register(
     reward_threshold=20000.0,
 )
 
+
 register(
-    id='UR5DynamicTestEnv-v0',
-    entry_point='pybullet_ur5.envs.ur5_dynamic_test:UR5DynamicTestEnv',
+    id='UR5DynamicReachEnv-v2',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_reach_obs:UR5DynamicReachObsEnv',
     max_episode_steps=200,
+    # max_episode_steps=400,
     reward_threshold=20000.0,
 )
+
 
 register(
     id='UR5RealTestEnv-v0',

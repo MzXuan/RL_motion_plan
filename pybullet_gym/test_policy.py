@@ -156,7 +156,7 @@ if __name__ == "__main__":
     parser.add_argument('--fpath', type=str, default=None)
     parser.add_argument('--itr', '-i', type=int, default=-1)
     # parser.add_argument("--env", type=str, default="UR5RealTestEnv-v0")
-    parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
     # parser.add_argument("--env", type=str, default="UR5DynsamicTestEnv-v0")
 
     args = parser.parse_args()
