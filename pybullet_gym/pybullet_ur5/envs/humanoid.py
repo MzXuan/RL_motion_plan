@@ -226,7 +226,6 @@ class SelfMoveHumanoid(Humanoid):
         # self.start_center = np.asarray([-0.2, -1.0, 0])
 
 
-
         self.jdict["abdomen_z"].reset_position(0.0, 0)
         self.jdict["abdomen_y"].reset_position(0.0, 0)
         self.jdict["abdomen_x"].reset_position(0.0, 0)

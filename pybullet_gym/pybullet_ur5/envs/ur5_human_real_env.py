@@ -57,8 +57,8 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False,  distance_threshold=0.05,
-                 max_obs_dist=0.4, dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 early_stop=False,  distance_threshold=0.04,
+                 max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
         self.distance_close = 0.3
@@ -78,7 +78,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         # self.agents = [UR5RealRobot(3, ), SelfMoveHumanoid(0, 12, noise=False, move_base=False)]
 
-        self.agents = [UR5RealRobot(3, ), RealHumanoid()]
+        self.agents = [UR5RealRobot(3, ), RealHumanoid(max_obs_dist)]
         # self.agents = [UR5EefRobot(3, ), RealHumanoid()]
         # self.agents = [UR5EefRobot(3, ),
         #                SelfMoveHumanoid(0, 12, is_training=True, move_base=True, noise=True)]
@@ -107,7 +107,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(19,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(25,), dtype='float32'),
         ))
 
 
@@ -307,36 +307,38 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         dones = [False for _ in range(self._n_agents)]
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
-        humanoid_states = self.agents[1].calc_state()
+        arm_state = self.agents[1].calc_state()
 
         infos['succeed'] = dones
 
-        human_position = humanoid_states[:6].reshape(2,3)
-
-
-        d = [np.linalg.norm([p-ur5_eef_position]) for p in human_position]
-        min_dist =np.min(np.asarray(d))
-        if min_dist > self.max_obs_dist_threshold:
-            min_dist = self.max_obs_dist_threshold
-            obs_human_states = np.ones(len(humanoid_states))
-        else:
-            obs_human_states = humanoid_states
-
-
+        #------------------------------------------------------------------
+        d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_state["current"]]
 
         achieved_goal = ur5_eef_position
+        min_dist = np.min(np.asarray(d))
         self.obs_min_safe_dist = min_dist
+        obs_human_states = []
+        for p in arm_state["current"]:
+            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            else:
+                obs_human_states.append(p-ur5_eef_position)
+
+        for p in arm_state["last"]:
+            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            else:
+                obs_human_states.append(p-ur5_eef_position)
+
+        print("obs human states: ", obs_human_states)
 
         try:
             self.goal,_ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
         except:
             print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
 
-        # print("human obs is: ", obs_human_states)
-        # print("humanoid_states: ", humanoid_states)
-        obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
+        obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
                               np.asarray(self.goal).flatten(), np.asarray([min_dist])])
-
 
         return {
             'observation': obs.copy(),
@@ -344,9 +346,45 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
             'desired_goal': self.goal.copy(),
         }
 
+
+        #
+        # -----old version------#
+        # d = [np.linalg.norm([p - ur5_eef_position]) for p in humanoid_states["current"]]
+        # d_l = [np.linalg.norm([p - ur5_eef_position]) for p in humanoid_states["last"]]
+        #
+        #
+        #
+        # min_dist = np.min(np.asarray(d))
+        # if min_dist > self.max_obs_dist_threshold:
+        #     min_dist = self.max_obs_dist_threshold
+        #     obs_human_states = np.zeros(2 * 3 * len(d)) + self.max_obs_dist_threshold
+        # else:
+        #     obs_human_states = np.concatenate( \
+        #         [np.asarray(humanoid_states["current"]).flatten(), np.asarray(humanoid_states["last"]).flatten()])
+        # #
+        # print("human states:", obs_human_states)
+        # achieved_goal = ur5_eef_position
+        # self.obs_min_safe_dist = min_dist
+        #
+        # try:
+        #     self.goal,_ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
+        # except:
+        #     print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
+        #
+        # # print("human obs is: ", obs_human_states)
+        # # print("humanoid_states: ", humanoid_states)
+        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
+        #                       np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+        #
+        #
+        # return {
+        #     'observation': obs.copy(),
+        #     'achieved_goal': achieved_goal.copy(),
+        #     'desired_goal': self.goal.copy(),
+        # }
+
     def step(self, actions):
         self.iter_num += 1
-
 
 
         self.agents[0].apply_action(actions)

@@ -17,6 +17,7 @@ import robot_bases
 import math
 from scenes.stadium import StadiumScene, PlaneScene
 import gym, gym.spaces, gym.utils
+import pyquaternion
 
 
 
@@ -24,7 +25,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
     self_collision = True
     foot_list = ["right_foot", "left_foot"]  # "left_hand", "right_hand"
 
-    def __init__(self, obs_dim=12, random_yaw=False, random_lean=False):
+    def __init__(self,max_obs_dist_threshold, obs_dim=18, random_yaw=False, random_lean=False, ):
         self.power = 0.41
         self.camera_x = 0
         # self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
@@ -39,15 +40,16 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self.human_model = HumanModel()
 
 
-        self.trans_matrix = np.asarray(
-            [[0.8148623, 0.1675849, 0.5549007, -0.830],
-            [0.5791159, -0.1941063, -0.7918001, 1.145],
-            [-0.0249840, 0.9665599, -0.2552210, 0.837],
-            [0,0,0,1]])
+        trans_mat =  pyquaternion.Quaternion([0.542,0.777, 0.246, 0.202]).transformation_matrix
+        trans_mat[:3,3]=[ -0.664, 0.907, 0.778]
+        self.trans_matrix = trans_mat
 
         self.robot_name = 'humanoid'
 
-
+        self.max_obs_dist_threshold = max_obs_dist_threshold
+        self.last_state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
+                     "arm": np.zeros(3) + self.max_obs_dist_threshold,
+                     "hand": np.zeros(3) + self.max_obs_dist_threshold}
 
     def reset(self, bullet_client):
         self._p = bullet_client
@@ -70,35 +72,65 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         # WalkerBase.robot_specific_reset(self, bullet_client)
         self._p = bullet_client
 
+    def calc_current_state(self):
+        try:
+            # current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
+            elbow = self.trans_point(self.human_model.joints["ElbowLeft"])
+            hand = self.trans_point(self.human_model.joints["HandLeft"])
+
+            state = {"elbow": elbow,
+                     "arm": (elbow + hand) / 2,
+                     "hand": hand}
+
+
+        except:
+            state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
+                     "arm": np.zeros(3) + self.max_obs_dist_threshold,
+                     "hand": np.zeros(3) + self.max_obs_dist_threshold}
+        return state
 
     def calc_state(self):
+        current_state = self.calc_current_state()
 
-
-        try:
-            # print("self.joints", self.human_model.joints)
-
-            # joint_states = [(self.human_model.get_joint_state(joint_name)) for joint_name in self.state_joints]
-            #
-            # current_position = [self.trans_point(p[:3]) for p in joint_states]
-            # current_velocity = [self.trans_point(p[3:6]) for p in joint_states]
-
-            current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
-            current_velocity = [self.trans_point(self.human_model.joint_velocity[joint_name]) for joint_name in
-                                self.state_joints]
-        except:
-            current_position =np.ones((2,3))
-            current_velocity = np.ones((2,3))
-
-        # print("current positon,", current_position)
-        # print("currebt_positon", current_postion[0])
-        # print("currebt_positon", current_postion[1])
-        self._p.addUserDebugLine(current_position[0], current_position[1], lineColorRGB=[0, 0, 1], lineWidth=10,
+        obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
+               "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
+        }
+        print("human obs:", obs)
+        self._p.addUserDebugLine(current_state["elbow"], current_state["hand"], lineColorRGB=[0, 0, 1], lineWidth=10,
                                  lifeTime=1)
-        # self._p.addUserDebugLine(current_postion[1], current_postion[2], lineColorRGB=[0, 0, 1], lineWidth=10,
-        #                          lifeTime=1)
-        obs = np.concatenate([np.asarray(current_position).flatten(), np.asarray(current_velocity).flatten()])
+
+        self.last_state = current_state
 
         return obs
+
+
+
+
+        # try:
+        #     # print("self.joints", self.human_model.joints)
+        #
+        #     # joint_states = [(self.human_model.get_joint_state(joint_name)) for joint_name in self.state_joints]
+        #     #
+        #     # current_position = [self.trans_point(p[:3]) for p in joint_states]
+        #     # current_velocity = [self.trans_point(p[3:6]) for p in joint_states]
+        #
+        #     current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
+        #     current_velocity = [self.trans_point(self.human_model.joint_velocity[joint_name]) for joint_name in
+        #                         self.state_joints]
+        # except:
+        #     current_position =np.zeros((3,3))+self.max_obs_dist_threshold
+        #     # current_velocity = np.ones((2,3))
+        #
+        # # print("current positon,", current_position)
+        # # print("currebt_positon", current_postion[0])
+        # # print("currebt_positon", current_postion[1])
+        # self._p.addUserDebugLine(current_position[0], current_position[1], lineColorRGB=[0, 0, 1], lineWidth=10,
+        #                          lifeTime=1)
+        # # self._p.addUserDebugLine(current_postion[1], current_postion[2], lineColorRGB=[0, 0, 1], lineWidth=10,
+        # #                          lifeTime=1)
+        # obs = np.concatenate([np.asarray(current_position).flatten(), np.asarray(current_velocity).flatten()])
+        #
+        # return obs
 
 
 

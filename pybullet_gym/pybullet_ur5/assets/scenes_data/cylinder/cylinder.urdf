@@ -6,55 +6,6 @@
   <material name="green">
     <color rgba="0.0 0.8 0.0 1 "/>
   </material>
-  <link name="forearm_link">
-        <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-       <mass value=".0"/>
-       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
-    </inertial>
-
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <cylinder radius="0.06" length="0.25"/>
-      </geometry>
-      <material name="red"/>
-    </visual>
-
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <cylinder radius="0.06" length="0.25"/>
-      </geometry>
-      <material name="red"/>
-    </collision>
-  </link>
-
-
-
-  <link name="hand_link">
-    <inertial>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-       <mass value=".0"/>
-       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
-    </inertial>
-
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.07"/>
-      </geometry>
-      <material name="green"/>
-    </visual>
-
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.07"/>
-      </geometry>
-      <material name="green"/>
-    </collision>
-  </link>
 
 
   <link name="elbow_link">
@@ -82,7 +33,68 @@
   </link>
 
 
+  <link name="forearm_link">
+        <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+       <mass value=".0"/>
+       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
 
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.25"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.25"/>
+      </geometry>
+      <material name="red"/>
+    </collision>
+  </link>
+  
+
+
+  <link name="hand_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+       <mass value=".0"/>
+       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.07"/>
+      </geometry>
+      <material name="green"/>
+    </visual>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.07"/>
+      </geometry>
+      <material name="green"/>
+    </collision>
+  </link>
+
+
+  <!-- <joint name="elbow_fixed_joint" type="fixed">
+    <parent link="elbow_link"/>
+    <child link="forearm_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.15"/>
+  </joint> -->
+
+  <joint name="elbow_fixed_joint" type="fixed">
+    <parent link="forearm_link"/>
+    <child link="elbow_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.15"/>
+  </joint>
 
   <joint name="hand_fixed_joint" type="fixed">
     <parent link="forearm_link"/>
@@ -90,10 +102,6 @@
     <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.15"/>
   </joint>
 
-  <joint name="elbow_fixed_joint" type="fixed">
-    <parent link="forearm_link"/>
-    <child link="elbow_link"/>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.15"/>
-  </joint>
+
 
 </robot>

@@ -240,7 +240,7 @@ def main(args):
     if args.play:
         pybullet.connect(pybullet.DIRECT)
         env = gym.make("UR5RealTestEnv-v0")
-        # env.render("human")
+        env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -248,7 +248,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
-        env.render("rgb_array")
+        # env.render("rgb_array")
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
@@ -271,9 +271,9 @@ def main(args):
 
                 obs, rew, done, info = env.step(actions) #0.01s
 
-                img = env.render("rgb_array")
-                cv2.imshow("image", img)
-                cv2.waitKey(1)
+                # img = env.render("rgb_array")
+                # cv2.imshow("image", img)
+                # cv2.waitKey(1)
                 print("actions:", actions)
                 print("achieved goal", obs['achieved_goal'])
                 print("desired goal", obs['desired_goal'])
