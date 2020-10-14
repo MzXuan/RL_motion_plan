@@ -169,6 +169,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         self.jdict['wrist_2_joint'].max_velocity = 3.2
         self.jdict['wrist_3_joint'].max_velocity = 3.2
 
+        self.last_eef_position, self.last_ee_vel, _ = self.ur5_rob_control.get_tool_state()
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
@@ -207,7 +208,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
 
 
         #todo: set joint v
-        # print("robot joint velocity is: ", joint_v)
+        print("robot joint velocity is: ", joint_v)
 
 
         # self.ur5_rob_control.set_joint_position(next_joint, wait=False)
@@ -224,15 +225,12 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
     def calc_state(self):
         # todo: get from real robot
         joint_position, joint_velocity = self.ur5_rob_control.get_joint_state()
-        # eef_pos, eef_vel = self.ur5_rob_control.get_tool_state()
 
-        eef_pos = self.ur5_rob_control.get_tool_state_2()
+        # eef_pos = self.ur5_rob_control.get_tool_state_2()
+
+        ee_pos, ee_vel, _ = self.ur5_rob_control.get_tool_state()
         # joint_velocity = np.asarray(joint_velocity)*50
-        # obs = np.concatenate((eef_pose, np.asarray(joint_position), np.asarray(joint_velocity)))
-        # print("eef vel: ", eef_vel)
 
-        # obs = np.concatenate((eef_pos, np.asarray(joint_position)))
-        # obs = np.concatenate((eef_pos,eef_vel*1, np.asarray(joint_position)))
 
         # 同步obs 到simulator
         self.jdict['shoulder_pan_joint'].reset_position(joint_position[0], 0)
@@ -243,7 +241,9 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         self.jdict['wrist_3_joint'].reset_position(joint_position[5], 0)
 
         # print("joint_velocity,",joint_velocity)
-        obs = eef_pos
+        # obs = eef_pos
+        obs = np.concatenate([ee_pos, ee_vel, self.last_ee_vel])
+        self.last_ee_vel = ee_vel
         return obs
 
     def stop(self):

@@ -86,37 +86,41 @@ class Moving_obstacle():
         #
         state = self.calc_current_state()
         current_pos = state['arm']
-
-        safe_dist = 0.4
+        safe_dist = 0.2
 
         if abs(current_pos[0])>self.range[0] or abs(current_pos[1])>self.range[1]\
             or abs(current_pos[2])>self.range[2] \
-                or np.linalg.norm(state['elbow']) < safe_dist \
-                or np.linalg.norm(state['hand']) < safe_dist \
-                or np.linalg.norm(state['arm']) < safe_dist:
+                or np.linalg.norm(state['elbow'][:2]) < safe_dist \
+                or np.linalg.norm(state['hand'][:2]) < safe_dist \
+                or np.linalg.norm(state['arm'][:2]) < safe_dist:
             self.rob_reset()
             basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
             current_pos = basepose[0]
             current_ori = basepose[1]
 
         noise_vel = self.random_n(max=[0.01, 0.01, 0.01])
-        velocity = 0.1*self.velocity * np.random.uniform(0.9, 1.1) + noise_vel
-        next_pos = np.asarray(current_pos)+velocity
+        if np.random.choice([1,2,3]) == 1:
+            velocity=np.zeros(3)
+        else:
 
+            velocity = 0.15*self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
+
+        next_pos = np.asarray(current_pos) + velocity
         next_ori =self._p.getQuaternionFromEuler(\
             self._p.getEulerFromQuaternion(np.asarray(current_ori))+self.rot_vel+noise_vel)
         self._p.resetBasePositionAndOrientation(bodyUniqueId = self.id, posObj = next_pos,ornObj = next_ori)
 
 
-    def rob_reset(self):
+    def rob_reset_2(self):
         success = False
         while not success:
-            theta = np.arctan2(self.human_goal[1], self.human_goal[0])
-            r = np.linalg.norm(self.human_goal)+np.random.uniform(0.3,0.6)
+            theta = np.arctan2(self.human_goal[1], self.human_goal[0])+3.14/2
 
-            xh = r * np.cos(theta)+np.random.uniform(-0.3, 0.3)
-            yh = r * np.sin(theta)+np.random.uniform(-0.3, 0.3)
-            zh = self.human_goal[2]+np.random.uniform(-0.3, 0.3)
+            r = np.linalg.norm(self.human_goal)+np.random.uniform(-0.4,0.4)
+
+            xh = r * np.cos(theta)+np.random.uniform(-0.2, 0.2)
+            yh = r * np.sin(theta)+np.random.uniform(-0.2, 0.2)
+            zh = self.human_goal[2]+np.random.uniform(-0.2, 0.2)
 
 
             pos = [xh, yh, zh]
@@ -127,28 +131,51 @@ class Moving_obstacle():
         self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
                                                     ornObj=ori)
 
-
-
-        # success = False
-        # while not success:
-        #     ori = self._p.getQuaternionFromEuler(eulerAngles=self.random_n(max=[3.14, 3.14, 3.14]))
-        #     pos =self.random_n(self.range)
-        #
-        #     if np.linalg.norm(pos)>0.3:
-        #         success=True
-        # self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
-        #                                         ornObj=ori)
-        # self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=[0,-0.5,0],
-        #                                         ornObj=[0,0,0,1])
         s_current = self.calc_current_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 
         current_pos = s_current['arm']
 
-
-        self.velocity = 0.2*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
+        self.velocity = 0.1*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
         self.rot_vel = self.random_n(max=[0.03, 0.0, 0.03])
         self.last_state = s_current
+
+
+    def rob_reset(self):
+        success = False
+        while not success:
+            a = [self.human_goal[0], self.human_goal[1]]
+            x_b = np.random.choice([-1,1])
+            b = [x_b, -1*a[0]/a[1] * x_b]
+            d_l = np.random.uniform(0.3, 0.6)
+
+            p_r = a + np.asarray(b)/np.linalg.norm(b) * d_l
+
+            xh = p_r[0]
+            yh = p_r[1]
+            zh = self.human_goal[2] + np.random.uniform(-0.2, 0.2)
+
+            pos = [xh, yh, zh]
+            if np.linalg.norm(pos)>0.3:
+                success=True
+
+            # print("p_r", p_r)
+
+        ori = self._p.getQuaternionFromEuler(eulerAngles=self.random_n(max=[3.14, 3.14, 3.14]))
+        self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
+                                                    ornObj=ori)
+
+
+        s_current = self.calc_current_state(
+        )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
+
+        current_pos = s_current['arm']
+
+        self.velocity = 0.15*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
+        self.rot_vel = self.random_n(max=[0.03, 0.0, 0.03])
+        self.last_state = s_current
+
+
 
 
 
@@ -207,7 +234,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.03,
+                 early_stop=False, distance_threshold = 0.02,
                  max_obs_dist = 0.5 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.distance_close = 0.3
@@ -225,7 +252,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.frame_skip = 8
 
 
-        self.agent = UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3)
+        self.agent = UR5EefRobot(dt= self.sim_dt*self.frame_skip)
 
         self._n_agents = 1
         self.seed()
@@ -249,7 +276,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(25,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
         ))
 
         # Set observation and action spaces
@@ -445,8 +472,6 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.iter_num += 1
 
         self.agent.apply_action(action)
-        #todo:move object
-        # self.move_obstacle.move_obstacle(client, robot_goal=self.goal)
         self.move_obstacle.apply_action()
 
 
@@ -471,7 +496,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
             'is_collision': self._contact_detection(),
             'min_dist': self.obs_min_safe_dist,
-            'safe_threshold': self.current_safe_dist
+            'safe_threshold': self.current_safe_dist,
+            'ee_vel':obs["observation"][3:9]
         }
 
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
@@ -499,6 +525,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         dones = [False for _ in range(self._n_agents)]
         ur5_states = self.agent.calc_state()
         ur5_eef_position = ur5_states[:3]
+
 
         arm_state = self.move_obstacle.calc_state()
 
@@ -543,36 +570,6 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
 
-
-        # min_dist =np.min(np.asarray(d))
-        # if min_dist > self.max_obs_dist_threshold:
-        #     min_dist = self.max_obs_dist_threshold
-        #     obs_human_states = np.zeros(2*3*len(d))+self.max_obs_dist_threshold
-        # else:
-        #     current =[p-ur5_eef_position for p in arm_state["current"]]
-        #     last = [p-ur5_eef_position for p in arm_state["current"]]
-        #     obs_human_states = np.concatenate(\
-        #         [np.asarray(arm_state["current"]).flatten(), np.asarray(arm_state["last"]).flatten()])
-        # #
-        #
-        # achieved_goal = ur5_eef_position
-        # self.obs_min_safe_dist = min_dist
-        #
-        # # print("obs human states", obs_human_states)
-        #
-        #
-        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
-        #                       np.asarray(self.goal).flatten(), np.asarray([min_dist])])
-        #
-        #
-        #
-        # return {
-        #     'observation': obs.copy(),
-        #     'achieved_goal': achieved_goal.copy(),
-        #     'desired_goal': self.goal.copy(),
-        # }
-
-
     def compute_reward(self, achieved_goal, goal, info):
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
@@ -596,16 +593,18 @@ class UR5DynamicReachObsEnv(gym.Env):
         else:
             distance = 0 if distance<0 else distance
 
+        smoothness = np.linalg.norm([info['ee_vel'][0:3] - info['ee_vel'][3:6]])
+
+
         # sum of reward
         a1 = -1
-        a2 = -8
-        a3 = -0.05
-        if self.reward_type == 'sparse':
-            reward = a1 * (d > self.distance_threshold).astype(np.float32) \
-                     + a2 * (_is_collision > 0) + a3 * distance
+        a2 = -3
+        a3 = -0.5
+        asmooth = -0.02
 
-        else:
-            reward = a1 * d + a2 * (_is_collision > 0)
+        reward = a1 * (d > self.distance_threshold).astype(np.float32) \
+                 + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
+
         return reward
 
     def _contact_detection(self):

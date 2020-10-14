@@ -6,48 +6,90 @@ from itertools import product, combinations
 
 
 class WsPathGen():
-    def __init__(self, pos_path, vel_path):
+    def __init__(self, pos_path, vel_path, distance_threshold):
         self.path = pos_path
         self.vel_path = vel_path
+        self.path_remain = pos_path.copy()
+        self.vel_path_remain = vel_path.copy()
+        self.distance_threshold = distance_threshold
 
 
-    # def __init__(self, start, end):
-    #     self.start = start
-    #     self.end = end
-    #     self.sample_path(start, end)
+    # def next_goal(self, center, r):
+    #     dists = np.linalg.norm((self.path_remain-center),axis=1)
     #
+    #     max_r = 0.3
     #
-    # def sample_path(self, start, end):
-    #     waypoints = np.linspace(start, end, num=10)
-    #     waypoints[1:-1,:] += (np.random.rand(waypoints.shape[0]-2,waypoints.shape[1])-0.5)*0.05
-    #     self.path = waypoints
+    #     while r <= max_r:
+    #
+    #         r += 0.05
+    #         print("r is: ", r)
+    #
+    #         indices = np.where(dists < r)[0]
+    #         inverse_indices = np.flip(indices)
+    #
+    #         for i in inverse_indices: # from end to start
+    #             if i+1 < len(dists): # not meet limit
+    #                 # print("current i is: ", i)
+    #                 p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
+    #                 if p_insect is not None:
+    #
+    #                     result = p_insect, self.vel_path_remain[i].copy()
+    #                     self.path_remain = self.path_remain [i+1:]
+    #                     self.vel_path_remain = self.vel_path_remain[i + 1:]
+    #
+    #                     # print("returned intersection is: ", p_insect)
+    #                     return result
+    #             else:
+    #                 #the end, return the last way point
+    #                 return self.path_remain[-1], self.vel_path_remain[-1]
+    #
+    #     #no interection, return the waypoint with minimum distance
+    #     # todo: or expand r please
+    #     ####!!!!todo!!!! problem here######
+    #     idx = np.argmin(dists)
+    #     return self.path_remain[idx], self.vel_path_remain[idx]
 
 
     def next_goal(self, center, r):
-        dists = np.linalg.norm((self.path-center),axis=1)
-        # print("dist is: ", dists)
-        indices = np.where(dists < r)[0]
+        dists = np.linalg.norm((self.path_remain-center),axis=1)
+        # remove reached points
+        indices = np.where(dists < self.distance_threshold)[0]
+        if indices != []:
+            idx = indices[0]
+            if idx < len(dists)-1:
+                dists = dists[idx+1:]
+                self.path_remain = self.path_remain[idx+1:]
+                print("remove data after idx:", idx)
 
-        # print("indices", indices)
 
-        inverse_indices = np.flip(indices)
 
-        for i in inverse_indices: # from end to start
-            if i+1 < len(dists): # not meet limit
-                # print("current i is: ", i)
-                p_insect = self.calculate_interaction(center, r, self.path[i], self.path[i+1])
-                if p_insect is not None:
-                    # print("returned intersection is: ", p_insect)
-                    return p_insect, self.vel_path[i]
-            else:
-                #the end, return the last way point
-                return self.path[-1], self.vel_path[-1]
+        max_r = 0.3
+
+        while r <= max_r:
+
+            r += 0.05
+            print("r is: ", r)
+
+            indices = np.where(dists < r)[0]
+            print(indices)
+            inverse_indices = np.flip(indices)
+
+            for i in inverse_indices: # from end to start
+                if i+1 < len(dists): # not meet limit
+                    # print("current i is: ", i)
+                    p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
+                    if p_insect is not None:
+                        # print("returned intersection is: ", p_insect)
+                        return p_insect, self.vel_path_remain[i]
+                else:
+                    #the end, return the last way point
+                    return self.path_remain[-1], self.vel_path_remain[-1]
 
         #no interection, return the waypoint with minimum distance
         # todo: or expand r please
         ####!!!!todo!!!! problem here######
         idx = np.argmin(dists)
-        return self.path[idx], self.vel_path[idx]
+        return self.path_remain[idx], self.vel_path_remain[idx]
 
 
     def calculate_interaction(self, center, r, p0, p1):
@@ -112,7 +154,7 @@ def plot_result(waypoints, center,  goal):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("z")
-    ax.set_xlim(0,0.8)
+    ax.set_xlim(0, 0.8)
     ax.set_ylim(0, 0.8)
     ax.set_zlim(0, 0.8)
     plt.show()

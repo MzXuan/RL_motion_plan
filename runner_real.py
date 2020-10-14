@@ -240,6 +240,7 @@ def main(args):
     if args.play:
         pybullet.connect(pybullet.DIRECT)
         env = gym.make("UR5RealTestEnv-v0")
+        # env = gym.make("UR5HumanEnv-v0")
         env.render("human")
 
         logger.log("Running trained model")
@@ -260,6 +261,7 @@ def main(args):
         data_list = []
         last_time = time.time()
 
+        actions_list = []
         while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
             try:
                 print(time.time())
@@ -268,6 +270,8 @@ def main(args):
                 # print("obs",obs)
                 actions, _, _, _ = model.step(obs)  #0.002s
                 data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+
+                actions_list.append(actions)
 
                 obs, rew, done, info = env.step(actions) #0.01s
 
@@ -285,6 +289,9 @@ def main(args):
                 if done_any:
                     np.savetxt("./real_data.csv", np.asarray(data_list), delimiter=",")
                     data_list= []
+
+                    np.savetxt("./actions_data.csv", np.asarray(actions_list), delimiter=",")
+                    actions_list = []
 
                     env.agents[0].stop()
                     time.sleep(2)

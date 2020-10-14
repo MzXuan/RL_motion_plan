@@ -32,13 +32,13 @@ class HumanModel(object):
         # print("human id: ", human_id)
         value_dict = msg[human_id]
 
-        # check is this the previous human
-        if self.human_id is None:
-            self.human_id = human_id
-        else:
-            if self.human_id != human_id:
-                print("human id not match")
-                return
+        # # check is this the previous human
+        # if self.human_id is None:
+        #     self.human_id = human_id
+        # else:
+        #     if self.human_id != human_id:
+        #         print("human id not match")
+        #         return
 
         #copy data to joint info
         for joint_name, value in value_dict.items():

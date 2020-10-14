@@ -259,6 +259,9 @@ def main(args):
         fail_rg_dist=[]
 
         data_list = []
+
+
+
         while traj_count < 300:
             time.sleep(0.03)
             if state is not None:
@@ -301,6 +304,7 @@ def main(args):
             if done_any:
                 np.savetxt("./simulate_data.csv", np.asarray(data_list), delimiter=",")
                 data_list = []
+
                 # break
 
                 print("random seed is: ", seed)

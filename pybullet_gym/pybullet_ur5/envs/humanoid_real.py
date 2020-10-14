@@ -95,7 +95,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
                "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
         }
-        print("human obs:", obs)
+        # print("human obs:", obs)
         self._p.addUserDebugLine(current_state["elbow"], current_state["hand"], lineColorRGB=[0, 0, 1], lineWidth=10,
                                  lifeTime=1)
 

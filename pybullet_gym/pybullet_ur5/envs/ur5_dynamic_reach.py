@@ -464,6 +464,7 @@ class UR5DynamicReachEnv(gym.Env):
         # # ------ drawing ------#
         # self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
         #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        # self.last_robot_eef = ur5_eef_position
 
 
 

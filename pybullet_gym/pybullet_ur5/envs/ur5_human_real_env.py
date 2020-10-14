@@ -26,7 +26,7 @@ from gym_rlmp.envs.ws_path_gen import WsPathGen
 
 def load_demo():
     try:
-        with open('/home/xuan/demos/demo1.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo3.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -57,7 +57,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False,  distance_threshold=0.04,
+                 early_stop=False,  distance_threshold=0.06,
                  max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
@@ -76,12 +76,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.sim_dt = 1.0 / self.hz
         self.frame_skip = 4
 
-        # self.agents = [UR5RealRobot(3, ), SelfMoveHumanoid(0, 12, noise=False, move_base=False)]
-
         self.agents = [UR5RealRobot(3, ), RealHumanoid(max_obs_dist)]
-        # self.agents = [UR5EefRobot(3, ), RealHumanoid()]
-        # self.agents = [UR5EefRobot(3, ),
-        #                SelfMoveHumanoid(0, 12, is_training=True, move_base=True, noise=True)]
 
         self._n_agents = 2
         self.seed()
@@ -107,7 +102,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(25,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
         ))
 
 
@@ -116,19 +111,15 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.agents_observation_space = Tuple([
             agent.observation_space for agent in self.agents
         ])
-        # self.agents_action_space = Tuple([
-        #     agent.action_space for agent in self.agents
-        # ])
-
 
         self.first_reset = True
 
         #--- following demo----
         self.demo_data = load_demo()
-        path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
-        vel_path = [self.demo_data[i]['tool_v'] for i in range(len(self.demo_data))]
-        self.ws_path_gen = WsPathGen(path, vel_path)
-        self.sphere_radius=0.06
+        # path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
+        # vel_path = [self.demo_data[i]['tool_v'] for i in range(len(self.demo_data))]
+        # self.ws_path_gen = WsPathGen(path, vel_path)
+        self.sphere_radius=0.04
 
 
     def reset(self):
@@ -167,34 +158,6 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         move_to_start(self.agents[0].ur5_rob_control, self.demo_data)
 
-        # # ---select goal from boxes---#
-        # self.goal = np.asarray(random.choice(self.box_pos)) #robot goal
-        # self.goal[0] += np.random.uniform(-0.15, 0.15)
-        # self.goal[1] += np.random.uniform(-0.2, 0)
-        # self.goal[2]+=np.random.uniform(0.1,0.3)
-
-
-        #for gebug
-
-
-        #------------fake human--------------------------------
-        # ah = self.agents[1].reset(self._p, base_position=[0.0, -1.1, -1.1],
-        #                           base_rotation=[0, 0, 0.7068252, 0.7073883])
-
-
-        # # #------------------fake robot-------------------
-        #
-        #
-        # x = np.random.uniform(0.2, 0.4)
-        # y = np.random.uniform(-0.6, -0.1)
-        # z = np.random.uniform(0.2, 0.5)
-        #
-        # robot_eef_pose = [np.random.choice([-1, 1]) * x, y, z]
-        #
-        # self.robot_start_eef = robot_eef_pose.copy()
-        # ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
-        #                           base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-
 
         #---------------real human----------------------------#
         ah = self.agents[1].reset(self._p)
@@ -205,23 +168,11 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
             ar = self.agents[0].calc_state()
 
 
-        #-----------------------------------------------------------------
-
-
-        # #-------set goal---------
-        # rob_eef = ar[:3]
-        # self.robot_start_eef = rob_eef.copy()
-        # max_xyz=[0.6, 0.6, 0.45]
-        # goal_reset = False
-        # while not goal_reset:
-        #     self.goal = np.asarray(self.robot_start_eef.copy())
-        #     self.goal[0] += np.random.uniform(-0.5, 0.5)
-        #     self.goal[1] += np.random.uniform(-0.5, 0.5)
-        #     self.goal[2] += np.random.uniform(-0.2, 0.2)
-        #     if   np.linalg.norm(self.goal) <0.7 and self.goal[1]<-0.25 and self.goal[1]>-0.6 \
-        #             and self.goal[2]<max_xyz[2] and self.goal[2]>0.05:
-        #         goal_reset=True
-        # #-------------------------------------------------
+        #------prepare path-----------------
+        path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
+        vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
+        self.ws_path_gen = WsPathGen(path, vel_path, self.distance_threshold)
+        self.draw_path(path)
 
 
 
@@ -242,6 +193,12 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
+
+    def draw_path(self, path):
+        for i in range(len(path)-1):
+            self._p.addUserDebugLine(path[i], path[i+1],
+                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=2,lifeTime=20 )
+
 
     def create_single_player_scene(self, bullet_client):
         self.stadium_scene = PlaneScene(bullet_client, gravity=0, timestep=self.sim_dt, frame_skip=self.frame_skip)
@@ -311,6 +268,10 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         infos['succeed'] = dones
 
+        self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
+                                 lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        self.last_robot_eef = ur5_eef_position
+
         #------------------------------------------------------------------
         d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_state["current"]]
 
@@ -347,42 +308,6 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         }
 
 
-        #
-        # -----old version------#
-        # d = [np.linalg.norm([p - ur5_eef_position]) for p in humanoid_states["current"]]
-        # d_l = [np.linalg.norm([p - ur5_eef_position]) for p in humanoid_states["last"]]
-        #
-        #
-        #
-        # min_dist = np.min(np.asarray(d))
-        # if min_dist > self.max_obs_dist_threshold:
-        #     min_dist = self.max_obs_dist_threshold
-        #     obs_human_states = np.zeros(2 * 3 * len(d)) + self.max_obs_dist_threshold
-        # else:
-        #     obs_human_states = np.concatenate( \
-        #         [np.asarray(humanoid_states["current"]).flatten(), np.asarray(humanoid_states["last"]).flatten()])
-        # #
-        # print("human states:", obs_human_states)
-        # achieved_goal = ur5_eef_position
-        # self.obs_min_safe_dist = min_dist
-        #
-        # try:
-        #     self.goal,_ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
-        # except:
-        #     print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
-        #
-        # # print("human obs is: ", obs_human_states)
-        # # print("humanoid_states: ", humanoid_states)
-        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states),
-        #                       np.asarray(self.goal).flatten(), np.asarray([min_dist])])
-        #
-        #
-        # return {
-        #     'observation': obs.copy(),
-        #     'achieved_goal': achieved_goal.copy(),
-        #     'desired_goal': self.goal.copy(),
-        # }
-
     def step(self, actions):
         self.iter_num += 1
 
@@ -396,11 +321,11 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         done = False
 
         info = {
-            'is_success': self._is_success(obs['achieved_goal'], self.final_goal),
+            'is_success': self._is_success(obs['achieved_goal'], self.goal),
             'is_collision': self._contact_detection(),
-            'alternative_goals': obs['observation'][-6:],
             'min_dist': self.obs_min_safe_dist,
-            'safe_threshold': self.current_safe_dist
+            'safe_threshold': self.current_safe_dist,
+            'ee_vel':obs["observation"][3:9]
         }
 
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
@@ -413,7 +338,6 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs, reward, done, info
-
 
 
 

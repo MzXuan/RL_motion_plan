@@ -28,7 +28,8 @@ class UR5Control():
     def set_tool_velocity(self, velocity):
         # ---- prevent from singaularity
         p, vel,_ = self.get_tool_state()
-        if np.linalg.norm(p) > 0.75:
+        if np.linalg.norm(p) > 0.85:
+            # print("warining!!! close to singularity!!!!!")
             velocity = np.zeros(6)
             velocity[:3] = -p/np.linalg.norm(p)*0.1
         # print("p, velocity", p ,velocity)
