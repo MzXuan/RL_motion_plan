@@ -234,7 +234,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.02,
+                 early_stop=False, distance_threshold = 0.025,
                  max_obs_dist = 0.5 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.distance_close = 0.3
@@ -600,7 +600,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         a1 = -1
         a2 = -3
         a3 = -0.5
-        asmooth = -0.02
+        asmooth = -0.01
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness

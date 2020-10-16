@@ -3,11 +3,6 @@ import time
 import json
 import numpy as np
 
-# class Joint(object):
-#     def __init__(self, name, position):
-#         self.joint_name = name
-#         self.position = position
-
 
 class HumanModel(object):
 # real time information for human model
@@ -19,16 +14,18 @@ class HumanModel(object):
         self.joint_velocity = {}
         self.dt = 1/30
         self.human_id = None
+        self.time_stamp = time.time()
 
 
-    #todo: add function
     def get_joint_state(self, joint_name):
         return [self.joints[joint_name],self.joint_velocity[joint_name]]
 
 
-
     def callback_skeleton(self, msg):
         human_id = list(msg.keys())[0]
+
+        self.time_stamp = time.time()
+
         # print("human id: ", human_id)
         value_dict = msg[human_id]
 
@@ -57,10 +54,20 @@ class HumanModel(object):
 
 if __name__ == "__main__":
     hm = HumanModel()
+    #todo: save to csv
+
+    joint_name = ['ElbowLeft', 'HandLeft']
+    csv_data = []
+    last_time = hm.time_stamp
     while True:
         try:
-            time.sleep(0.005)
-            print("hm.joints", hm.joints)
+            time.sleep(0.03)
+            if hm.time_stamp!=last_time:
+                csv_data.append(np.concatenate([
+                    np.asarray([hm.time_stamp]), hm.joints['ElbowLeft'], hm.joints['HandLeft']]))
+
 
         except KeyboardInterrupt:
+            np.savetxt("/home/xuan/Documents/human_data.csv", np.asarray(csv_data), delimiter=",")
+            print("save csv successfully")
             raise

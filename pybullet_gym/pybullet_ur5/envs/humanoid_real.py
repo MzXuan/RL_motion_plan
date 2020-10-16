@@ -39,9 +39,8 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self.observation_space = gym.spaces.Box(-high, high)
         self.human_model = HumanModel()
 
-
-        trans_mat =  pyquaternion.Quaternion([0.542,0.777, 0.246, 0.202]).transformation_matrix
-        trans_mat[:3,3]=[ -0.664, 0.907, 0.778]
+        trans_mat =  pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
+        trans_mat[:3,3]=[-1.301, -0.295, 0.652]
         self.trans_matrix = trans_mat
 
         self.robot_name = 'humanoid'
@@ -103,34 +102,6 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
 
         return obs
 
-
-
-
-        # try:
-        #     # print("self.joints", self.human_model.joints)
-        #
-        #     # joint_states = [(self.human_model.get_joint_state(joint_name)) for joint_name in self.state_joints]
-        #     #
-        #     # current_position = [self.trans_point(p[:3]) for p in joint_states]
-        #     # current_velocity = [self.trans_point(p[3:6]) for p in joint_states]
-        #
-        #     current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
-        #     current_velocity = [self.trans_point(self.human_model.joint_velocity[joint_name]) for joint_name in
-        #                         self.state_joints]
-        # except:
-        #     current_position =np.zeros((3,3))+self.max_obs_dist_threshold
-        #     # current_velocity = np.ones((2,3))
-        #
-        # # print("current positon,", current_position)
-        # # print("currebt_positon", current_postion[0])
-        # # print("currebt_positon", current_postion[1])
-        # self._p.addUserDebugLine(current_position[0], current_position[1], lineColorRGB=[0, 0, 1], lineWidth=10,
-        #                          lifeTime=1)
-        # # self._p.addUserDebugLine(current_postion[1], current_postion[2], lineColorRGB=[0, 0, 1], lineWidth=10,
-        # #                          lifeTime=1)
-        # obs = np.concatenate([np.asarray(current_position).flatten(), np.asarray(current_velocity).flatten()])
-        #
-        # return obs
 
 
 

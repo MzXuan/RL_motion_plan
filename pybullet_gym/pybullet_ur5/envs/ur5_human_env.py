@@ -28,7 +28,7 @@ from .ur5_human_real_env import UR5RealTestEnv
 
 def load_demo():
     try:
-        with open('/home/xuan/demos/demo3.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo4.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -59,7 +59,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5HumanEnv(UR5RealTestEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True,  distance_threshold=0.06,
+                 early_stop=True,  distance_threshold=0.05,
                  max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
@@ -120,7 +120,7 @@ class UR5HumanEnv(UR5RealTestEnv):
 
         #--- following demo----
         self.demo_data = load_demo()
-        self.sphere_radius=0.04
+        self.sphere_radius=0.03
 
 
 

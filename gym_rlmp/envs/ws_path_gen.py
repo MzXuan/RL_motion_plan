@@ -61,29 +61,27 @@ class WsPathGen():
                 self.path_remain = self.path_remain[idx+1:]
                 print("remove data after idx:", idx)
 
+        d_min = np.min(dists)
 
+        if d_min > r:
+            r+=d_min
 
-        max_r = 0.3
+        print("r is: ", r)
 
-        while r <= max_r:
+        indices = np.where(dists < r)[0]
+        print(indices)
+        inverse_indices = np.flip(indices)
 
-            r += 0.05
-            print("r is: ", r)
-
-            indices = np.where(dists < r)[0]
-            print(indices)
-            inverse_indices = np.flip(indices)
-
-            for i in inverse_indices: # from end to start
-                if i+1 < len(dists): # not meet limit
-                    # print("current i is: ", i)
-                    p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
-                    if p_insect is not None:
-                        # print("returned intersection is: ", p_insect)
-                        return p_insect, self.vel_path_remain[i]
-                else:
-                    #the end, return the last way point
-                    return self.path_remain[-1], self.vel_path_remain[-1]
+        for i in inverse_indices: # from end to start
+            if i+1 < len(dists): # not meet limit
+                # print("current i is: ", i)
+                p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
+                if p_insect is not None:
+                    # print("returned intersection is: ", p_insect)
+                    return p_insect, self.vel_path_remain[i]
+            else:
+                #the end, return the last way point
+                return self.path_remain[-1], self.vel_path_remain[-1]
 
         #no interection, return the waypoint with minimum distance
         # todo: or expand r please

@@ -26,7 +26,7 @@ from gym_rlmp.envs.ws_path_gen import WsPathGen
 
 def load_demo():
     try:
-        with open('/home/xuan/demos/demo3.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo4.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -57,7 +57,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False,  distance_threshold=0.06,
+                 early_stop=False,  distance_threshold=0.05,
                  max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
@@ -119,7 +119,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         # path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
         # vel_path = [self.demo_data[i]['tool_v'] for i in range(len(self.demo_data))]
         # self.ws_path_gen = WsPathGen(path, vel_path)
-        self.sphere_radius=0.04
+        self.sphere_radius=0.1
 
 
     def reset(self):
@@ -197,7 +197,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
     def draw_path(self, path):
         for i in range(len(path)-1):
             self._p.addUserDebugLine(path[i], path[i+1],
-                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=2,lifeTime=20 )
+                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=4,lifeTime=40 )
 
 
     def create_single_player_scene(self, bullet_client):
@@ -321,7 +321,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         done = False
 
         info = {
-            'is_success': self._is_success(obs['achieved_goal'], self.goal),
+            'is_success': self._is_success(obs['achieved_goal'], self.final_goal),
             'is_collision': self._contact_detection(),
             'min_dist': self.obs_min_safe_dist,
             'safe_threshold': self.current_safe_dist,
