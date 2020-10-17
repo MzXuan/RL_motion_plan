@@ -53,7 +53,7 @@ def kf_filter():
                            1.00199602e+00, 0.00000000e+00],
                           [0.00000000e+00, 0.00000000e+00, 6.65341280e-05, 0.00000000e+00,
                            0.00000000e+00, 1.00199602e+00]]) #covariance matrix
-    kf.Q = np.eye(6)*0.5#process matrix (小=相信模型）
+    kf.Q = np.eye(6)*0.2#process matrix (小=相信模型）
 
 
 
@@ -112,13 +112,14 @@ for i in range(1, len(timesteps)):
         # vel_elbow = elbow[i,:]/(timesteps[i]-timesteps[i-1])
         # acc_elbow = vel_elbow/(timesteps[i]-timesteps[i-1])
         vel_hand = (hand[i, :]-hand[i-1,:]) / (timesteps[i] - timesteps[i - 1])
-        acc_hand = vel_hand / (timesteps[i] - timesteps[i - 1])
+        last_vel_hand =(hand[i-1, :]-hand[i-2,:]) / (timesteps[i-1] - timesteps[i - 2])
+        acc_hand = (vel_hand-last_vel_hand) / (timesteps[i] - timesteps[i - 1])
         dt = (timesteps[i] - timesteps[i - 1])
 
     if np.linalg.norm(vel_hand)>3:
         vel_hand = 3*vel_hand/np.linalg.norm(vel_hand)
-    if np.linalg.norm(acc_hand)>10:
-        acc_hand = 10*acc_hand/np.linalg.norm(acc_hand)
+    if np.linalg.norm(acc_hand)>30:
+        acc_hand = 30*acc_hand/np.linalg.norm(acc_hand)
 
 
     acc_list.append(acc_hand)
@@ -147,7 +148,7 @@ for i in range(1, len(timesteps)):
     # update
     kf_hand.predict(u=acc_hand)
     kf_hand.update(z=z)
-
+    test = kf_hand.x
     # print("x current is: ", z)
     measure_x.append(z.copy())
     filter_x.append(kf_hand.x_post.copy())
@@ -169,11 +170,17 @@ measure_x = np.asarray(measure_x)
 filter_x = np.asarray(filter_x)
 pred_x = np.asarray(pred_x)
 
+acc_list = np.asarray(acc_list)
+vel_list = np.asarray(vel_list)
+
 
 for j in range(3):
     plt.plot(timesteps[1:], measure_x[:,j], 'r--')
     plt.plot(timesteps[1:], filter_x[:,j], 'bs')
-    plt.plot(timesteps[2:], pred_x[:-1,j], 'g^')
+    plt.plot(timesteps[1:-1], pred_x[:-1,j], 'g^')
+    plt.plot(timesteps[2:], pred_x[:-1, j]-measure_x[:-1,j], 'y--')
+
+
 
     plt.show()
 

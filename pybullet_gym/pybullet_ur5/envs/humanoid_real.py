@@ -71,36 +71,60 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         # WalkerBase.robot_specific_reset(self, bullet_client)
         self._p = bullet_client
 
-    def calc_current_state(self):
+    def calc_state(self):
         try:
-            # current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
-            elbow = self.trans_point(self.human_model.joints["ElbowLeft"])
-            hand = self.trans_point(self.human_model.joints["HandLeft"])
+            elbow = self.human_model.joint_queue["ElbowLeft"]
+            hand = self.human_model.joint_queue["HandLeft"]
 
-            state = {"elbow": elbow,
-                     "arm": (elbow + hand) / 2,
-                     "hand": hand}
-
+            elbow_trans = [self.trans_point(p) for p in elbow]
+            hand_trans = [self.trans_point(p) for p in hand]
 
         except:
-            state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
-                     "arm": np.zeros(3) + self.max_obs_dist_threshold,
-                     "hand": np.zeros(3) + self.max_obs_dist_threshold}
-        return state
+            elbow_trans = np.zeros((3,3))+ + self.max_obs_dist_threshold
+            hand_trans = np.zeros((3,3))+ + self.max_obs_dist_threshold
 
-    def calc_state(self):
-        current_state = self.calc_current_state()
 
-        obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
-               "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
-        }
-        # print("human obs:", obs)
-        self._p.addUserDebugLine(current_state["elbow"], current_state["hand"], lineColorRGB=[0, 0, 1], lineWidth=10,
-                                 lifeTime=1)
+        obs={"current":[elbow_trans[0], hand_trans[0]],
+             "last":[elbow_trans[1], hand_trans[1]],
+             "next":[elbow_trans[2], hand_trans[2]]}
 
-        self.last_state = current_state
+        self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
+                                 lifeTime=0.5)
 
         return obs
+
+
+
+    # def calc_current_state(self):
+    #     try:
+    #         # current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
+    #         elbow = self.trans_point(self.human_model.joints["ElbowLeft"])
+    #         hand = self.trans_point(self.human_model.joints["HandLeft"])
+    #
+    #         state = {"elbow": elbow,
+    #                  "arm": (elbow + hand) / 2,
+    #                  "hand": hand}
+    #
+    #
+    #     except:
+    #         state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
+    #                  "arm": np.zeros(3) + self.max_obs_dist_threshold,
+    #                  "hand": np.zeros(3) + self.max_obs_dist_threshold}
+    #     return state
+    #
+    # def calc_state(self):
+    #     current_state = self.calc_current_state()
+    #
+    #     obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
+    #            "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
+    #     }
+    #     # print("human obs:", obs)
+    #     self._p.addUserDebugLine(current_state["elbow"], current_state["hand"], lineColorRGB=[0, 0, 1], lineWidth=10,
+    #                              lifeTime=1)
+    #
+    #     self.last_state = current_state
+    #
+    #     return obs
 
 
 

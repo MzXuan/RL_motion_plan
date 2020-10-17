@@ -3,11 +3,14 @@ import time
 import json
 import numpy as np
 from filterpy.kalman import KalmanFilter
+import matplotlib.pyplot as plt
 
 
 def kf_filter():
     dt = 1 / 30
     kf = KalmanFilter(dim_x=6, dim_z=6, dim_u=3)
+
+    kf.x = np.zeros(6)
     kf.F = np.array([[1, 0, 0, dt, 0, 0],
                      [0, 1, 0, 0, dt, 0],
                      [0, 0, 1, 0, 0, dt],
@@ -36,7 +39,7 @@ def kf_filter():
                       1.00199602e+00, 0.00000000e+00],
                      [0.00000000e+00, 0.00000000e+00, 6.65341280e-05, 0.00000000e+00,
                       0.00000000e+00, 1.00199602e+00]])  # covariance matrix
-    kf.Q = np.eye(6) * 0.2  # process matrix (小=相信模型）
+    kf.Q = np.eye(6)*0.2   # process matrix (小=相信模型）
 
     kf.R = np.array([[0.2, 0, 0, 0, 0, 0],
                      [0, 0.2, 0, 0, 0, 0],
@@ -115,14 +118,16 @@ class HumanModel(object):
 
             try:
                 last_joint_position = self.joints[joint_name].copy()
+                last_joint_velocity = self.joint_velocity[joint_name].copy()
                 self.joints[joint_name] = np.asarray(
                     [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
             except:
                 last_joint_position = self.joints[joint_name] = np.asarray(
                     [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
+                last_joint_velocity = np.zeros(3)
 
             self.joint_velocity[joint_name] = (self.joints[joint_name] - last_joint_position) / dt
-            self.joint_accerlation[joint_name] = self.joint_velocity[joint_name] / dt
+            self.joint_accerlation[joint_name] = (self.joint_velocity[joint_name]-last_joint_velocity) / dt
 
             # --- add kalman filter----#
             if joint_name in self.filter_joint_name:
@@ -132,25 +137,29 @@ class HumanModel(object):
 
                 if np.linalg.norm(vel) > 3:
                     vel = 3 * vel / np.linalg.norm(vel)
-                if np.linalg.norm(acc) > 10:
-                    acc = 10 * acc / np.linalg.norm(acc)
+                if np.linalg.norm(acc) > 20:
+                    acc = 20 * acc / np.linalg.norm(acc)
 
                 #prepare kalman filter
-                self.filters[joint_name].F = np.array([[1, 0, 0, dt, 0, 0],
+                self.filters[joint_name].F = \
+                                np.array([[1, 0, 0, dt, 0, 0],
                                  [0, 1, 0, 0, dt, 0],
                                  [0, 0, 1, 0, 0, dt],
                                  [0, 0, 0, 1, 0, 0],
                                  [0, 0, 0, 0, 1, 0],
                                  [0, 0, 0, 0, 0, 1]])
 
-                self.filters[joint_name].B = np.array([[0.5 * dt ** 2, 0, 0],
+                self.filters[joint_name].B =\
+                                 np.array([[0.5 * dt ** 2, 0, 0],
                                  [0, 0.5 * dt ** 2, 0],
                                  [0, 0, 0.5 * dt ** 2],
                                  [dt, 0, 0],
                                  [0, dt, 0],
                                  [0, 0, dt]])
 
-                z= np.concatenate([self.joints[joint_name], vel])
+                z= np.concatenate([self.joints[joint_name], vel]).T
+
+                # print("z", z)
                 history_joint = self.filters[joint_name].x.copy()[:3]
                 #update kalman filter
                 self.filters[joint_name].predict(acc)
@@ -159,8 +168,11 @@ class HumanModel(object):
 
                 #predict step
                 next_joint = self.filters[joint_name].get_prediction(acc)[0][:3]
-
+                # print("history joint", history_joint)
+                # print("current joint", current_joint)
                 self.joint_queue[joint_name] = [history_joint, current_joint, next_joint]
+
+                # print("sef.joint queue", self.joint_queue)
 
             self.last_time_stamp = current_time
 
@@ -176,15 +188,35 @@ if __name__ == "__main__":
     joint_name = ['ElbowLeft', 'HandLeft']
     csv_data = []
     last_time = hm.last_time_stamp
+    measure = []
+    filter =[]
+    predict = []
+    timestep = []
     while True:
         try:
-            time.sleep(0.03)
+            time.sleep(0.015)
             if hm.last_time_stamp!=last_time:
-                csv_data.append(np.concatenate([
-                    np.asarray([hm.last_time_stamp]), hm.joints['ElbowLeft'], hm.joints['HandLeft']]))
+                timestep.append(last_time)
+                measure.append(hm.joints['HandLeft'])
+                print("sef.joint queue", hm.joint_queue)
+                filter.append(hm.joint_queue['HandLeft'][1])
+                predict.append(hm.joint_queue['HandLeft'][2])
+            #     csv_data.append(np.concatenate([
+            #         np.asarray([hm.last_time_stamp]), hm.joints['ElbowLeft'], hm.joints['HandLeft']]))
             last_time = hm.last_time_stamp
 
         except KeyboardInterrupt:
+            measure=np.asarray(measure)
+            filter = np.asarray(filter)
+            predict = np.asarray(predict)
+            timestep=np.asarray(timestep)
+            for j in range(3):
+                plt.plot(timestep[:], measure[:, j], 'r--')
+                plt.plot(timestep[:], filter[:, j], 'bs')
+                plt.plot(timestep[:], predict[:, j], 'g^')
+
+                plt.show()
+
             # np.savetxt("/home/xuan/Documents/human_data.csv", np.asarray(csv_data), delimiter=",")
             # print("save csv successfully")
             raise
