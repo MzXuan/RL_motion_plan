@@ -25,7 +25,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
     self_collision = True
     foot_list = ["right_foot", "left_foot"]  # "left_hand", "right_hand"
 
-    def __init__(self,max_obs_dist_threshold, obs_dim=18, random_yaw=False, random_lean=False, ):
+    def __init__(self,max_obs_dist_threshold, obs_dim=27, random_yaw=False, random_lean=False, ):
         self.power = 0.41
         self.camera_x = 0
         # self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
@@ -34,6 +34,8 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self.display_joints = ['HandLeft','ElbowLeft','ShoulderLeft','HandRight','ElbowRight','ShoulderRight']
         # self.state_joints = ['ShoulderLeft','ElbowLeft','HandLeft']
         self.state_joints = ['ElbowLeft', 'HandLeft']
+
+
 
         high = np.inf * np.ones([obs_dim])
         self.observation_space = gym.spaces.Box(-high, high)
@@ -46,9 +48,9 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self.robot_name = 'humanoid'
 
         self.max_obs_dist_threshold = max_obs_dist_threshold
-        self.last_state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
-                     "arm": np.zeros(3) + self.max_obs_dist_threshold,
-                     "hand": np.zeros(3) + self.max_obs_dist_threshold}
+        self.last_state = {"elbow": np.ones(3) + self.max_obs_dist_threshold,
+                     "arm": np.ones(3) + self.max_obs_dist_threshold,
+                     "hand": np.ones(3) + self.max_obs_dist_threshold}
 
     def reset(self, bullet_client):
         self._p = bullet_client
@@ -80,13 +82,15 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
             hand_trans = [self.trans_point(p) for p in hand]
 
         except:
-            elbow_trans = np.zeros((3,3))+ + self.max_obs_dist_threshold
-            hand_trans = np.zeros((3,3))+ + self.max_obs_dist_threshold
+            elbow_trans = np.ones((3,3))+ + self.max_obs_dist_threshold
+            hand_trans = np.ones((3,3))+ + self.max_obs_dist_threshold
 
 
-        obs={"current":[elbow_trans[0], hand_trans[0]],
-             "last":[elbow_trans[1], hand_trans[1]],
-             "next":[elbow_trans[2], hand_trans[2]]}
+
+        obs={"current":[elbow_trans[0], (elbow_trans[0]+hand_trans[0])/2, hand_trans[0]],
+             "next":[elbow_trans[1], (elbow_trans[1]+hand_trans[1])/2, hand_trans[1]],
+             "next2":[elbow_trans[2], (elbow_trans[2]+hand_trans[2])/2, hand_trans[2]]}
+
 
         self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
                                  lifeTime=0.5)

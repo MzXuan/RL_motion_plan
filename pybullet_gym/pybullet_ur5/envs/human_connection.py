@@ -58,12 +58,9 @@ class HumanModel(object):
 # real time information for human model
     def __init__(self, ip="192.168.0.10"):
         self.kinect = Kinect2Client(ip)
-        self.kinect.skeleton.set_callback(self.callback_skeleton)
-        self.kinect.skeleton.start()
         self.joints = {}
         self.joint_velocity = {}
         self.joint_accerlation = {}
-
         self.joint_queue = {}
 
         # self.dt = 1/30
@@ -72,19 +69,27 @@ class HumanModel(object):
         self.filters = {'ElbowLeft': kf_filter(), 'HandLeft': kf_filter()} #elbow, hand
         self.filter_joint_name = ['ElbowLeft', 'HandLeft']
 
+        self.kinect.skeleton.set_callback(self.callback_skeleton)
+        self.kinect.skeleton.start()
+
+
 
     def reset(self):
+        print("reset")
+        # self.kinect.skeleton.stop()
+        print("stop")
         self.joints = {}
         self.joint_velocity = {}
         self.joint_accerlation = {}
-
         self.joint_queue = {}
-
         # self.dt = 1/30
         self.human_id = None
         self.last_time_stamp = time.time()
         self.filters = {'ElbowLeft': kf_filter(), 'HandLeft': kf_filter()}  # elbow, hand
-        self.filter_joint_name = ['ElbowLeft', 'HandLeft']
+
+        print("start")
+
+        # self.kinect.skeleton.start()
 
 
 
@@ -93,12 +98,17 @@ class HumanModel(object):
 
 
     def callback_skeleton(self, msg):
+
+
         human_id = list(msg.keys())[0]
 
-
         current_time =time.time()
-        dt = current_time-self.last_time_stamp
 
+        dt = 0.033
+
+
+        dt = current_time-self.last_time_stamp
+        #
         if dt>1:
             self.reset()
 
@@ -126,19 +136,25 @@ class HumanModel(object):
                     [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
                 last_joint_velocity = np.zeros(3)
 
+
             self.joint_velocity[joint_name] = (self.joints[joint_name] - last_joint_position) / dt
             self.joint_accerlation[joint_name] = (self.joint_velocity[joint_name]-last_joint_velocity) / dt
+
 
             # --- add kalman filter----#
             if joint_name in self.filter_joint_name:
 
+                # print("self.joint velocity", self.joint_velocity)
+
                 vel = self.joint_velocity[joint_name]
                 acc = self.joint_accerlation[joint_name]
 
+
                 if np.linalg.norm(vel) > 3:
-                    vel = 3 * vel / np.linalg.norm(vel)
+                    vel = 3.0 * vel / np.linalg.norm(vel)
                 if np.linalg.norm(acc) > 20:
-                    acc = 20 * acc / np.linalg.norm(acc)
+                    acc = 20.0 * acc / np.linalg.norm(acc)
+
 
                 #prepare kalman filter
                 self.filters[joint_name].F = \
@@ -160,23 +176,27 @@ class HumanModel(object):
                 z= np.concatenate([self.joints[joint_name], vel]).T
 
                 # print("z", z)
-                history_joint = self.filters[joint_name].x.copy()[:3]
+                # history_joint = self.filters[joint_name].x.copy()[:3]
                 #update kalman filter
                 self.filters[joint_name].predict(acc)
                 self.filters[joint_name].update(z)
-                current_joint = self.filters[joint_name].x.copy()[:3]
+                current_joint = self.filters[joint_name].x.copy()
+
+
 
                 #predict step
-                next_joint = self.filters[joint_name].get_prediction(acc)[0][:3]
+                next_joint = self.filters[joint_name].get_prediction(acc)[0]
+                next_next_joint = self.filters[joint_name].get_prediction(acc, x=next_joint)[0]
+
                 # print("history joint", history_joint)
                 # print("current joint", current_joint)
-                self.joint_queue[joint_name] = [history_joint, current_joint, next_joint]
+                self.joint_queue[joint_name] = [current_joint[:3], next_joint[:3], next_next_joint[:3]]
+
+
 
                 # print("sef.joint queue", self.joint_queue)
 
             self.last_time_stamp = current_time
-
-
 
         # print("value dict", self.joints)
         # print("joint velocity", self.joint_velocity['HandRight'])
@@ -191,16 +211,22 @@ if __name__ == "__main__":
     measure = []
     filter =[]
     predict = []
+    further_predict = []
     timestep = []
     while True:
         try:
             time.sleep(0.015)
+
             if hm.last_time_stamp!=last_time:
-                timestep.append(last_time)
-                measure.append(hm.joints['HandLeft'])
                 print("sef.joint queue", hm.joint_queue)
-                filter.append(hm.joint_queue['HandLeft'][1])
-                predict.append(hm.joint_queue['HandLeft'][2])
+                try:
+                    measure.append(hm.joints['HandLeft'])
+                    filter.append(hm.joint_queue['HandLeft'][0])
+                    predict.append(hm.joint_queue['HandLeft'][1])
+                    further_predict.append(hm.joint_queue['HandLeft'][2])
+                    timestep.append(last_time)
+                except:
+                    pass
             #     csv_data.append(np.concatenate([
             #         np.asarray([hm.last_time_stamp]), hm.joints['ElbowLeft'], hm.joints['HandLeft']]))
             last_time = hm.last_time_stamp
@@ -209,11 +235,13 @@ if __name__ == "__main__":
             measure=np.asarray(measure)
             filter = np.asarray(filter)
             predict = np.asarray(predict)
+            further_predict = np.asarray(further_predict)
             timestep=np.asarray(timestep)
             for j in range(3):
                 plt.plot(timestep[:], measure[:, j], 'r--')
                 plt.plot(timestep[:], filter[:, j], 'bs')
                 plt.plot(timestep[:], predict[:, j], 'g^')
+                plt.plot(timestep[:], further_predict[:,j],'y^')
 
                 plt.show()
 

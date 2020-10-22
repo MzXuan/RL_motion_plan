@@ -1,14 +1,14 @@
 ## bullet runner
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=5e5 --save_path=~/models/ur5_reach_c20_1014_5 --log_path=~/log/ur5_reach_c20_1014_5 --load_path=~/models/ur5_reach_c20_1013_3
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_reach_c20_1021_2 --log_path=~/log/ur5_reach_c20_1020_2
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v0 --env_type=robotics --num_timesteps=2e5 --save_path=~/models/fetch_reach_her_8 --log_path=~/log/ur5_reach_her_8
 
 ### bullet play
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1013_3 --play
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1021_2 --play
 
 
 ## real robot test env: (BE CAREFUL!!!!)
-python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1014_5 --play
+python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_reach_c20_1019_2 --play
 
 __
 # her:

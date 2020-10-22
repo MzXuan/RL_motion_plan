@@ -12,17 +12,10 @@ def register(id, *args, **kvargs):
 
 # ------------bullet-------------
 
-register(
-    id='PyFetchReachEnv-v0',
-    entry_point='pybullet_ur5.envs.fetch:FetchReachEnv',
-    max_episode_steps=200,
-    reward_threshold=20000.0,
-)
-
 
 register(
-    id='UR5DynamicReachEnv-v0',
-    entry_point='pybullet_ur5.envs.ur5_dynamic_reach:UR5DynamicReachEnv',
+    id='UR5HumanCollisionEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_human_collision:UR5HumanCollisionEnv',
     max_episode_steps=200,
     # max_episode_steps=400,
     reward_threshold=20000.0,

@@ -26,7 +26,7 @@ from gym_rlmp.envs.ws_path_gen import WsPathGen
 
 def load_demo():
     try:
-        with open('/home/xuan/demos/demo4.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo5.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -56,12 +56,11 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 
 class UR5RealTestEnv(UR5DynamicReachEnv):
-    def __init__(self, render=False, max_episode_steps=1000,
+    def __init__(self, render=False, max_episode_steps=3000,
                  early_stop=False,  distance_threshold=0.05,
-                 max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 max_obs_dist=0.35, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
-        self.distance_close = 0.3
 
         self.collision_weight = 0
         self.iter_num = 0
@@ -85,7 +84,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self._cam_pitch = 30
 
         self.target_off_set=0.2
-        self.safe_dist_threshold = 0.6
+
 
         self.distance_threshold = distance_threshold # for success check
         self.early_stop=early_stop
@@ -102,7 +101,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
         ))
 
 
@@ -120,6 +119,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
         # vel_path = [self.demo_data[i]['tool_v'] for i in range(len(self.demo_data))]
         # self.ws_path_gen = WsPathGen(path, vel_path)
         self.sphere_radius=0.1
+        self.hand_velocity=np.zeros(3)
 
 
     def reset(self):
@@ -197,7 +197,7 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
     def draw_path(self, path):
         for i in range(len(path)-1):
             self._p.addUserDebugLine(path[i], path[i+1],
-                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=4,lifeTime=40 )
+                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=4 )
 
 
     def create_single_player_scene(self, bullet_client):
@@ -277,21 +277,40 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
 
         achieved_goal = ur5_eef_position
         min_dist = np.min(np.asarray(d))
+        if min_dist>self.max_obs_dist_threshold:
+            min_dist = self.max_obs_dist_threshold
+
         self.obs_min_safe_dist = min_dist
+
+
         obs_human_states = []
         for p in arm_state["current"]:
+            if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+            else:
+                obs_human_states.append(p - ur5_eef_position)
+
+        for p in arm_state["next"]:
             if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
                 obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
             else:
                 obs_human_states.append(p-ur5_eef_position)
 
-        for p in arm_state["last"]:
+        for p in arm_state["next2"]:
             if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
                 obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
             else:
                 obs_human_states.append(p-ur5_eef_position)
 
         print("obs human states: ", obs_human_states)
+
+        if (arm_state['current'][2] == self.max_obs_dist_threshold).all() \
+                and (arm_state['next'][2] ==  self.max_obs_dist_threshold).all():
+            self.hand_velocity = np.zeros(3)
+        else:
+            self.hand_velocity = (arm_state['next'][2] - arm_state['current'][2])/0.033
+
+
 
         try:
             self.goal,_ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
@@ -306,6 +325,14 @@ class UR5RealTestEnv(UR5DynamicReachEnv):
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
+
+    def set_sphere(self, r):
+        self.sphere_radius = r
+
+
+    def get_hand_velocity(self):
+        return self.hand_velocity
 
 
     def step(self, actions):

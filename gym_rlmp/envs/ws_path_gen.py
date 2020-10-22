@@ -69,7 +69,7 @@ class WsPathGen():
         print("r is: ", r)
 
         indices = np.where(dists < r)[0]
-        print(indices)
+        # print(indices)
         inverse_indices = np.flip(indices)
 
         for i in inverse_indices: # from end to start

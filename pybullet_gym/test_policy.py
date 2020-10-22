@@ -115,10 +115,11 @@ def main(fpath, env, itr):
     env.render()
     ## start simulation loop ##
 
+    obs = env.get_obs()
     while(id<300):
         try:
             time.sleep(0.03)
-            obs = env.get_obs()
+            # obs = env.get_obs()
             action = get_action(obs)
             # print("action: ", action)
             obs, rew, done, info = env.step(action)
@@ -157,7 +158,10 @@ if __name__ == "__main__":
     parser.add_argument('--itr', '-i', type=int, default=-1)
     # parser.add_argument("--env", type=str, default="UR5RealTestEnv-v0")
     # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
-    parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+    # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+
+    parser.add_argument("--env", type=str, default="UR5HumanCollisionEnv-v0")
+
 
     args = parser.parse_args()
     main(args.fpath, args.env, args.itr)

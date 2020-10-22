@@ -179,7 +179,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         assert (np.isfinite(a).all())
         # scale
 
-        max_eef_velocity = 0.1
+        max_eef_velocity = 0.08
         scale = max_eef_velocity
 
         # current_position,_ = self.ur5_rob_control.get_tool_state()

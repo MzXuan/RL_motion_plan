@@ -64,81 +64,90 @@ def goal_distance(goal_a, goal_b):
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
+class L(list):
+     def append(self, item):
+         list.append(self, item)
+         if len(self) > 3: del self[0]
+
 
 class Moving_obstacle():
     def __init__(self, arm_id, max_speed=0.008):
         self.id = arm_id
         self.moving_speed = np.asarray([0,0,0])
         self.max_speed = max_speed
-
         self.range = [0.8, 0.8, 0.6]
         self.rob_base = [0, 0, 0]
-
+        self.pos_list = L()
+        self.ori_list = L()
 
     def set_rob_goal(self, rob_goal):
         self.rob_goal = rob_goal
 
 
     def apply_action(self):
-        current_ori = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)[1]
+        # current_ori = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)[1]
 
         # linkinfo = self._p.getLinkStates(bodyUniqueId=self.id, linkIndices=[0, 1])
-        #
-        state = self.calc_current_state()
-        current_pos = state['arm']
+
+        # check safety
+        state = self.calc_state()
+
         safe_dist = 0.2
 
+        current_pos = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)[0]
         if abs(current_pos[0])>self.range[0] or abs(current_pos[1])>self.range[1]\
             or abs(current_pos[2])>self.range[2] \
-                or np.linalg.norm(state['elbow'][:2]) < safe_dist \
-                or np.linalg.norm(state['hand'][:2]) < safe_dist \
-                or np.linalg.norm(state['arm'][:2]) < safe_dist:
+                or np.linalg.norm(state['current'][0]) < safe_dist \
+                or np.linalg.norm(state['current'][1]) < safe_dist:
             self.rob_reset()
-            basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
-            current_pos = basepose[0]
-            current_ori = basepose[1]
+            # basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
+            # current_pos = basepose[0]
+            # current_ori = basepose[1]
 
-        noise_vel = self.random_n(max=[0.01, 0.01, 0.01])
-        if np.random.choice([1,2,3]) == 1:
-            velocity=np.zeros(3)
-        else:
-
-            velocity = 0.15*self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
-
-        next_pos = np.asarray(current_pos) + velocity
-        next_ori =self._p.getQuaternionFromEuler(\
-            self._p.getEulerFromQuaternion(np.asarray(current_ori))+self.rot_vel+noise_vel)
+        # move to next step
+        self.create_next_action()
+        next_pos = self.pos_list[0]
+        next_ori = self.ori_list[0]
         self._p.resetBasePositionAndOrientation(bodyUniqueId = self.id, posObj = next_pos,ornObj = next_ori)
 
-
-    def rob_reset_2(self):
-        success = False
-        while not success:
-            theta = np.arctan2(self.human_goal[1], self.human_goal[0])+3.14/2
-
-            r = np.linalg.norm(self.human_goal)+np.random.uniform(-0.4,0.4)
-
-            xh = r * np.cos(theta)+np.random.uniform(-0.2, 0.2)
-            yh = r * np.sin(theta)+np.random.uniform(-0.2, 0.2)
-            zh = self.human_goal[2]+np.random.uniform(-0.2, 0.2)
+        # print("action self.pos_list", self.pos_list)
 
 
-            pos = [xh, yh, zh]
-            if np.linalg.norm(pos)>0.3:
-                success=True
 
-        ori = self._p.getQuaternionFromEuler(eulerAngles=self.random_n(max=[3.14, 3.14, 3.14]))
-        self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
-                                                    ornObj=ori)
 
-        s_current = self.calc_current_state(
-        )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 
-        current_pos = s_current['arm']
 
-        self.velocity = 0.1*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
+
+    def create_next_action(self):
+        pos = self.pos_list[-1]
+        ori =self.ori_list[-1]
+
+        noise_vel = self.random_n(max=[0.01, 0.01, 0.01])
+        if np.random.choice([1, 2, 3]) == 1:
+            velocity = np.zeros(3)
+        else:
+            velocity = 0.15 * self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
+
+        next_pos = np.asarray(pos) + velocity
+        next_ori = self._p.getQuaternionFromEuler( \
+            self._p.getEulerFromQuaternion(np.asarray(ori)) + self.rot_vel + noise_vel)
+
+        self.pos_list.append(next_pos)
+        self.ori_list.append(next_ori)
+
+    def init_action_list(self):
+        #create actions at timestep [0,1,2]
+        self.pos_list = L()
+        self.ori_list = L()
+        basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
+        current_pos = basepose[0]
+        self.velocity = 0.15 * (self.human_goal - current_pos) / np.linalg.norm(current_pos - self.human_goal)
         self.rot_vel = self.random_n(max=[0.03, 0.0, 0.03])
-        self.last_state = s_current
+        self.pos_list.append(basepose[0])
+        self.ori_list.append(basepose[1])
+        self.create_next_action()
+        self.create_next_action()
+
 
 
     def rob_reset(self):
@@ -153,29 +162,29 @@ class Moving_obstacle():
 
             xh = p_r[0]
             yh = p_r[1]
-            zh = self.human_goal[2] + np.random.uniform(-0.2, 0.2)
+            zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
 
             pos = [xh, yh, zh]
             if np.linalg.norm(pos)>0.3:
                 success=True
 
-            # print("p_r", p_r)
 
         ori = self._p.getQuaternionFromEuler(eulerAngles=self.random_n(max=[3.14, 3.14, 3.14]))
         self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
                                                     ornObj=ori)
 
+        # initialize state list with current pos and orientation
 
-        s_current = self.calc_current_state(
-        )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
+        self.init_action_list()
 
-        current_pos = s_current['arm']
+        # s_current = self.calc_state(
+        # )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 
-        self.velocity = 0.15*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
-        self.rot_vel = self.random_n(max=[0.03, 0.0, 0.03])
-        self.last_state = s_current
+        # current_pos = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)[0]
 
-
+        # self.velocity = 0.15*(self.human_goal-current_pos)/np.linalg.norm(current_pos - self.human_goal)
+        # self.rot_vel = self.random_n(max=[0.03, 0.0, 0.03])
+        # self.last_state = s_current
 
 
 
@@ -183,7 +192,7 @@ class Moving_obstacle():
 
         self._p = client
         self.rob_goal = rob_goal
-        self.human_goal =  rob_goal+self.random_n(max=[0.1,0.1, 0.1])
+        self.human_goal =  rob_goal+self.random_n(max=[0.1,0.1, 0.25], min=[-0.1,-0.1, -0.1])
 
         self.rob_reset()
         s = self.calc_state(
@@ -193,30 +202,63 @@ class Moving_obstacle():
         return s
 
     def calc_state(self):
-        current_state = self.calc_current_state()
-        # obs = [current_state["elbow"],self.last_state["elbow"],
-        #        current_state["arm"],self.last_state["arm"],
-        #        current_state["hand"], self.last_state["hand"]]
-        obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
-               "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
+        #backup base info
+        current_base = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
+        #1. move link to positions at next n steps, save observations
+
+        states = []
+
+        # print("self.pos_list", self.pos_list)
+
+        for (pos, ori) in zip(self.pos_list, self.ori_list):
+            self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
+                                                    ornObj=ori)
+            linkinfo = self._p.getLinkStates(bodyUniqueId=self.id, linkIndices=[0, 1])
+            base = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
+            #elbow, arm , hand
+            states.append([np.asarray(linkinfo[0][0]), np.asarray(base[0]), np.asarray(linkinfo[1][0])]) #elbow, arm, hand
+
+        obs = {"current": states[0],
+               "next": states[1],
+               "next2": states[2]
         }
 
-        self.last_state = current_state
+
+
+        #2. set to current states
+        self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=current_base[0],
+                                                ornObj=current_base[1])
+
+
 
         return obs
+
+
+#     def calc_state(self):
+#         current_state = self.calc_current_state()
+#         # obs = [current_state["elbow"],self.last_state["elbow"],
+#         #        current_state["arm"],self.last_state["arm"],
+#         #        current_state["hand"], self.last_state["hand"]]
+#         obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
+#                "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
+#         }
 #
-    def calc_current_state(self):
-        base = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
-        linkinfo = self._p.getLinkStates(bodyUniqueId=self.id, linkIndices=[0,1])
-
-        # print("base", base)
-        # print("linkinfo", linkinfo)
-
-        state = {"elbow": np.asarray(linkinfo[0][0]),
-                "arm": np.asarray(base[0]),
-                 "hand": np.asarray(linkinfo[1][0]) }
-        # print("object obs:", state)
-        return state
+#         self.last_state = current_state
+#
+#         return obs
+# #
+#     def calc_current_state(self):
+#         base = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
+#         linkinfo = self._p.getLinkStates(bodyUniqueId=self.id, linkIndices=[0,1])
+#
+#         # print("base", base)
+#         # print("linkinfo", linkinfo)
+#
+#         state = {"elbow": np.asarray(linkinfo[0][0]),
+#                 "arm": np.asarray(base[0]),
+#                  "hand": np.asarray(linkinfo[1][0]) }
+#         # print("object obs:", state)
+#         return state
 
     def random_n(self, max, min=None):
         result = []
@@ -235,9 +277,9 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.025,
-                 max_obs_dist = 0.5 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
-        self.distance_close = 0.3
+
 
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
@@ -276,7 +318,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
         ))
 
         # Set observation and action spaces
@@ -474,13 +516,10 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.agent.apply_action(action)
         self.move_obstacle.apply_action()
 
-
-
-
         self.scene.global_step()
-
         obs = self._get_obs()
         done = False
+
 
         #------- for debug----------
         # info = {
@@ -541,7 +580,12 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         achieved_goal = ur5_eef_position
         min_dist = np.min(np.asarray(d))
+        if min_dist >  self.max_obs_dist_threshold:
+            min_dist =  self.max_obs_dist_threshold
         self.obs_min_safe_dist = min_dist
+
+
+
         obs_human_states = []
         for p in arm_state["current"]:
             if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
@@ -549,7 +593,13 @@ class UR5DynamicReachObsEnv(gym.Env):
             else:
                 obs_human_states.append(p-ur5_eef_position)
 
-        for p in arm_state["last"]:
+        for p in arm_state["next"]:
+            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            else:
+                obs_human_states.append(p-ur5_eef_position)
+
+        for p in arm_state["next2"]:
             if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
                 obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
             else:
@@ -557,9 +607,6 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
                               np.asarray(self.goal).flatten(), np.asarray([min_dist])])
-
-        # print("d,",d)
-        # print("human states:", obs_human_states)
 
 
         return {
@@ -592,6 +639,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             distance[(distance < 0)] = 0
         else:
             distance = 0 if distance<0 else distance
+
 
         smoothness = np.linalg.norm([info['ee_vel'][0:3] - info['ee_vel'][3:6]])
 

@@ -7,7 +7,7 @@ os.sys.path.insert(0, currentdir)
 
 import assets
 from scenes.stadium import StadiumScene, PlaneScene
-from humanoid import EefHumanoid, SelfMoveHumanoid, SelfMoveAwayHumanoid
+from humanoid import SelfMoveHumanoid, SelfMoveAwayHumanoid
 from ur5_rg2 import UR5RG2Robot
 from ur5eef import UR5EefRobot
 

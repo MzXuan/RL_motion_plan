@@ -28,7 +28,7 @@ from .ur5_human_real_env import UR5RealTestEnv
 
 def load_demo():
     try:
-        with open('/home/xuan/demos/demo4.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo5.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -60,7 +60,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 class UR5HumanEnv(UR5RealTestEnv):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=True,  distance_threshold=0.05,
-                 max_obs_dist=0.5, dist_lowerlimit=0.05, dist_upperlimit=0.3,
+                 max_obs_dist=0.35, dist_lowerlimit=0.05, dist_upperlimit=0.3,
                  reward_type="sparse"):
 
         self.distance_close = 0.3
@@ -77,6 +77,11 @@ class UR5HumanEnv(UR5RealTestEnv):
         self.hz = 240
         self.sim_dt = 1.0 / self.hz
         self.frame_skip = 4
+
+        # --- following demo----
+        self.demo_data = load_demo()
+        self.sphere_radius = 0.03
+
 
         self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3 ), RealHumanoid(max_obs_dist)]
 
@@ -105,7 +110,7 @@ class UR5HumanEnv(UR5RealTestEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(31,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
         ))
 
 
@@ -118,9 +123,7 @@ class UR5HumanEnv(UR5RealTestEnv):
 
         self.first_reset = True
 
-        #--- following demo----
-        self.demo_data = load_demo()
-        self.sphere_radius=0.03
+
 
 
 
@@ -165,7 +168,7 @@ class UR5HumanEnv(UR5RealTestEnv):
 
         start_joint  = self.demo_data[0]['robjp']
 
-        # todo: set robot to start
+        # set robot to start
 
         x = np.random.uniform(0.2, 0.4)
         y = np.random.uniform(-0.6, -0.1)
@@ -185,6 +188,7 @@ class UR5HumanEnv(UR5RealTestEnv):
         path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
         vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
         self.ws_path_gen = WsPathGen(path, vel_path, self.distance_threshold)
+
         self.draw_path(path)
 
         #-------set goal from record demo-------------
