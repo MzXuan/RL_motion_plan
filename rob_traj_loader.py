@@ -9,7 +9,7 @@ import numpy as np
 
 def main():
     try:
-        with open('/home/xuan/demos/demo1.pkl', 'rb') as handle:
+        with open('/home/xuan/demos/demo5.pkl', 'rb') as handle:
             data = pickle.load(handle)
         print("load data successfully")
     except:
@@ -39,10 +39,10 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 
 if __name__ == '__main__':
-    ur5 = UR5Control(ip='192.168.0.3')
+    # ur5 = UR5Control(ip='192.168.0.3')
     data = main()
     #move to start
-    move_to_start(ur5, data)
+    # move_to_start(ur5, data)
 
     # move along path
 
@@ -50,17 +50,19 @@ if __name__ == '__main__':
     # ws_path_gen.path = [data[i]['toolp'] for i in range(len(data))]
 
     path = [data[i]['toolp'] for i in range(len(data))]
-    vel_path = [data[i]['tool_v'] for i in range(len(data))]
-    ws_path_gen = WsPathGen(path, vel_path)
-    last_time = time.time()
-    while True:
-        try:
-            dt= time.time()-last_time
-            move_along_path(ur5, ws_path_gen, dt)
-            last_time = time.time()
-        except KeyboardInterrupt:
-            ur5.close()
-            raise
+
+    print(data[-1]['robjp'])
+    # vel_path = [data[i]['toolv'] for i in range(len(data))]
+    # ws_path_gen = WsPathGen(path, vel_path)
+    # last_time = time.time()
+    # while True:
+    #     try:
+    #         dt= time.time()-last_time
+    #         move_along_path(ur5, ws_path_gen, dt)
+    #         last_time = time.time()
+    #     except KeyboardInterrupt:
+    #         ur5.close()
+    #         raise
 
 
 

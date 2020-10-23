@@ -14,8 +14,8 @@ def register(id, *args, **kvargs):
 
 
 register(
-    id='UR5HumanCollisionEnv-v0',
-    entry_point='pybullet_ur5.envs.ur5_human_collision:UR5HumanCollisionEnv',
+    id='UR5DynamicReachPlannerEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_reach_obs:UR5DynamicReachPlannerEnv',
     max_episode_steps=200,
     # max_episode_steps=400,
     reward_threshold=20000.0,

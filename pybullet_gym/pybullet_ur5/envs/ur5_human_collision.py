@@ -8,8 +8,12 @@ os.sys.path.insert(0, currentdir)
 import assets
 from scenes.stadium import StadiumScene, PlaneScene
 from humanoid import SelfMoveHumanoid, SelfMoveAwayHumanoid
-from ur5_rg2 import UR5RG2Robot
+
 from ur5eef import UR5EefRobot
+
+from pybullet_ur5.envs.ur5_dynamic_reach_obs import Moving_obstacle
+
+
 
 import gym, gym.spaces, gym.utils, gym.utils.seeding
 from gym.spaces import Tuple
@@ -83,7 +87,10 @@ def min_dist_conf(initial_conf, conf_list):
 class UR5HumanCollisionEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
-    def __init__(self, render=False, max_episode_steps=1000):
+    def __init__(self, render=False, max_episode_steps=1000,
+                 early_stop=False, distance_threshold = 0.025,
+                 max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 reward_type="sparse"):
         self.distance_close = 0.3
 
         self.iter_num = 0

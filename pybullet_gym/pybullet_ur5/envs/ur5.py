@@ -121,9 +121,14 @@ class UR5Robot(robot_bases.URDFBasedRobot):
         obs = np.concatenate((eef_pose, link_position.flatten()))
         return obs
 
-    def calc_potential(self):
-        return 0
-        # return -100 * np.linalg.norm(self.to_target_vec)
+
+
+
+
+
+
+
+
 
 
 class UR5JointRobot(UR5Robot):

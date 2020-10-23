@@ -28,7 +28,7 @@ def normalize_conf(start, end):
 
 class UR5EefRobot(UR5Robot):
 	TARG_LIMIT = 0.27
-	def __init__(self, dt, action_dim=9, obs_dim=13):
+	def __init__(self, dt, action_dim=3, obs_dim=13):
 		# self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",\
 		# 					"wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
 		# self.select_links = ["shoulder_link", "upper_arm_link","forearm_link","ee_link"]
@@ -124,6 +124,8 @@ class UR5EefRobot(UR5Robot):
 							 joint_angle=None):
 
 		if joint_angle is not None:
+			print("'reset joint angle", joint_angle)
+
 			self.jdict['shoulder_pan_joint'].reset_position(joint_angle[0], 0)
 			self.jdict['shoulder_lift_joint'].reset_position(joint_angle[1], 0)
 			self.jdict['elbow_joint'].reset_position(joint_angle[2], 0)
@@ -308,6 +310,8 @@ class UR5EefRobot(UR5Robot):
 		joint_position = np.asarray(
 			[self.jdict[i].get_position() for i in self.select_joints if
 			 i in self.jdict])  # position
+
+
 		joint_velocity = np.asarray(
 			[self.jdict[i].get_velocity() for i in self.select_joints if i in self.jdict])  # velocity
 
