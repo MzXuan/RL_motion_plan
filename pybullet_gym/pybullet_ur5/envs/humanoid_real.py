@@ -51,9 +51,14 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self.last_state = {"elbow": np.ones(3) + self.max_obs_dist_threshold,
                      "arm": np.ones(3) + self.max_obs_dist_threshold,
                      "hand": np.ones(3) + self.max_obs_dist_threshold}
+        self.arm_id = None
 
     def reset(self, bullet_client):
         self._p = bullet_client
+        if self.arm_id is None:
+            self.arm_id = self._p.loadURDF(os.path.join(assets.getDataPath(),
+                                            "scenes_data", "cylinder/cylinder.urdf"),
+                               [1, 1, 1], [0.000000, 0.000000, 0.0, 0.1], useFixedBase=True)
         # self.leftarm1 = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "cylinder/cylinder.urdf"),
         #                        [0, 0, 0],
         #                        [0.000000, 0.000000, 0.0, 1])
@@ -82,8 +87,8 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
             hand_trans = [self.trans_point(p) for p in hand]
 
         except:
-            elbow_trans = np.ones((3,3))+ + self.max_obs_dist_threshold
-            hand_trans = np.ones((3,3))+ + self.max_obs_dist_threshold
+            elbow_trans = np.ones((3,3))+ self.max_obs_dist_threshold
+            hand_trans = np.ones((3,3))+ self.max_obs_dist_threshold
 
 
 
@@ -92,45 +97,26 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
              "next2":[elbow_trans[2], (elbow_trans[2]+hand_trans[2])/2, hand_trans[2]]}
 
 
-        self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
-                                 lifeTime=0.5)
+        hand_raw =  hand_trans[1]
+        elbow_raw = elbow_trans[1]
+        center = (hand_raw + elbow_raw) / 2
+
+        if np.linalg.norm([hand_raw - center])!=0:
+            hand_trans = (hand_raw - center) / np.linalg.norm([hand_raw - center])
+        else:
+            hand_trans = [0, 0, 1]
+            center = [1,1,1]
+
+        alpha = -np.arcsin(hand_trans[1])
+        beta = np.arcsin(hand_trans[0] / np.cos(alpha))
+        next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
+        self._p.resetBasePositionAndOrientation(bodyUniqueId=self.arm_id, posObj=center, ornObj=next_ori)
+        self._p.addUserDebugLine(hand_raw , elbow_raw,
+                                 lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        # self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
+        #                          lifeTime=0.5)
 
         return obs
-
-
-
-    # def calc_current_state(self):
-    #     try:
-    #         # current_position = [self.trans_point(self.human_model.joints[joint_name]) for joint_name in self.state_joints]
-    #         elbow = self.trans_point(self.human_model.joints["ElbowLeft"])
-    #         hand = self.trans_point(self.human_model.joints["HandLeft"])
-    #
-    #         state = {"elbow": elbow,
-    #                  "arm": (elbow + hand) / 2,
-    #                  "hand": hand}
-    #
-    #
-    #     except:
-    #         state = {"elbow": np.zeros(3) + self.max_obs_dist_threshold,
-    #                  "arm": np.zeros(3) + self.max_obs_dist_threshold,
-    #                  "hand": np.zeros(3) + self.max_obs_dist_threshold}
-    #     return state
-    #
-    # def calc_state(self):
-    #     current_state = self.calc_current_state()
-    #
-    #     obs = {"current":[current_state["elbow"], current_state["arm"], current_state["hand"]],
-    #            "last": [self.last_state["elbow"], self.last_state["arm"],self.last_state["hand"]]
-    #     }
-    #     # print("human obs:", obs)
-    #     self._p.addUserDebugLine(current_state["elbow"], current_state["hand"], lineColorRGB=[0, 0, 1], lineWidth=10,
-    #                              lifeTime=1)
-    #
-    #     self.last_state = current_state
-    #
-    #     return obs
-
-
 
 
     def trans_point(self,p):
@@ -141,21 +127,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         return p_new
 
     def apply_action(self, a):
-
         return 0
-
-        # #control arm
-        # assert (np.isfinite(a).all())
-        # self.jdict["right_shoulder1"].set_position(0)
-        # self.jdict["right_shoulder2"].set_position(0)
-        # self.jdict["right_elbow"].set_position(0)
-        # # scale
-        #
-        # for i in range((self.action_space.shape)[0]):
-        #     scale = self.jdict[self.select_joints[i]].max_velocity
-        #     action = a[i] * (scale) / 2
-        #     # action = a[i] * (high - low) / 2 + (high + low) / 2
-        #     self.jdict[self.select_joints[i]].set_velocity(action)
 
 
     def alive_bonus(self, z, pitch):

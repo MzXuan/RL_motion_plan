@@ -237,6 +237,7 @@ if __name__ == "__main__":
             predict = np.asarray(predict)
             further_predict = np.asarray(further_predict)
             timestep=np.asarray(timestep)
+
             for j in range(3):
                 plt.plot(timestep[:], measure[:, j], 'r--')
                 plt.plot(timestep[:], filter[:, j], 'bs')

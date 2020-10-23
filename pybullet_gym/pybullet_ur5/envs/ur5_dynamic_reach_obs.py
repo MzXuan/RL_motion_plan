@@ -9,6 +9,7 @@ import assets
 from scenes.stadium import StadiumScene, PlaneScene
 
 from ur5eef import UR5EefRobot
+from ur5 import UR5Robot
 
 import gym, gym.spaces, gym.utils, gym.utils.seeding
 
@@ -109,12 +110,11 @@ class Moving_obstacle():
         self.create_next_action()
         next_pos = self.pos_list[0]
         next_ori = self.ori_list[0]
+
+
         self._p.resetBasePositionAndOrientation(bodyUniqueId = self.id, posObj = next_pos,ornObj = next_ori)
 
         # print("action self.pos_list", self.pos_list)
-
-
-
 
 
 
@@ -129,9 +129,37 @@ class Moving_obstacle():
         else:
             velocity = 0.15 * self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
 
+
+        # #------------for debug--------------------
+        # hand_raw = np.asarray([-0.61864441, 1.26849507, 2.79468787])
+        # elbow_raw = np.asarray([-0.94411114, 1.12510296, 2.55870706])
+        #
+        #
+        #
+        # center = (hand_raw + elbow_raw) / 2
+        # next_pos = center
+        #
+        # hand_trans = (hand_raw - center) / np.linalg.norm([hand_raw - center])
+        #
+        # alpha = -np.arcsin(hand_trans[1])
+        # beta = np.arcsin(hand_trans[0] / np.cos(alpha))
+        #
+        # next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
+        # self._p.addUserDebugLine(hand_raw , elbow_raw,
+        #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        # #-----------------done debug----------------------------
+
+
+
+
+
+        #------origin-----------
         next_pos = np.asarray(pos) + velocity
         next_ori = self._p.getQuaternionFromEuler( \
             self._p.getEulerFromQuaternion(np.asarray(ori)) + self.rot_vel + noise_vel)
+        #--------------------------------------
+
+        # next_ori = [0, 0, 0, 1]
 
         self.pos_list.append(next_pos)
         self.ori_list.append(next_ori)
@@ -224,11 +252,16 @@ class Moving_obstacle():
                "next2": states[2]
         }
 
+        # print("obs: ", obs)
+
 
 
         #2. set to current states
         self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=current_base[0],
                                                 ornObj=current_base[1])
+
+        # self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=current_base[0],
+        #                                         ornObj=[0, 0, 0, 1])
 
 
 
@@ -285,8 +318,6 @@ class UR5DynamicReachObsEnv(gym.Env):
                  early_stop=False, distance_threshold = 0.025,
                  max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
-
-
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -742,10 +773,50 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
                  early_stop=False, distance_threshold = 0.025,
                  max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
-        super(UR5DynamicReachPlannerEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
-                 early_stop=early_stop, distance_threshold = distance_threshold,
-                 max_obs_dist = max_obs_dist, dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
-                 reward_type=reward_type)
+        self.iter_num = 0
+        self.max_episode_steps = max_episode_steps
+
+        self.scene = None
+        self.physicsClientId = -1
+        self.ownsPhysicsClient = 0
+        self.isRender = render
+
+        self.hz = 240
+        self.sim_dt = 1.0 / self.hz
+        self.frame_skip = 8
+
+        self.agent = UR5Robot(dt= self.sim_dt*self.frame_skip)
+
+        self._n_agents = 1
+        self.seed()
+        self._cam_dist = 1
+        self._cam_yaw = 0
+        self._cam_pitch = -30
+
+        self.target_off_set=0.2
+        self.distance_threshold = distance_threshold #for success
+
+        self.max_obs_dist_threshold = max_obs_dist
+        self.safe_dist_lowerlimit= dist_lowerlimit
+        self.safe_dist_upperlimit = dist_upperlimit
+
+        # self.distance_threshold = distance_threshold
+        self.early_stop=early_stop
+        self.reward_type = reward_type
+
+        self.n_actions = 3
+        self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
+        self.observation_space = gym.spaces.Dict(dict(
+            desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+            achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
+        ))
+
+        # Set observation and action spaces
+        self.agents_observation_space = self.agent.observation_space
+        self.agents_action_space = self.agent.action_space
+
+
 
     def reset(self):
         self.last_human_eef = [0, 0, 0]
@@ -838,14 +909,12 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
             #     print("cartesian_path", cartesian_path)
                 #todo: draw cartesian path; and move through joint path
                 # self.draw_path(cartesian_path)
+
+                self.goal = np.asarray(cartesian_path[2])
             print("initial conf",initial_conf)
 
-
-
+            self.move_obstacle.reset(self._p, self.goal)
             print("ar ", ar)
-
-        ar = self.agent.reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
-                              base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef, joint_angle=initial_conf)
 
         s = []
         s.append(ar)
@@ -857,7 +926,11 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
     def draw_path(self, path):
         for i in range(len(path)-1):
             self._p.addUserDebugLine(path[i], path[i+1],
-                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=4 )
+                                     lineColorRGB=[0.8,0.8,0.0],lineWidth=4,lifeTime=4)
+
+
+    def get_planned_path(self):
+        return self.reference_traj
 
     def motion_planner(self, initial_conf = None, final_conf =None):
         robot, ik_joints = self._test_moving_links_joints()
@@ -928,7 +1001,7 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
                                  self_collisions=True, diagnosis=False)
 
         #set robot to initial configuration
-        # set_joint_positions(robot, ik_joints, initial_conf)
+        set_joint_positions(robot, ik_joints, initial_conf)
 
         if path is None:
             return None
@@ -956,5 +1029,30 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
 
         return robot, movable_joints
 
+    def compute_reward(self, achieved_goal, goal, info):
+        # Compute distance between goal and the achieved goal.
+        d = goal_distance(achieved_goal, goal)
+
+        #collision
+        _is_collision = info['is_collision']
+        if isinstance(_is_collision, np.ndarray):
+            _is_collision = _is_collision.flatten()
+
+        #safe distance
+        min_dist = info['min_dist']
+        safe_dist = info ['safe_threshold']
+
+        if isinstance(min_dist, np.ndarray):
+            min_dist = min_dist.flatten()
+            safe_dist = safe_dist.flatten()
+
+        distance = safe_dist - min_dist
+        if isinstance(distance, np.ndarray):
+            distance[(distance < 0)] = 0
+        else:
+            distance = 0 if distance<0 else distance
+
+
+        return 0
 
 

@@ -41,6 +41,14 @@ class UR5Control():
         self.rob.movej(target, acc=0.3, vel=0.2, wait=wait)
 
 
+    def set_joint_positions(self, target_list, wait=False):
+        self.rob.movejs(target_list, acc=0.3, vel=0.2, wait=wait)
+
+    def servo_joint_position(self, target, wait=True):
+        #not working
+        self.rob.servoj(target, wait=wait)
+
+
     def set_joint_velocity(self, target):
         # target = target.clip(min=-0.04, max=0.04)
         print("target velocity", target)
