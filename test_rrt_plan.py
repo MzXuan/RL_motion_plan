@@ -120,9 +120,6 @@ def main(env):
 
 
 
-
-
-
             if replan is True:
                 replan_cool_down = 0.8/dt
             else:

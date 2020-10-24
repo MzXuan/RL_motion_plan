@@ -8,7 +8,7 @@ unpickled_df = pd.read_pickle("./mydata.pkl")
 #     print("row", row)
 
 
-# print(unpickled_df.head)
+print(unpickled_df.head)
 apps = unpickled_df.iterrows()
 
 count_row = unpickled_df.shape[0]

@@ -28,7 +28,7 @@ def normalize_conf(start, end):
 
 class UR5EefRobot(UR5Robot):
 	TARG_LIMIT = 0.27
-	def __init__(self, dt, action_dim=3, obs_dim=13):
+	def __init__(self, dt, action_dim=3, obs_dim=14):
 		# self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",\
 		# 					"wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
 		# self.select_links = ["shoulder_link", "upper_arm_link","forearm_link","ee_link"]
@@ -48,7 +48,7 @@ class UR5EefRobot(UR5Robot):
 		self.dt = dt
 		self.n_dofs = 6
 
-		super(UR5EefRobot, self).__init__(action_dim=action_dim, obs_dim=obs_dim)
+		super(UR5EefRobot, self).__init__(dt=dt, action_dim=action_dim, obs_dim=obs_dim)
 
 
 	def select_ik_solution(self, solutions):
@@ -319,15 +319,11 @@ class UR5EefRobot(UR5Robot):
 
 		ee_lin_pos, _, ee_lin_vel,_ = self.getCurrentEEPos()
 
-
-		# obs = np.concatenate((eef_pose, link_position.flatten()))
-		# print("joint velocity: ", joint_velocity)
-
-		# obs = np.concatenate((ee_lin_pos, joint_position.flatten()))
+		obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel, joint_position[:-1].flatten()])
 		# obs = np.concatenate((ee_lin_pos, ee_lin_vel,joint_position.flatten()))
 
-		# obs = np.asarray(ee_lin_pos)
-		obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel])
+
+		# obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel])
 		self.last_ee_vel = ee_lin_vel
 
 		return obs
