@@ -67,7 +67,7 @@ class HumanModel(object):
         self.human_id = None
         self.last_time_stamp = time.time()
         self.filters = {'ElbowLeft': kf_filter(), 'HandLeft': kf_filter()} #elbow, hand
-        self.filter_joint_name = ['ElbowLeft', 'HandLeft']
+        self.filter_joint_name = ['ElbowLeft', 'HandLeft', 'ElbowRight', 'HandRight']
 
         self.kinect.skeleton.set_callback(self.callback_skeleton)
         self.kinect.skeleton.start()
@@ -85,7 +85,8 @@ class HumanModel(object):
         # self.dt = 1/30
         self.human_id = None
         self.last_time_stamp = time.time()
-        self.filters = {'ElbowLeft': kf_filter(), 'HandLeft': kf_filter()}  # elbow, hand
+        self.filters = {'ElbowLeft': kf_filter(), 'HandLeft': kf_filter(),
+                        'ElbowRight': kf_filter(), 'HandRight': kf_filter()}  # elbow, hand
 
         print("start")
 

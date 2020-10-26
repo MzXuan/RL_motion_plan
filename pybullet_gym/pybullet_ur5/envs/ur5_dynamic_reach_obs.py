@@ -77,7 +77,7 @@ class Moving_obstacle():
         self.id = arm_id
         self.moving_speed = np.asarray([0,0,0])
         self.max_speed = max_speed
-        self.range = [0.8, 0.8, 0.6]
+        self.range = [1.0, 1.0, 1.0]
         self.rob_base = [0, 0, 0]
         self.pos_list = L()
         self.ori_list = L()
@@ -182,7 +182,7 @@ class Moving_obstacle():
 
             b = [x_b, y_b, -(a[0]*x_b+a[1]*y_b)/a[2]]
 
-            r = np.random.uniform(0.3, 0.6)
+            r = np.random.uniform(0.5, 0.7)
 
             p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
 
@@ -454,8 +454,11 @@ class UR5DynamicReachObsEnv(gym.Env):
 
             self._p.stepSimulation()
             obs = self._get_obs()
+
+
             collision_flag = self._contact_detection()
             # print("collision_flag is :", collision_flag)
+
         s = []
         s.append(ar)
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0, 0, 0, 1])
@@ -468,9 +471,9 @@ class UR5DynamicReachObsEnv(gym.Env):
         goal_reset = False
         while not goal_reset:
             goal = np.asarray(self.robot_start_eef.copy())
-            goal[0] += np.random.uniform(-0.3, 0.3)
-            goal[1] += np.random.uniform(-0.3, 0.3)
-            goal[2] += np.random.uniform(-0.1, 0.1)
+            goal[0] += np.random.uniform(-0.45, 0.45)
+            goal[1] += np.random.uniform(-0.45, 0.45)
+            goal[2] += np.random.uniform(-0.2, 0.2)
             if abs(goal[0]) < max_xyz[0] and abs(goal[1]) < max_xyz[1]\
                     and  abs(goal[1]) > 0.2 and abs(goal[2]) < max_xyz[2]:
                 goal_reset = True
@@ -685,6 +688,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def _contact_detection(self):
         # collision detection
+
         collisions = self._p.getContactPoints()
         collision_bodies = []
         for c in collisions:
@@ -696,8 +700,6 @@ class UR5DynamicReachObsEnv(gym.Env):
             # print("linkid 2", c[4])
 
             # print("robot parts",self.agents[0].parts)
-
-
             if c[3] == 3 and c[4] == 5:
                 continue
             if c[3] == 0 or c[4] == 0:
@@ -706,16 +708,13 @@ class UR5DynamicReachObsEnv(gym.Env):
             collision_bodies.append(bodyinfo1[1].decode("utf-8"))
             collision_bodies.append(bodyinfo2[1].decode("utf-8"))
 
-
         if len(collision_bodies) != 0:
             if "ur5" in collision_bodies:  # robot collision
                 # print("collision_bodies: ", collision_bodies)
                 return True
             else:
                 return False
-
         return False
-
 
 
     def _is_success(self, achieved_goal, desired_goal):

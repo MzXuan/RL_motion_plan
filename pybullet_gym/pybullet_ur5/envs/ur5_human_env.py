@@ -111,7 +111,7 @@ class UR5HumanEnv(UR5RealTestEnv):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
         ))
 
 

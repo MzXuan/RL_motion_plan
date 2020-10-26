@@ -272,7 +272,7 @@ class UR5EefRobot(UR5Robot):
 		# print("next joint: ", target_jp)
 
 		for i, joint_name in enumerate(self.select_joints):
-			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.6)
+			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
 
 

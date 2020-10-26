@@ -125,7 +125,7 @@ def main(fpath, env, itr):
             obs, rew, done, info = env.step(action)
             #
 
-            print("obs, ", obs)
+            # print("obs, ", obs)
             # print("reward: ", rew)
             # print("obs is: ", obs['observation'][7:13])
             # print("info is:", info)
@@ -158,6 +158,9 @@ if __name__ == "__main__":
     parser.add_argument('--itr', '-i', type=int, default=-1)
     # parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
     parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
+    # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+
+
 
 
 

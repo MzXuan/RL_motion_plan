@@ -55,10 +55,10 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
 
     def reset(self, bullet_client):
         self._p = bullet_client
-        if self.arm_id is None:
-            self.arm_id = self._p.loadURDF(os.path.join(assets.getDataPath(),
-                                            "scenes_data", "cylinder/cylinder.urdf"),
-                               [1, 1, 1], [0.000000, 0.000000, 0.0, 0.1], useFixedBase=True)
+        # if self.arm_id is None:
+        #     self.arm_id = self._p.loadURDF(os.path.join(assets.getDataPath(),
+        #                                     "scenes_data", "cylinder/cylinder.urdf"),
+        #                        [1, 1, 1], [0.000000, 0.000000, 0.0, 0.1], useFixedBase=True)
         # self.leftarm1 = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "cylinder/cylinder.urdf"),
         #                        [0, 0, 0],
         #                        [0.000000, 0.000000, 0.0, 1])
@@ -78,10 +78,11 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         # WalkerBase.robot_specific_reset(self, bullet_client)
         self._p = bullet_client
 
-    def calc_state(self):
+
+    def calc_one_state(self, name_e, name_h):
         try:
-            elbow = self.human_model.joint_queue["ElbowLeft"]
-            hand = self.human_model.joint_queue["HandLeft"]
+            elbow = self.human_model.joint_queue[name_e]
+            hand = self.human_model.joint_queue[name_h]
 
             elbow_trans = [self.trans_point(p) for p in elbow]
             hand_trans = [self.trans_point(p) for p in hand]
@@ -96,26 +97,34 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
              "next":[elbow_trans[1], (elbow_trans[1]+hand_trans[1])/2, hand_trans[1]],
              "next2":[elbow_trans[2], (elbow_trans[2]+hand_trans[2])/2, hand_trans[2]]}
 
+        print("elbow trans {} and hand_trans {}".format(elbow_trans[2], hand_trans[2]))
+        self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
+                                 lifeTime=0.5)
 
-        hand_raw =  hand_trans[1]
-        elbow_raw = elbow_trans[1]
-        center = (hand_raw + elbow_raw) / 2
+        #--------------- for moving object
+        # hand_raw =  hand_trans[1]
+        # elbow_raw = elbow_trans[1]
+        # center = (hand_raw + elbow_raw) / 2
+        #
+        # if np.linalg.norm([hand_raw - center])!=0:
+        #     hand_trans = (hand_raw - center) / np.linalg.norm([hand_raw - center])
+        # else:
+        #     hand_trans = [0, 0, 1]
+        #     center = [1,1,1]
+        #
+        # alpha = -np.arcsin(hand_trans[1])
+        # beta = np.arcsin(hand_trans[0] / np.cos(alpha))
+        # next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
+        # self._p.resetBasePositionAndOrientation(bodyUniqueId=self.arm_id, posObj=center, ornObj=next_ori)
+        # self._p.addUserDebugLine(hand_raw , elbow_raw,
+        #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=0.5)
 
-        if np.linalg.norm([hand_raw - center])!=0:
-            hand_trans = (hand_raw - center) / np.linalg.norm([hand_raw - center])
-        else:
-            hand_trans = [0, 0, 1]
-            center = [1,1,1]
 
-        alpha = -np.arcsin(hand_trans[1])
-        beta = np.arcsin(hand_trans[0] / np.cos(alpha))
-        next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
-        self._p.resetBasePositionAndOrientation(bodyUniqueId=self.arm_id, posObj=center, ornObj=next_ori)
-        self._p.addUserDebugLine(hand_raw , elbow_raw,
-                                 lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
-        # self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
-        #                          lifeTime=0.5)
+        return obs
 
+
+    def calc_state(self):
+        obs = [self.calc_one_state("ElbowLeft", "HandLeft"), self.calc_one_state("ElbowRight", "HandRight")]
         return obs
 
 

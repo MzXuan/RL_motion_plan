@@ -119,7 +119,7 @@ class UR5RealTestEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(40,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
         ))
 
 
@@ -282,7 +282,8 @@ class UR5RealTestEnv(gym.Env):
         dones = [False for _ in range(self._n_agents)]
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
-        arm_state = self.agents[1].calc_state()
+        achieved_goal = ur5_eef_position
+        arm_states = self.agents[1].calc_state()
 
         infos['succeed'] = dones
 
@@ -291,58 +292,62 @@ class UR5RealTestEnv(gym.Env):
         self.last_robot_eef = ur5_eef_position
 
         #------------------------------------------------------------------
-        d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_state["current"]]
 
-        achieved_goal = ur5_eef_position
-        min_dist = np.min(np.asarray(d))
-        if min_dist>self.max_obs_dist_threshold:
-            min_dist = self.max_obs_dist_threshold
-
-        self.obs_min_safe_dist = min_dist
-
-
+        # ------------------------------------------------------------------
         obs_human_states = []
-        for p in arm_state["current"]:
-            if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+        min_dists = []
+        for arm_s in arm_states:
+
+            d = [np.linalg.norm([p - ur5_eef_position]) for p in arm_s["current"]]
+
+            min_dist = np.min(np.asarray(d))
+            if min_dist > self.max_obs_dist_threshold:
+                min_dist = self.max_obs_dist_threshold
+            min_dists.append(min_dist)
+
+            for p in arm_s["current"]:
+                if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p - ur5_eef_position)
+
+            for p in arm_s["next"]:
+                if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p - ur5_eef_position)
+
+            # for p in arm_state["next2"]:
+            #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+            #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            #     else:
+            #         obs_human_states.append(p-ur5_eef_position)
+
+            # print("obs human states: ", obs_human_states)
+
+            # todo: need to update velocity for reactive method
+            if (arm_s['current'][2] == self.max_obs_dist_threshold).all() \
+                    and (arm_s['next'][2] == self.max_obs_dist_threshold).all():
+                self.hand_velocity = np.zeros(3)
             else:
-                obs_human_states.append(p - ur5_eef_position)
-
-        for p in arm_state["next"]:
-            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-            else:
-                obs_human_states.append(p-ur5_eef_position)
-
-        for p in arm_state["next2"]:
-            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-            else:
-                obs_human_states.append(p-ur5_eef_position)
-
-        # print("obs human states: ", obs_human_states)
-
-        if (arm_state['current'][2] == self.max_obs_dist_threshold).all() \
-                and (arm_state['next'][2] ==  self.max_obs_dist_threshold).all():
-            self.hand_velocity = np.zeros(3)
-        else:
-            self.hand_velocity = (arm_state['next'][2] - arm_state['current'][2])/0.033
-
-
+                self.hand_velocity = (arm_s['next'][2] - arm_s['current'][2]) / 0.033
 
         try:
-            self.goal,_ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
+            self.goal, _ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
         except:
             print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
 
+        self.obs_min_dist = np.min(np.asarray(min_dists))
+
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
-                              np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
 
 
     def set_sphere(self, r):
@@ -368,7 +373,7 @@ class UR5RealTestEnv(gym.Env):
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.final_goal),
             'is_collision': self._contact_detection(),
-            'min_dist': self.obs_min_safe_dist,
+            'min_dist': self.obs_min_dist,
             'safe_threshold': self.current_safe_dist,
             'ee_vel':obs["observation"][3:9]
         }
@@ -661,7 +666,8 @@ class UR5RealPlanTestEnv(UR5RealTestEnv):
         dones = [False for _ in range(self._n_agents)]
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
-        arm_state = self.agents[1].calc_state()
+        achieved_goal = ur5_eef_position
+        arm_states = self.agents[1].calc_state()
 
         infos['succeed'] = dones
 
@@ -670,47 +676,49 @@ class UR5RealPlanTestEnv(UR5RealTestEnv):
         self.last_robot_eef = ur5_eef_position
 
         #------------------------------------------------------------------
-        d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_state["current"]]
-
-        achieved_goal = ur5_eef_position
-        min_dist = np.min(np.asarray(d))
-        if min_dist>self.max_obs_dist_threshold:
-            min_dist = self.max_obs_dist_threshold
-
-        self.obs_min_safe_dist = min_dist
-
-
         obs_human_states = []
-        for p in arm_state["current"]:
-            if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+        min_dists = []
+        for arm_s in arm_states:
+
+            d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_s["current"]]
+
+            min_dist = np.min(np.asarray(d))
+            if min_dist >  self.max_obs_dist_threshold:
+                min_dist =  self.max_obs_dist_threshold
+            min_dists.append(min_dist)
+
+
+            for p in arm_s["current"]:
+                if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p - ur5_eef_position)
+
+            for p in arm_s["next"]:
+                if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p-ur5_eef_position)
+
+            # for p in arm_state["next2"]:
+            #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+            #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            #     else:
+            #         obs_human_states.append(p-ur5_eef_position)
+
+            # print("obs human states: ", obs_human_states)
+
+            #todo: need to update velocity for reactive method
+            if (arm_s['current'][2] == self.max_obs_dist_threshold).all() \
+                    and (arm_s['next'][2] ==  self.max_obs_dist_threshold).all():
+                self.hand_velocity = np.zeros(3)
             else:
-                obs_human_states.append(p - ur5_eef_position)
+                self.hand_velocity = (arm_s['next'][2] - arm_s['current'][2])/0.033
 
-        for p in arm_state["next"]:
-            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-            else:
-                obs_human_states.append(p-ur5_eef_position)
-
-        for p in arm_state["next2"]:
-            if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-            else:
-                obs_human_states.append(p-ur5_eef_position)
-
-        # print("obs human states: ", obs_human_states)
-
-        if (arm_state['current'][2] == self.max_obs_dist_threshold).all() \
-                and (arm_state['next'][2] ==  self.max_obs_dist_threshold).all():
-            self.hand_velocity = np.zeros(3)
-        else:
-            self.hand_velocity = (arm_state['next'][2] - arm_state['current'][2])/0.033
-
-
+        self.obs_min_dist = np.min(np.asarray(min_dists))
 
         obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
-                              np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
         return {
             'observation': obs.copy(),

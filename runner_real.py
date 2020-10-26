@@ -239,9 +239,9 @@ def main(args):
 
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        env = gym.make("UR5RealTestEnv-v0")
-        # env = gym.make("UR5HumanEnv-v0")
-        # env.render("human")
+        # env = gym.make("UR5RealTestEnv-v0")
+        env = gym.make("UR5HumanEnv-v0")
+        env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -263,6 +263,7 @@ def main(args):
 
         actions_list = []
 
+        env.set_sphere(0.1)
         while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
             try:
                 print(time.time())
@@ -301,12 +302,9 @@ def main(args):
                     time.sleep(2)
                     # break
 
-
                     for i in np.nonzero(done)[0]:
                         print('episode_rew={}'.format(episode_rew[i]))
                         episode_rew[i] = 0
-
-
 
 
                     print("-------------end step {}---------".format(traj_count))
