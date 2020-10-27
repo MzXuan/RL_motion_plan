@@ -84,7 +84,7 @@ class DDPG(object):
         self.stage_shapes = stage_shapes
 
         # Create network.
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope): #self.scope: ddpg
             self.staging_tf = StagingArea(
                 dtypes=[tf.float32 for _ in self.stage_shapes.keys()],
                 shapes=list(self.stage_shapes.values()))
@@ -274,20 +274,23 @@ class DDPG(object):
 
     def _sync_optimizers(self):
         self.Q_adam.sync()
+        self.Qc_adam.sync()
         self.pi_adam.sync()
 
     def _grads(self):
         # Avoid feed_dict here for performance!
-        critic_loss, actor_loss, Q_grad, pi_grad = self.sess.run([
+        critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad = self.sess.run([
             self.Q_loss_tf,
             self.main.Q_pi_tf,
             self.Q_grad_tf,
+            self.Qc_grad_tf,
             self.pi_grad_tf
         ])
-        return critic_loss, actor_loss, Q_grad, pi_grad
+        return critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad
 
-    def _update(self, Q_grad, pi_grad):
+    def _update(self, Q_grad, Qc_grad, pi_grad):
         self.Q_adam.update(Q_grad, self.Q_lr)
+        self.Qc_adam.update(Qc_grad, 0.001)
         self.pi_adam.update(pi_grad, self.pi_lr)
 
     def sample_batch(self):
@@ -320,8 +323,8 @@ class DDPG(object):
     def train(self, stage=True):
         if stage:
             self.stage_batch()
-        critic_loss, actor_loss, Q_grad, pi_grad = self._grads()
-        self._update(Q_grad, pi_grad)
+        critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad = self._grads()
+        self._update(Q_grad, Qc_grad, pi_grad)
         return critic_loss, actor_loss
 
     def _init_target_net(self):
@@ -335,6 +338,7 @@ class DDPG(object):
 
     def _vars(self, scope):
         res = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.scope + '/' + scope)
+
         assert len(res) > 0
         return res
 
@@ -388,6 +392,10 @@ class DDPG(object):
         target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
         self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
 
+        # target_Qc_tf = self.target.Qc_tf
+        # target_Qcc_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Qc_tf, *clip_range)
+        self.Qc_loss_tf = tf.reduce_mean(tf.square(batch_tf['r'] - self.main.Qc_tf))#todo: this may be wrong
+
         if self.bc_loss ==1 and self.q_filter == 1 : # train with demonstrations and use bc_loss and q_filter both
             maskMain = tf.reshape(tf.boolean_mask(self.main.Q_tf > self.main.Q_pi_tf, mask), [-1]) #where is the demonstrator action better than actor action according to the critic? choose those samples only
             #define the cloning loss on the actor's actions only on the samples which adhere to the above masks
@@ -407,16 +415,25 @@ class DDPG(object):
             self.pi_loss_tf += self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u))
 
         Q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
+        Qc_grads_tf = tf.gradients(self.Qc_loss_tf, self._vars('main/qc'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
+
+
         assert len(self._vars('main/Q')) == len(Q_grads_tf)
+        assert len(self._vars('main/qc')) == len(Qc_grads_tf)
         assert len(self._vars('main/pi')) == len(pi_grads_tf)
         self.Q_grads_vars_tf = zip(Q_grads_tf, self._vars('main/Q'))
+        self.Qc_grads_vars_tf = zip(Qc_grads_tf, self._vars('main/qc'))
         self.pi_grads_vars_tf = zip(pi_grads_tf, self._vars('main/pi'))
+
+
         self.Q_grad_tf = flatten_grads(grads=Q_grads_tf, var_list=self._vars('main/Q'))
+        self.Qc_grad_tf = flatten_grads(grads=Qc_grads_tf, var_list=self._vars('main/qc'))
         self.pi_grad_tf = flatten_grads(grads=pi_grads_tf, var_list=self._vars('main/pi'))
 
         # optimizers
         self.Q_adam = MpiAdam(self._vars('main/Q'), scale_grad_by_procs=False)
+        self.Qc_adam = MpiAdam(self._vars('main/qc'), scale_grad_by_procs=False)
         self.pi_adam = MpiAdam(self._vars('main/pi'), scale_grad_by_procs=False)
 
         # polyak averaging

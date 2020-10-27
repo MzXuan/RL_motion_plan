@@ -274,6 +274,17 @@ class UR5EefRobot(UR5Robot):
 		for i, joint_name in enumerate(self.select_joints):
 			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
+	def bullet_ik(self, target_position):
+		jointPoses =  self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+														target_position,self.orientation
+														)
+
+		target_jp = np.asarray(jointPoses[:6])
+		# print("next joint: ", target_jp)
+
+		for i, joint_name in enumerate(self.select_joints):
+			self.jdict[joint_name].reset_position(target_jp[i], 0)
+
 
 
 	def getCurrentEEPos(self):

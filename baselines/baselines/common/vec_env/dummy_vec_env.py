@@ -24,6 +24,7 @@ class DummyVecEnv(VecEnv):
         self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_rews_collision = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
         self.spec = self.envs[0].spec
@@ -47,13 +48,14 @@ class DummyVecEnv(VecEnv):
             action = self.actions[e]
             # if isinstance(self.envs[e].action_space, spaces.Discrete):
             #    action = int(action)
+            obs, reward, self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
 
-            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
+            self.buf_rews[e], self.buf_rews_collision[e] = reward[0], reward[1]
             if self.buf_dones[e]:
                 obs = self.envs[e].reset()
             self._save_obs(e, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
-                self.buf_infos.copy())
+        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_rews_collision),
+                np.copy(self.buf_dones), self.buf_infos.copy())
 
     def reset(self):
         for e in range(self.num_envs):

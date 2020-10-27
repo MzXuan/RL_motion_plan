@@ -56,6 +56,8 @@ class Monitor(Wrapper):
         return (ob, rew, done, info)
 
     def update(self, ob, rew, done, info):
+        rew=rew[0]
+        # rew_collision = rew[1]
         self.rewards.append(rew)
         if done:
             self.needs_reset = True

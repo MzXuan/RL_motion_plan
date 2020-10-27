@@ -209,6 +209,15 @@ def configure_logger(log_path, **kwargs):
     else:
         logger.configure(**kwargs)
 
+def random_n(max, min=None):
+    result = []
+    if min is None:
+        for m in max:
+            result.append(np.random.uniform(-m, m))
+    else:
+        for s,e in zip(min,max):
+            result.append(np.random.uniform(s,e))
+    return np.asarray(result)
 
 def main(args):
     # configure logger, disable logging in child MPI processes (with rank > 0)
@@ -231,13 +240,14 @@ def main(args):
         model.save(save_path)
 
 
+
     if args.play:
         pybullet.connect(pybullet.DIRECT)
         env = gym.make(args.env)
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 0
+        seed = 20
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -252,96 +262,150 @@ def main(args):
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
 
-        min_dist_list = []
-        # env.render(mode="human")
-        traj_count = 0
-        success_rg_dist=[]
-        fail_rg_dist=[]
 
-        data_list = []
+        #--------------------------- draw Q function for different robot state-------------------------------------#
+        # todo: manual update obs, test different Q, draw in pybullet simulator
+        # write an obs updater in environment
+        # get Q from model.step with q
+        # save Q value and corressponding obs
+        # normalize Q value and draw in pybullet gui
+        eef_current = obs['observation'][:3]
+        goal = obs['desired_goal']
 
-
-
-        while traj_count < 300:
-            time.sleep(0.03)
-            if state is not None:
-                actions, _, state, _ = model.step(obs,S=state, M=dones)
-            else:
-                actions, Q, _, _ = model.step_with_q(obs)
-                data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+        n = 20
+        x = np.linspace(goal[0]-0.6, goal[0]+0.6, num=n)
+        y = goal[1]
+        z = np.linspace(goal[2]-0.6, goal[2]+0.6, num=n)
+        xv, zv = np.meshgrid(x, z, sparse=False)
 
 
+        line_traj = []
+        for i in range(n):
+            for j in range(n):
+                line_traj.append([xv[i,j], y, zv[i,j]])
 
+
+        # line_traj = np.concatenate([np.linspace(eef_current, goal, num=20),
+        #                             np.linspace(eef_current, goal+random_n(max=[0.2, 0.2,0.2]), num=20),
+        #                             np.linspace(eef_current, goal+random_n(max=[0.2, 0.2,0.2]), num=20),
+        #                             np.linspace(eef_current, goal+random_n(max=[0.2, 0.2,0.2]), num=20)])
+
+
+
+        line_traj = np.asarray(line_traj)
+        print("shape of line_traj: ", line_traj.shape)
+        obs_lst = []
+        q_lst = []
+        for i in range(60):
+            # update env for several steps (let obstacle move)
+            actions, Q, _, _ = model.step_with_q(obs)
             obs, rew, done, info = env.step(actions)
 
-            print("actions:", actions)
-            print("achieved goal", obs['achieved_goal'])
-            print("desired goal", obs['desired_goal'])
 
-            # print("actions: ", actions)
-            # print("info", info)
+        for next_eef in line_traj:
+            #todo: batch operation
+            actions, Q, _, _ = model.step_with_q(obs)
+            obs_lst.append(obs['observation'][:3])
+            q_lst.append(Q)
+
+            obs = env.update_robot_obs(next_eef)
+            env.render()
+
+        print("Q_list: ", q_lst)
 
 
-
-            safe_distance = info['safe_threshold']
-            # print("min dist is: ", info['min_dist'])
-            if info['min_dist']<0.6:
-                min_dist_list.append(info['min_dist'])
-
-            r_g_dist = np.linalg.norm(obs['achieved_goal']-obs['desired_goal'])
-            if info['min_dist'] < 0.2:
-                if info['is_collision'] is True:
-                    fail_rg_dist.append(r_g_dist)
-                else:
-                    success_rg_dist.append(r_g_dist)
+        env.draw_Q(obs_lst, q_lst)
+        time.sleep(200)
 
 
 
-
-            episode_rew += rew
-            # env.render()
-            done_any = done.any() if isinstance(done, np.ndarray) else done
-            if done_any:
-                np.savetxt("./simulate_data.csv", np.asarray(data_list), delimiter=",")
-                data_list = []
-
-                # break
-
-                print("random seed is: ", seed)
-
-                if info['is_collision'] is True:
-                    print("min dist", info['min_dist'])
-                    # robot goal distance
-                    print("fail")
-                    fail_count+=1
-                elif info['is_success'] == 1.0:
-                    print('success')
-                    success_count+=1
-                else:
-                    fail_count+=1
-                    print("fail with unknown reason")
-
-                for i in np.nonzero(done)[0]:
-                    print('episode_rew={}'.format(episode_rew[i]))
-                    episode_rew[i] = 0
+        #----------------------- draw Q for different goal state ---------------------------------#
 
 
-                print("-------------end step {}----------".format(traj_count))
-                traj_count+=1
-                seed +=1
-                np.random.seed(seed)
-                tf.set_random_seed(seed)
-                random.seed(seed)
-                obs = env.reset()
-                # time.sleep(1)
-                # env.render()
-                print("--------start----------")
 
-        print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
-        print("safe distance is: ", safe_distance)
-        print("for minimum dist < 0.1, success rg dist mean is: ", np.asarray(success_rg_dist).mean())
-        print("for minimum dist < 0.1, fail rg dist mean is: ", np.asarray(fail_rg_dist).mean())
-        print("success rate is: ", success_count/(fail_count+success_count))
+
+        # ------------------------------ normal test ----------------------#
+        # min_dist_list = []
+        # # env.render(mode="human")
+        # traj_count = 0
+        # success_rg_dist=[]
+        # fail_rg_dist=[]
+        #
+        # data_list = []
+        # while traj_count < 300:
+        #     time.sleep(0.03)
+        #     if state is not None:
+        #         actions, _, state, _ = model.step(obs,S=state, M=dones)
+        #     else:
+        #         actions, Q, _, _ = model.step_with_q(obs)
+        #         data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+        #
+        #
+        #
+        #     obs, rew, done, info = env.step(actions)
+        #
+        #     print("actions:", actions)
+        #     print("achieved goal", obs['achieved_goal'])
+        #     print("desired goal", obs['desired_goal'])
+        #
+        #
+        #     safe_distance = info['safe_threshold']
+        #     # print("min dist is: ", info['min_dist'])
+        #     if info['min_dist']<0.6:
+        #         min_dist_list.append(info['min_dist'])
+        #
+        #     r_g_dist = np.linalg.norm(obs['achieved_goal']-obs['desired_goal'])
+        #     if info['min_dist'] < 0.2:
+        #         if info['is_collision'] is True:
+        #             fail_rg_dist.append(r_g_dist)
+        #         else:
+        #             success_rg_dist.append(r_g_dist)
+        #
+        #
+        #     episode_rew += rew
+        #     # env.render()
+        #     done_any = done.any() if isinstance(done, np.ndarray) else done
+        #     if done_any:
+        #         np.savetxt("./simulate_data.csv", np.asarray(data_list), delimiter=",")
+        #         data_list = []
+        #
+        #         # break
+        #
+        #         print("random seed is: ", seed)
+        #
+        #         if info['is_collision'] is True:
+        #             print("min dist", info['min_dist'])
+        #             # robot goal distance
+        #             print("fail")
+        #             fail_count+=1
+        #         elif info['is_success'] == 1.0:
+        #             print('success')
+        #             success_count+=1
+        #         else:
+        #             fail_count+=1
+        #             print("fail with unknown reason")
+        #
+        #         for i in np.nonzero(done)[0]:
+        #             print('episode_rew={}'.format(episode_rew[i]))
+        #             episode_rew[i] = 0
+        #
+        #
+        #         print("-------------end step {}----------".format(traj_count))
+        #         traj_count+=1
+        #         seed +=1
+        #         np.random.seed(seed)
+        #         tf.set_random_seed(seed)
+        #         random.seed(seed)
+        #         obs = env.reset()
+        #         # time.sleep(1)
+        #         # env.render()
+        #         print("--------start----------")
+        #
+        # print("mean of minimum distance is: ", np.asarray(min_dist_list).mean())
+        # print("safe distance is: ", safe_distance)
+        # print("for minimum dist < 0.1, success rg dist mean is: ", np.asarray(success_rg_dist).mean())
+        # print("for minimum dist < 0.1, fail rg dist mean is: ", np.asarray(fail_rg_dist).mean())
+        # print("success rate is: ", success_count/(fail_count+success_count))
 
     env.close()
 

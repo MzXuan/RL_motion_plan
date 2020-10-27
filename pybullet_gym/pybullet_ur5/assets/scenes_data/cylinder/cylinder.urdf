@@ -1,10 +1,10 @@
 <?xml version="0.0" ?>
 <robot name="cylinder">
   <material name="red">
-    <color rgba="0.8 0.0 0.0 1 "/>
+    <color rgba="0.8 0.0 0.0 0.5 "/>
   </material>
   <material name="green">
-    <color rgba="0.0 0.8 0.0 1 "/>
+    <color rgba="0.0 0.8 0.0 0.5 "/>
   </material>
 
 

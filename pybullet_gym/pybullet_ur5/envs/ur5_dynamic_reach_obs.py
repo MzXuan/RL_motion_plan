@@ -41,6 +41,8 @@ from scipy.interpolate import griddata
 from pkg_resources import parse_version
 
 from mpi4py import MPI
+import colorsys
+
 
 
 
@@ -537,6 +539,34 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.physicsClientId = -1
 
 
+    def draw_Q(self, obs_lst, q_lst):
+        for obstacles in self.move_obstacles:
+            self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+                                     lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+
+        q_lst = np.asarray(q_lst)
+        #normalize Q for color
+        color_lst = (q_lst-min(q_lst))/(max(q_lst)-min(q_lst))
+
+        for obs, q, c in zip(obs_lst, q_lst, color_lst):
+            self._p.addUserDebugText(text = str(q)[2:7], textPosition=obs, textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c, c))
+
+
+        return 0
+
+
+    def update_robot_obs(self, next_eef):
+        #change robot state to certain end_effector and update obs
+        self.agent.bullet_ik(next_eef)
+        obs = self.get_obs()
+
+        return obs
+
+    def update_goal_obs(self, next_goal):
+        # 2. change goal state
+        return 0
+
+
     def step(self, action):
         self.iter_num += 1
 
@@ -547,16 +577,6 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.scene.global_step()
         obs = self._get_obs()
         done = False
-
-
-        #------- for debug----------
-        # info = {
-        #     'is_success': self._is_success(obs['achieved_goal'], self.goal),
-        #     'is_collision': self._contact_detection(),
-        #     'min_dist': 0.2,
-        #     'safe_threshold': self.current_safe_dist
-        # }
-        #-------------------------------------------
 
 
         info = {
@@ -683,8 +703,9 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
+        reward_collision = a2 * (_is_collision > 0) + a3 * distance + asmooth * smoothness
 
-        return reward
+        return [reward, reward_collision]
 
     def _contact_detection(self):
         # collision detection
@@ -988,7 +1009,7 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
         set_joint_positions(robot, ik_joints, initial_conf)
 
         # start planning
-        path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
+        path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=workspace,
                                  self_collisions=True, diagnosis=False)
 
         #set robot to initial configuration
@@ -1008,8 +1029,8 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
 
     def _test_moving_links_joints(self):
         robot = self.agent.robot_body.bodies[0]
-        workspace = self.move_obstacle.id
-        assert isinstance(robot, int) and isinstance(workspace, int)
+        # workspace = [self.move_obstacles[0].id, self.move_obstacles[1].id]
+        assert isinstance(robot, int)
 
         movable_joints = get_movable_joints(robot)
         assert isinstance(movable_joints, list) and all([isinstance(mj, int) for mj in movable_joints])

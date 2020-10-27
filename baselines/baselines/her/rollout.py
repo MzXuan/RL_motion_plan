@@ -88,7 +88,8 @@ class RolloutWorker:
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
             # compute new states and observations
-            obs_dict_new, rew, done, info = self.venv.step(u)
+
+            obs_dict_new, rew, rew_collision, done, info = self.venv.step(u)
             o_new = obs_dict_new['observation']
             ag_new = obs_dict_new['achieved_goal']
             success = np.array([i.get('is_success', 0.0) for i in info])
