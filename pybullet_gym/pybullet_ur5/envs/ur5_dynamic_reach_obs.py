@@ -104,6 +104,7 @@ class Moving_obstacle():
                 or np.linalg.norm(state['current'][0]) < safe_dist \
                 or np.linalg.norm(state['current'][1]) < safe_dist:
             self.rob_reset()
+            # self.velocity =np.zeros(3)
             # basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
             # current_pos = basepose[0]
             # current_ori = basepose[1]
@@ -128,7 +129,7 @@ class Moving_obstacle():
         if np.random.choice([1, 2, 3]) == 1:
             velocity = np.zeros(3)
         else:
-            velocity = 0.15 * self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
+            velocity = 0.1 * self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
 
 
         # #------------for debug--------------------
@@ -297,7 +298,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.025,
+                 early_stop=False, distance_threshold = 0.05,
                  max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.iter_num = 0
@@ -349,9 +350,9 @@ class UR5DynamicReachObsEnv(gym.Env):
     def create_single_player_scene(self, bullet_client):
         self.stadium_scene = PlaneScene(bullet_client, gravity=0, timestep=self.sim_dt, frame_skip=self.frame_skip)
 
-        # self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
-        #                        [-1, -0.9, -1.0],
-        #                        [0.000000, 0.000000, 0.0, 1])
+        self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
+                               [-1, -0.9, -1.0],
+                               [0.000000, 0.000000, 0.0, 1])
 
 
         left_arm_id = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
@@ -442,7 +443,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             self.robot_start_eef = [x, y, z]
 
             self.goal = self.random_set_goal()
-            if np.linalg.norm(self.goal) < 0.4:
+            if np.linalg.norm(self.goal) < 0.35 or np.linalg.norm(self.goal) >0.85:
                 continue
 
 
@@ -477,7 +478,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             goal[1] += np.random.uniform(-0.45, 0.45)
             goal[2] += np.random.uniform(-0.2, 0.2)
             if abs(goal[0]) < max_xyz[0] and abs(goal[1]) < max_xyz[1]\
-                    and  abs(goal[1]) > 0.2 and abs(goal[2]) < max_xyz[2]:
+                    and  abs(goal[1]) > 0.2 and goal[2] > 0\
+                    and abs(goal[2]) < max_xyz[2]:
                 goal_reset = True
         return goal
 
@@ -697,13 +699,13 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -3
-        a3 = -0.5
+        a2 = -4
+        a3 = -0.3
         asmooth = -0.01
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
-        reward_collision = a2 * (_is_collision > 0) + a3 * distance + asmooth * smoothness
+        reward_collision = a2 * (_is_collision > 0) + a3 * distance
 
         return [reward, reward_collision]
 

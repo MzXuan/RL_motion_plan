@@ -57,6 +57,15 @@ _game_envs['retro'] = {
     'SpaceInvaders-Snes',
 }
 
+def random_n(max, min=None):
+    result = []
+    if min is None:
+        for m in max:
+            result.append(np.random.uniform(-m, m))
+    else:
+        for s,e in zip(min,max):
+            result.append(np.random.uniform(s,e))
+    return np.asarray(result)
 
 def train(args, extra_args):
     env_type, env_id = get_env_type(args)
@@ -254,69 +263,124 @@ def main(args):
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
 
+        #--------------------------- draw Q function for different robot state-------------------------------------#
+        eef_current = obs['observation'][:3]
+        goal = obs['desired_goal']
+
         traj_count = 0
-        total_steps = 1
-
-
-        data_list = []
-        last_time = time.time()
-
-        actions_list = []
-
-        env.set_sphere(0.1)
-        while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
+        while traj_count < 300:
             try:
-                print(time.time())
 
-                obs = env.get_obs() #0.001
-                # print("obs",obs)
-                actions, _, _, info = model.step(obs)  #0.002s
-                data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+                # update env for several steps (let obstacle move)
+                actions, Q, q, _ = model.step_with_q(obs)
+                obs, rew, done, info = env.step(actions)
 
-                actions_list.append(actions)
-
-                obs, rew, done, info = env.step(actions) #0.01s
-
-                # img = env.render("rgb_array")
-                # cv2.imshow("image", img)
-                # cv2.waitKey(1)
-                print("actions:", actions)
-                print("achieved goal", obs['achieved_goal'])
-                print("desired goal", obs['desired_goal'])
-
-                episode_rew += rew
-                total_steps+=1
-                # env.render()
                 done_any = done.any() if isinstance(done, np.ndarray) else done
-
                 if done_any:
                     print("info", info)
-                    print("total steps", total_steps)
-                    np.savetxt("./real_data.csv", np.asarray(data_list), delimiter=",")
-                    data_list= []
-
-                    np.savetxt("./actions_data.csv", np.asarray(actions_list), delimiter=",")
-                    actions_list = []
-
                     env.agents[0].stop()
                     time.sleep(2)
-                    # break
-
-                    for i in np.nonzero(done)[0]:
-                        print('episode_rew={}'.format(episode_rew[i]))
-                        episode_rew[i] = 0
-
-
                     print("-------------end step {}---------".format(traj_count))
                     traj_count+=1
                     seed +=1
                     obs = env.reset()
+                            # break
 
-                last_time = time.time()
+                #----todo: generate batch obs---#
+                start_time = time.time()
+                line_traj = []
+                q_lst=[]
 
+                path_remain = env.ws_path_gen.path_remain.copy()
+                _,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.5, remove=False)
+                print("goal indices: ", goal_indices)
+                if goal_indices>10:
+                    for i in range(0, goal_indices, int(goal_indices/15)):
+                        try:
+                            p=path_remain[i]
+                        except:
+                            continue
+                        line_traj.append(env.update_robot_obs(p)) #0.0016s for one obs if print; if not print, 0.0002s for one obs
+                        # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
+                        # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
+
+
+                    print("time cost 1 is: ", time.time() - start_time)
+                    q_lst = model.get_collision_q(line_traj)
+                    print("time cost 3 is: ", time.time() - start_time)
+                env.update_r(line_traj, q_lst, draw=False)
+
+
+
+                # time.sleep(200)
             except KeyboardInterrupt:
                 env.close()
                 raise
+
+
+
+
+
+        # #--------------------------- original test----------------------------------------#
+        # traj_count = 0
+        # total_steps = 1
+        # data_list = []
+        # last_time = time.time()
+        # actions_list = []
+        # env.set_sphere(0.1)
+        # while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
+        #     try:
+        #         print(time.time())
+        #
+        #         obs = env.get_obs() #0.001
+        #         # print("obs",obs)
+        #         actions, _, _, info = model.step(obs)  #0.002s
+        #         data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+        #
+        #         actions_list.append(actions)
+        #
+        #         obs, rew, done, info = env.step(actions) #0.01s
+        #
+        #         # img = env.render("rgb_array")
+        #         # cv2.imshow("image", img)
+        #         # cv2.waitKey(1)
+        #         print("actions:", actions)
+        #         print("achieved goal", obs['achieved_goal'])
+        #         print("desired goal", obs['desired_goal'])
+        #
+        #         episode_rew += rew
+        #         total_steps+=1
+        #         # env.render()
+        #         done_any = done.any() if isinstance(done, np.ndarray) else done
+        #
+        #         if done_any:
+        #             print("info", info)
+        #             print("total steps", total_steps)
+        #             np.savetxt("./real_data.csv", np.asarray(data_list), delimiter=",")
+        #             data_list= []
+        #
+        #             np.savetxt("./actions_data.csv", np.asarray(actions_list), delimiter=",")
+        #             actions_list = []
+        #
+        #             env.agents[0].stop()
+        #             time.sleep(2)
+        #             # break
+        #
+        #             for i in np.nonzero(done)[0]:
+        #                 print('episode_rew={}'.format(episode_rew[i]))
+        #                 episode_rew[i] = 0
+        #
+        #
+        #             print("-------------end step {}---------".format(traj_count))
+        #             traj_count+=1
+        #             seed +=1
+        #             obs = env.reset()
+        #
+        #         last_time = time.time()
+        #
+        #     except KeyboardInterrupt:
+        #         env.close()
+        #         raise
 
 
     env.close()

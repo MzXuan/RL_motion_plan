@@ -36,6 +36,8 @@ from pybullet_planning import get_joint_positions, plan_joint_motion, compute_fo
 
 import ikfast_ur5
 
+import colorsys
+
 
 
 def load_demo():
@@ -102,6 +104,9 @@ class UR5RealTestEnv(gym.Env):
         self._cam_pitch = 30
 
         self.target_off_set=0.2
+
+        self.arm_states = None
+        self.last_collision = False
 
 
         self.distance_threshold = distance_threshold # for success check
@@ -179,7 +184,7 @@ class UR5RealTestEnv(gym.Env):
 
         #---------------real human----------------------------#
         ah = self.agents[1].reset(self._p)
-        # #----real robot-----------------------------------------------#
+        #----real robot-----------------------------------------------#
         if self.first_reset is True:
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
         else:
@@ -260,6 +265,50 @@ class UR5RealTestEnv(gym.Env):
 
         return self.stadium_scene
 
+
+    def update_r(self, obs_lst, q_lst, draw=True):
+        # for obstacles in self.move_obstacles:
+        #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+        #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+
+        q_lst = np.asarray(q_lst)
+        try:
+            min_q = min(q_lst)
+            print("min_q", min_q)
+        except:
+            self.last_collision = False
+            self.set_sphere(0.1)
+            return 0
+
+        if min_q<-0.025:
+            self.last_collision = True
+            self.set_sphere(0.5)
+            #normalize Q for color
+            color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
+
+            if draw:
+                self.draw_q(obs_lst, q_lst, color_lst)
+            # for obs, q, c in zip(obs_lst, q_lst, color_lst):
+            #     if q<-0.025:
+            #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
+            #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
+        elif self.last_collision is False:
+            self.set_sphere(0.1)
+        else:
+            self.last_collision=False
+            return 0
+
+    def draw_q(self, obs_lst, q_lst, color_lst):
+        for obs, q, c in zip(obs_lst, q_lst, color_lst):
+            if q < -0.025:
+                self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
+                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
+                                         lifeTime=2)
+
+
+
+
+
     def _set_safe_distance(self):
             return 0.1
 
@@ -290,8 +339,6 @@ class UR5RealTestEnv(gym.Env):
         self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
                                  lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
         self.last_robot_eef = ur5_eef_position
-
-        #------------------------------------------------------------------
 
         # ------------------------------------------------------------------
         obs_human_states = []
@@ -333,7 +380,7 @@ class UR5RealTestEnv(gym.Env):
                 self.hand_velocity = (arm_s['next'][2] - arm_s['current'][2]) / 0.033
 
         try:
-            self.goal, _ = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
+            self.goal, _,self.goal_indices = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
         except:
             print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
 
@@ -347,6 +394,75 @@ class UR5RealTestEnv(gym.Env):
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
+    def update_robot_obs(self, next_eef):
+        '''
+        :return:
+        obs_robot: [robot states, human states]
+        obs_humanoid: [human states, robot states]
+        info of every agent: [enf_effector_position, done]
+        done of every agent: [True or False]
+        '''
+        infos = {}
+        dones = [False for _ in range(self._n_agents)]
+        ur5_states = self.agents[0].calc_state()
+        joints = self.agents[0].bullet_ik(next_eef)
+
+        ur5_states[:3] = next_eef
+        ur5_states[-6:] = joints
+
+        ur5_eef_position = next_eef
+        achieved_goal = ur5_eef_position
+        self.arm_states = self.agents[1].calc_state(draw=False)  #如果画图就是 占用时间大户！！！！0.03x s
+
+        infos['succeed'] = dones
+
+
+        # ------------------------------------------------------------------
+        obs_human_states = []
+        min_dists = []
+        for arm_s in self.arm_states:
+
+            d = [np.linalg.norm([p - ur5_eef_position]) for p in arm_s["current"]]
+
+            min_dist = np.min(np.asarray(d))
+            if min_dist > self.max_obs_dist_threshold:
+                min_dist = self.max_obs_dist_threshold
+            min_dists.append(min_dist)
+
+            for p in arm_s["current"]:
+                if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p - ur5_eef_position)
+
+            for p in arm_s["next"]:
+                if np.linalg.norm([p - ur5_eef_position]) > self.max_obs_dist_threshold:
+                    obs_human_states.append(np.zeros(3) + self.max_obs_dist_threshold)
+                else:
+                    obs_human_states.append(p - ur5_eef_position)
+
+            # for p in arm_state["next2"]:
+            #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+            #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+            #     else:
+            #         obs_human_states.append(p-ur5_eef_position)
+
+            # print("obs human states: ", obs_human_states)
+
+        self.goal = self.final_goal
+
+        self.obs_min_dist = np.min(np.asarray(min_dists))
+
+        obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
+                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+
+        return {
+            'observation': obs.copy(),
+            'achieved_goal': achieved_goal.copy(),
+            'desired_goal': self.goal.copy(),
+        }
+
 
 
 
@@ -363,6 +479,7 @@ class UR5RealTestEnv(gym.Env):
 
 
         self.agents[0].apply_action(actions)
+        self.agents[1].apply_action(0)
 
         self.scene.global_step()
 
@@ -645,7 +762,6 @@ class UR5RealPlanTestEnv(UR5RealTestEnv):
             self.goal = np.asarray(cartesian_path[2])
         print("initial conf", initial_conf)
 
-
         s = []
         s.append(ar)
         s.append(ah)
@@ -667,7 +783,7 @@ class UR5RealPlanTestEnv(UR5RealTestEnv):
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
         achieved_goal = ur5_eef_position
-        arm_states = self.agents[1].calc_state()
+        self.arm_states = self.agents[1].calc_state()
 
         infos['succeed'] = dones
 
@@ -678,7 +794,7 @@ class UR5RealPlanTestEnv(UR5RealTestEnv):
         #------------------------------------------------------------------
         obs_human_states = []
         min_dists = []
-        for arm_s in arm_states:
+        for arm_s in self.arm_states:
 
             d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_s["current"]]
 

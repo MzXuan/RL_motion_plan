@@ -18,22 +18,47 @@ import math
 from scenes.stadium import StadiumScene, PlaneScene
 import gym, gym.spaces, gym.utils
 import pyquaternion
+import time
+import pickle
 
+class FileHuman(object):
+    def __init__(self, file):
+        try:
+            with open(file, 'rb') as handle:
+                self.joint_queue_list = pickle.load(handle)
+            print("load human data successfully")
+            self.data_length = len(self.joint_queue_list)
+        except:
+            print("!!!!!!!!!!!!!!fail to load data !!!!!!!")
+            exit()
+
+        self.index = 0
+        # self.joint_queue = self.joint_queue_list[0]
+
+        self.update_joint_queue()
+
+
+    def update_joint_queue(self):
+        print("self.index: ", self.index)
+        if self.index > self.data_length-1:
+            self.index = np.random.randint(low=0, high=self.data_length - 1)
+        self.joint_queue = self.joint_queue_list[self.index]
+
+        self.index += 1
 
 
 class RealHumanoid(robot_bases.MJCFBasedRobot):
     self_collision = True
     foot_list = ["right_foot", "left_foot"]  # "left_hand", "right_hand"
 
-    def __init__(self,max_obs_dist_threshold, obs_dim=27, random_yaw=False, random_lean=False, ):
+    def __init__(self,max_obs_dist_threshold, obs_dim=27, load=False):
         self.power = 0.41
         self.camera_x = 0
-        # self.select_joints = ["left_shoulder1", "left_shoulder2", "left_elbow"]
-        # self.select_links = ["left_upper_arm", "left_lower_arm", "left_hand_true"]
 
-        self.display_joints = ['HandLeft','ElbowLeft','ShoulderLeft','HandRight','ElbowRight','ShoulderRight']
-        # self.state_joints = ['ShoulderLeft','ElbowLeft','HandLeft']
-        self.state_joints = ['ElbowLeft', 'HandLeft']
+        self.load =load
+        if self.load:
+            self.file_human = FileHuman(file = '/home/xuan/demos/human_data_1.pkl')
+
 
 
 
@@ -79,17 +104,34 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         self._p = bullet_client
 
 
-    def calc_one_state(self, name_e, name_h):
-        try:
-            elbow = self.human_model.joint_queue[name_e]
-            hand = self.human_model.joint_queue[name_h]
+    def calc_one_state(self, name_e, name_h, draw=True):
+
+        if self.load:
+
+            # try:
+            elbow = self.file_human.joint_queue[name_e]
+            hand = self.file_human.joint_queue[name_h]
 
             elbow_trans = [self.trans_point(p) for p in elbow]
             hand_trans = [self.trans_point(p) for p in hand]
 
-        except:
-            elbow_trans = np.ones((3,3))+ self.max_obs_dist_threshold
-            hand_trans = np.ones((3,3))+ self.max_obs_dist_threshold
+            # except:
+            #     elbow_trans = np.ones((3, 3)) + self.max_obs_dist_threshold
+            #     hand_trans = np.ones((3, 3)) + self.max_obs_dist_threshold
+
+
+        else:
+            try:
+                elbow = self.human_model.joint_queue[name_e]
+                hand = self.human_model.joint_queue[name_h]
+
+
+                elbow_trans = [self.trans_point(p) for p in elbow]
+                hand_trans = [self.trans_point(p) for p in hand]
+
+            except:
+                elbow_trans = np.ones((3,3))+ self.max_obs_dist_threshold
+                hand_trans = np.ones((3,3))+ self.max_obs_dist_threshold
 
 
 
@@ -97,9 +139,12 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
              "next":[elbow_trans[1], (elbow_trans[1]+hand_trans[1])/2, hand_trans[1]],
              "next2":[elbow_trans[2], (elbow_trans[2]+hand_trans[2])/2, hand_trans[2]]}
 
-        print("elbow trans {} and hand_trans {}".format(elbow_trans[2], hand_trans[2]))
-        self._p.addUserDebugLine(elbow_trans[2], hand_trans[2], lineColorRGB=[0, 0, 1], lineWidth=10,
-                                 lifeTime=0.5)
+            # print("elbow trans {} and hand_trans {}".format(elbow_trans[2], hand_trans[2]))
+
+        if draw:
+            self._p.addUserDebugLine(elbow_trans[1], hand_trans[1], lineColorRGB=[0, 0, 1], lineWidth=10,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+
 
         #--------------- for moving object
         # hand_raw =  hand_trans[1]
@@ -115,6 +160,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         # alpha = -np.arcsin(hand_trans[1])
         # beta = np.arcsin(hand_trans[0] / np.cos(alpha))
         # next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
+        # next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
         # self._p.resetBasePositionAndOrientation(bodyUniqueId=self.arm_id, posObj=center, ornObj=next_ori)
         # self._p.addUserDebugLine(hand_raw , elbow_raw,
         #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=0.5)
@@ -123,8 +169,8 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         return obs
 
 
-    def calc_state(self):
-        obs = [self.calc_one_state("ElbowLeft", "HandLeft"), self.calc_one_state("ElbowRight", "HandRight")]
+    def calc_state(self, draw=True):
+        obs = [self.calc_one_state("ElbowLeft", "HandLeft", draw=draw), self.calc_one_state("ElbowRight", "HandRight",draw=draw)]
         return obs
 
 
@@ -136,6 +182,9 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         return p_new
 
     def apply_action(self, a):
+        if self.load:
+            self.file_human.update_joint_queue()
+
         return 0
 
 

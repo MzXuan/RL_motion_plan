@@ -282,8 +282,10 @@ class UR5EefRobot(UR5Robot):
 		target_jp = np.asarray(jointPoses[:6])
 		# print("next joint: ", target_jp)
 
-		for i, joint_name in enumerate(self.select_joints):
-			self.jdict[joint_name].reset_position(target_jp[i], 0)
+		return target_jp
+
+		# for i, joint_name in enumerate(self.select_joints):
+		# 	self.jdict[joint_name].reset_position(target_jp[i], 0)
 
 
 

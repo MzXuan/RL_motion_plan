@@ -84,7 +84,10 @@ class UR5HumanEnv(UR5RealTestEnv):
         self.sphere_radius = 0.03
 
 
-        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3 ), RealHumanoid(max_obs_dist)]
+        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip, action_dim =3 ), RealHumanoid(max_obs_dist, load=True)]
+
+        self.arm_states = None
+        self.last_collision = False
 
 
         self._n_agents = 2

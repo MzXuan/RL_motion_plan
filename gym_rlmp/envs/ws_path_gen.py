@@ -50,16 +50,17 @@ class WsPathGen():
     #     return self.path_remain[idx], self.vel_path_remain[idx]
 
 
-    def next_goal(self, center, r):
+    def next_goal(self, center, r, remove=True):
         dists = np.linalg.norm((self.path_remain-center),axis=1)
-        # remove reached points
-        indices = np.where(dists < self.distance_threshold)[0]
-        if indices != []:
-            idx = indices[0]
-            if idx < len(dists)-1:
-                dists = dists[idx+1:]
-                self.path_remain = self.path_remain[idx+1:]
-                print("remove data after idx:", idx)
+        if remove is True:
+            # remove reached points
+            indices = np.where(dists < self.distance_threshold)[0]
+            if indices != []:
+                idx = indices[0]
+                if idx < len(dists)-1:
+                    dists = dists[idx+1:]
+                    self.path_remain = self.path_remain[idx+1:]
+                    print("remove data after idx:", idx)
 
         d_min = np.min(dists)
 
@@ -78,16 +79,18 @@ class WsPathGen():
                 p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
                 if p_insect is not None:
                     # print("returned intersection is: ", p_insect)
-                    return p_insect, self.vel_path_remain[i]
+                    return p_insect, self.vel_path_remain[i], i
             else:
                 #the end, return the last way point
-                return self.path_remain[-1], self.vel_path_remain[-1]
+                return self.path_remain[-1], self.vel_path_remain[-1], i
 
         #no interection, return the waypoint with minimum distance
         # todo: or expand r please
         ####!!!!todo!!!! problem here######
         idx = np.argmin(dists)
-        return self.path_remain[idx], self.vel_path_remain[idx]
+        return self.path_remain[idx], self.vel_path_remain[idx], idx
+
+
 
 
     def calculate_interaction(self, center, r, p0, p1):

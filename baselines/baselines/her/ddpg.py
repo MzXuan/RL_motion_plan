@@ -12,6 +12,7 @@ from baselines.her.replay_buffer import ReplayBuffer
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common import tf_util
 
+import time
 
 def dims_to_shapes(input_dims):
     return {key: tuple([val]) if val > 0 else tuple() for key, val in input_dims.items()}
@@ -74,6 +75,7 @@ class DDPG(object):
 
         # Prepare staging area for feeding data to the model.
         stage_shapes = OrderedDict()
+
         for key in sorted(self.input_dims.keys()):
             if key.startswith('info_'):
                 continue
@@ -81,6 +83,7 @@ class DDPG(object):
         for key in ['o', 'g']:
             stage_shapes[key + '_2'] = stage_shapes[key]
         stage_shapes['r'] = (None,)
+        stage_shapes['rc'] = (None,)
         self.stage_shapes = stage_shapes
 
         # Create network.
@@ -130,18 +133,57 @@ class DDPG(object):
         return actions, None, None, None
 
     def step_with_q(self, obs):
-        actions, Q = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'], compute_Q=True)
-        return actions, Q, None, None
+        actions, Q, q = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'],
+                                         compute_Q=True, compute_qc=True)
+        return actions, Q, q, None
+
+    def get_collision_q(self, obs_lst):
+
+        o_lst = []
+        g_lst = []
+        for obs in obs_lst:
+            o = obs['observation']
+            ag = obs['achieved_goal']
+            g = obs['desired_goal']
+            o, g = self._preprocess_og(o, ag, g)
+            o_lst.append(o)
+            g_lst.append(g)# 0.00071s
+
+        policy = self.main
+        # values to compute
+        vals = [policy.pi_tf]
+        vals += [policy.Q_pi_tf]
+        vals += [policy.Qc_tf]
+        # feed
+        feed = {
+            policy.o_tf: np.asarray(o_lst),
+            policy.g_tf: np.asarray(g_lst),
+            policy.u_tf: np.zeros((len(o_lst), self.dimu), dtype=np.float32)
+        }
+
+        # feed = {
+        #     policy.o_tf: o.reshape(-1, self.dimo),
+        #     policy.g_tf: g.reshape(-1, self.dimg),
+        #     policy.u_tf: np.zeros((o.size // self.dimo, self.dimu), dtype=np.float32)
+        # }
+
+        ret = self.sess.run(vals, feed_dict=feed)  # 0.0017s
+
+
+        return ret[2]
 
 
     def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
-                    compute_Q=False):
+                    compute_Q=False, compute_qc = False):
+
         o, g = self._preprocess_og(o, ag, g)
         policy = self.target if use_target_net else self.main
         # values to compute
         vals = [policy.pi_tf]
         if compute_Q:
             vals += [policy.Q_pi_tf]
+        if compute_qc:
+            vals += [policy.Qc_tf]
         # feed
         feed = {
             policy.o_tf: o.reshape(-1, self.dimo),
@@ -149,7 +191,7 @@ class DDPG(object):
             policy.u_tf: np.zeros((o.size // self.dimo, self.dimu), dtype=np.float32)
         }
 
-        ret = self.sess.run(vals, feed_dict=feed)
+        ret = self.sess.run(vals, feed_dict=feed)#0.0017s
 
         # print("ret is: ", ret)
         # ret= [result[0]]
@@ -166,7 +208,8 @@ class DDPG(object):
         u = u.copy()
         ret[0] = u
 
-        if len(ret) == 1:
+
+        if len(ret) == 1: #0.0017s
             return ret[0]
         else:
             return ret
@@ -362,9 +405,11 @@ class DDPG(object):
 
         # mini-batch sampling.
         batch = self.staging_tf.get()
+
         batch_tf = OrderedDict([(key, batch[i])
                                 for i, key in enumerate(self.stage_shapes.keys())])
         batch_tf['r'] = tf.reshape(batch_tf['r'], [-1, 1])
+        batch_tf['rc'] = tf.reshape(batch_tf['rc'], [-1, 1])
 
         #choose only the demo buffer samples
         mask = np.concatenate((np.zeros(self.batch_size - self.demo_batch_size), np.ones(self.demo_batch_size)), axis = 0)
@@ -394,7 +439,7 @@ class DDPG(object):
 
         # target_Qc_tf = self.target.Qc_tf
         # target_Qcc_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Qc_tf, *clip_range)
-        self.Qc_loss_tf = tf.reduce_mean(tf.square(batch_tf['r'] - self.main.Qc_tf))#todo: this may be wrong
+        self.Qc_loss_tf = tf.reduce_mean(tf.square(batch_tf['rc'] - self.main.Qc_tf))#todo: this may be wrong
 
         if self.bc_loss ==1 and self.q_filter == 1 : # train with demonstrations and use bc_loss and q_filter both
             maskMain = tf.reshape(tf.boolean_mask(self.main.Q_tf > self.main.Q_pi_tf, mask), [-1]) #where is the demonstrator action better than actor action according to the critic? choose those samples only
