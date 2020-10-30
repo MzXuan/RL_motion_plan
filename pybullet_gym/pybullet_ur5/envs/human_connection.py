@@ -71,10 +71,11 @@ class HumanModel(object):
                         'ElbowRight': kf_filter(), 'HandRight': kf_filter()}  # elbow, hand
         self.filter_joint_name = ['ElbowLeft', 'HandLeft', 'ElbowRight', 'HandRight']
 
+        self.count = 0
         self.kinect.skeleton.set_callback(self.callback_skeleton)
         self.kinect.skeleton.start()
 
-        self.count = 0
+
 
 
     def reset(self):
@@ -129,6 +130,7 @@ class HumanModel(object):
                 last_joint_position = self.joints[joint_name].copy()
                 last_joint_velocity = self.joint_velocity[joint_name].copy()
                 last_joint_acceleration = self.joint_accerlation[joint_name].copy()
+                print("value: ", value)
                 self.joints[joint_name] = np.asarray(
                     [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
 
