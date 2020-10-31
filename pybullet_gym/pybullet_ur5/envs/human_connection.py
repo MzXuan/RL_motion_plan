@@ -60,6 +60,7 @@ class HumanModel(object):
     def __init__(self, ip="192.168.0.10"):
         self.kinect = Kinect2Client(ip)
         self.joints = {}
+        # self.joints_orientation = {}
         self.joint_velocity = {}
         self.joint_accerlation = {}
         self.joint_queue = {}
@@ -83,6 +84,7 @@ class HumanModel(object):
         # self.kinect.skeleton.stop()
         print("stop")
         self.joints = {}
+        # self.joints_orientation = {}
         self.joint_velocity = {}
         self.joint_accerlation = {}
         self.joint_queue = {}
@@ -98,7 +100,7 @@ class HumanModel(object):
 
 
     def get_joint_state(self, joint_name):
-        return [self.joints[joint_name],self.joint_velocity[joint_name]]
+        return [self.joints[joint_name][:3], self.joint_velocity[joint_name]]
 
 
     def callback_skeleton(self, msg):
@@ -126,18 +128,27 @@ class HumanModel(object):
         #copy data to joint info
         for joint_name, value in value_dict.items():
 
+            # self.joints[joint_name] = np.asarray(
+            #     [value['Position']['X'], value['Position']['Y'], value['Position']['Z'],
+            #      value['Orientation']['X'], value['Orientation']['Y'],
+            #      value['Orientation']['Z'], value['Orientation']['W']])
             try:
-                last_joint_position = self.joints[joint_name].copy()
+                last_joint_position = self.joints[joint_name][:3].copy()
                 last_joint_velocity = self.joint_velocity[joint_name].copy()
                 last_joint_acceleration = self.joint_accerlation[joint_name].copy()
-                print("value: ", value)
                 self.joints[joint_name] = np.asarray(
-                    [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
+                    [value['Position']['X'], value['Position']['Y'], value['Position']['Z'],
+                     value['Orientation']['X'], value['Orientation']['Y'],
+                     value['Orientation']['Z'], value['Orientation']['W']])
 
             except:
                 #first data
-                last_joint_position = self.joints[joint_name] = np.asarray(
-                    [value['Position']['X'], value['Position']['Y'], value['Position']['Z']])
+                self.joints[joint_name] = np.asarray(
+                    [value['Position']['X'], value['Position']['Y'], value['Position']['Z'],
+                     value['Orientation']['X'], value['Orientation']['Y'],
+                     value['Orientation']['Z'], value['Orientation']['W']])
+
+                last_joint_position = self.joints[joint_name][:3]
                 last_joint_velocity = np.zeros(3)
                 last_joint_acceleration = np.zeros(3)
                 if joint_name in self.filter_joint_name:
@@ -149,10 +160,10 @@ class HumanModel(object):
                 self.joint_velocity[joint_name] = np.zeros(3)
                 self.joint_accerlation[joint_name] = np.zeros(3)
             elif (last_joint_velocity==0).all():
-                self.joint_velocity[joint_name] = (self.joints[joint_name] - last_joint_position) / dt
+                self.joint_velocity[joint_name] = (self.joints[joint_name][:3] - last_joint_position) / dt
                 self.joint_accerlation[joint_name] = np.zeros(3)
             else:
-                self.joint_velocity[joint_name] = (self.joints[joint_name] - last_joint_position) / dt
+                self.joint_velocity[joint_name] = (self.joints[joint_name][:3] - last_joint_position) / dt
                 self.joint_accerlation[joint_name] = 0.5* ((self.joint_velocity[joint_name]-last_joint_velocity) / dt + \
                                                      last_joint_acceleration)
 
@@ -195,7 +206,7 @@ class HumanModel(object):
                                  [0, dt, 0],
                                  [0, 0, dt]])
 
-                z= np.concatenate([self.joints[joint_name], vel]).T
+                z= np.concatenate([self.joints[joint_name][:3], vel]).T
 
                 # print("z", z)
                 # history_joint = self.filters[joint_name].x.copy()[:3]
@@ -237,7 +248,7 @@ if __name__ == "__main__":
     further_predict = []
     timestep = []
 
-    joint_queue_data_lst = []
+    joint_data_lst = []
     while True:
         try:
             time.sleep(0.015)
@@ -251,10 +262,8 @@ if __name__ == "__main__":
                     further_predict.append(hm.joint_queue['HandLeft'][2])
                     timestep.append(hm.count)
 
-                    joint_queue_data_lst.append(hm.joint_queue.copy())
-                    print("joint queue", hm.joint_queue)
-                    # csv_data.append(np.concatenate([
-                    #     np.asarray([hm.last_time_stamp]), hm.joint_queue['ElbowLeft'], hm.joint_queue['HandLeft']]))
+                    joint_data_lst.append(hm.joints.copy())
+                    # print("joint queue", hm.joint_queue)
                 except:
                     pass
 
@@ -263,7 +272,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
             with open('/home/xuan/demos/human_data.pkl', 'wb') as handle:
-                pickle.dump(joint_queue_data_lst, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(joint_data_lst, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 print("save successfully")
 
             measure=np.asarray(measure)

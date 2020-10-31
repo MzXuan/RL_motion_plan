@@ -10,8 +10,10 @@ from scenes.stadium import StadiumScene, PlaneScene
 
 from ur5eef import UR5EefRobot
 from ur5 import UR5Robot
+from humanoid import URDFHumanoid
 
 import gym, gym.spaces, gym.utils, gym.utils.seeding
+from gym.spaces import Tuple
 
 import numpy as np
 import pybullet
@@ -132,25 +134,6 @@ class Moving_obstacle():
             velocity = 0.1 * self.velocity * np.random.uniform(0.5, 1.1) + noise_vel
 
 
-        # #------------for debug--------------------
-        # hand_raw = np.asarray([-0.61864441, 1.26849507, 2.79468787])
-        # elbow_raw = np.asarray([-0.94411114, 1.12510296, 2.55870706])
-        #
-        #
-        #
-        # center = (hand_raw + elbow_raw) / 2
-        # next_pos = center
-        #
-        # hand_trans = (hand_raw - center) / np.linalg.norm([hand_raw - center])
-        #
-        # alpha = -np.arcsin(hand_trans[1])
-        # beta = np.arcsin(hand_trans[0] / np.cos(alpha))
-        #
-        # next_ori = self._p.getQuaternionFromEuler([alpha, beta, 0])
-        # self._p.addUserDebugLine(hand_raw , elbow_raw,
-        #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
-        # #-----------------done debug----------------------------
-
         #------origin-----------
         next_pos = np.asarray(pos) + velocity
         next_ori = self._p.getQuaternionFromEuler( \
@@ -204,33 +187,6 @@ class Moving_obstacle():
 
         # initialize state list with current pos and orientation
         self.init_action_list()
-
-
-    # def rob_reset(self):
-    #     success = False
-    #     while not success:
-    #         a = [self.human_goal[0], self.human_goal[1]]
-    #         x_b = np.random.choice([-1,1])
-    #         b = [x_b, -1*a[0]/a[1] * x_b]
-    #         d_l = np.random.uniform(0.3, 0.6)
-    #
-    #         p_r = a + np.asarray(b)/np.linalg.norm(b) * d_l
-    #
-    #         xh = p_r[0]
-    #         yh = p_r[1]
-    #         zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
-    #
-    #         pos = [xh, yh, zh]
-    #         if np.linalg.norm(pos)>0.3:
-    #             success=True
-    #
-    #
-    #     ori = self._p.getQuaternionFromEuler(eulerAngles=self.random_n(max=[3.14, 3.14, 3.14]))
-    #     self._p.resetBasePositionAndOrientation(bodyUniqueId=self.id, posObj=pos,
-    #                                                 ornObj=ori)
-    #
-    #     # initialize state list with current pos and orientation
-    #     self.init_action_list()
 
 
 
@@ -314,9 +270,12 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.frame_skip = 8
 
 
-        self.agent = UR5EefRobot(dt= self.sim_dt*self.frame_skip)
+        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip),
+                       URDFHumanoid(max_obs_dist, load = True)]
 
-        self._n_agents = 1
+        self.arm_states = None
+
+        self._n_agents = 2
         self.seed()
         self._cam_dist = 1
         self._cam_yaw = 0
@@ -342,27 +301,22 @@ class UR5DynamicReachObsEnv(gym.Env):
         ))
 
         # Set observation and action spaces
-        self.agents_observation_space = self.agent.observation_space
-        self.agents_action_space = self.agent.action_space
+
+        # Set observation and action spaces
+        self.agents_observation_space = Tuple([
+            agent.observation_space for agent in self.agents
+        ])
+
+
 
 
 
     def create_single_player_scene(self, bullet_client):
         self.stadium_scene = PlaneScene(bullet_client, gravity=0, timestep=self.sim_dt, frame_skip=self.frame_skip)
 
-        self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
-                               [-1, -0.9, -1.0],
-                               [0.000000, 0.000000, 0.0, 1])
-
-
-        left_arm_id = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
-                                            "scenes_data", "cylinder/cylinder.urdf"),
-                               [0, -0.5, 0.1], [0.000000, 0.000000, 0.0, 0.1], useFixedBase=True)
-
-        right_arm_id = bullet_client.loadURDF(os.path.join(assets.getDataPath(),
-                                                          "scenes_data", "cylinder/cylinder.urdf"),
-                                             [0, -0.5, 0.1], [0.000000, 0.000000, 0.0, 0.1], useFixedBase=True)
-        self.move_obstacles = [Moving_obstacle(left_arm_id),Moving_obstacle(right_arm_id) ]
+        # self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "longtable/longtable.urdf"),
+        #                        [-1, -0.9, -1.0],
+        #                        [0.000000, 0.000000, 0.0, 1])
 
 
         self.goal_id = bullet_client.loadURDF(
@@ -377,15 +331,11 @@ class UR5DynamicReachObsEnv(gym.Env):
     def set_training(self, is_training):
         self.is_training = is_training
 
-    # def configure(self, args):
-    #
-    #
-    #     self.agents[0].args = args[0]
-    #     self.agents[1].args = args[1]
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
-        self.agent.np_random = self.np_random
+        for a in self.agents:
+            a.np_random = self.np_random
         return [seed]
 
     def set_render(self):
@@ -422,7 +372,8 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.camera_adjust()
 
-        self.agent.scene = self.scene
+        for a in self.agents:
+            a.scene = self.scene
 
 
         self.frame = 0
@@ -447,10 +398,11 @@ class UR5DynamicReachObsEnv(gym.Env):
                 continue
 
 
-            ar = self.agent.reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base,
+            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
                                       base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
-            for obstacles in self.move_obstacles:
-                obstacles.reset(self._p, self.goal)
+            # ---------------real human----------------------------#
+            ah = self.agents[1].reset(self._p, client_id=self.physicsClientId)
+
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
                 continue
@@ -464,8 +416,8 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         s = []
         s.append(ar)
+        s.append(ah)
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0, 0, 0, 1])
-
 
         return obs
 
@@ -542,9 +494,9 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
     def draw_Q(self, obs_lst, q_lst):
-        for obstacles in self.move_obstacles:
-            self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
-                                     lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+        # for obstacles in self.move_obstacles:
+        #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+        #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
 
         q_lst = np.asarray(q_lst)
         #normalize Q for color
@@ -559,7 +511,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def update_robot_obs(self, next_eef):
         #change robot state to certain end_effector and update obs
-        self.agent.bullet_ik(next_eef)
+        self.agents[0].bullet_ik(next_eef)
         obs = self.get_obs()
 
         return obs
@@ -572,9 +524,9 @@ class UR5DynamicReachObsEnv(gym.Env):
     def step(self, action):
         self.iter_num += 1
 
-        self.agent.apply_action(action)
-        for obstacles in self.move_obstacles:
-            obstacles.apply_action()
+        self.agents[0].apply_action(action)
+        self.agents[1].apply_action(0)
+
 
         self.scene.global_step()
         obs = self._get_obs()
@@ -612,56 +564,61 @@ class UR5DynamicReachObsEnv(gym.Env):
         '''
         infos = {}
         dones = [False for _ in range(self._n_agents)]
-        ur5_states = self.agent.calc_state()
+        ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
         achieved_goal = ur5_eef_position
 
-        arm_states = []
-        for obstacles in self.move_obstacles:
-            arm_states.append(obstacles.calc_state())
+        self.human_states = self.agents[1].calc_state()
+
+
 
         # arm_state = self.move_obstacle.calc_state()
 
         infos['succeed'] = dones
 
 
-        # # ------ drawing ------#
-        # self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
-        #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        # # # ------ drawing ------#
+        # # self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
+        # #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
+        #
+        # obs_human_states = []
+        # min_dists = []
+        # for arm_s in self.human_states:
+        #     d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_s["current"]]
+        #
+        #     min_dist = np.min(np.asarray(d))
+        #     if min_dist >  self.max_obs_dist_threshold:
+        #         min_dist =  self.max_obs_dist_threshold
+        #     min_dists.append(min_dist)
+        #
+        #
+        #
+        #     for p in arm_s["current"]:
+        #         if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+        #             obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+        #         else:
+        #             obs_human_states.append(p-ur5_eef_position)
+        #
+        #     # for p in arm_state["next"]:
+        #     #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+        #     #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+        #     #     else:
+        #     #         obs_human_states.append(p-ur5_eef_position)
+        #
+        #     for p in arm_s["next2"]:
+        #         if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
+        #             obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
+        #         else:
+        #             obs_human_states.append(p-ur5_eef_position)
+        #
+        # self.obs_min_dist = np.min(np.asarray(min_dists))
+        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
+        #                       np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
-        obs_human_states = []
-        min_dists = []
-        for arm_s in arm_states:
-            d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_s["current"]]
 
-            min_dist = np.min(np.asarray(d))
-            if min_dist >  self.max_obs_dist_threshold:
-                min_dist =  self.max_obs_dist_threshold
-            min_dists.append(min_dist)
-
-
-
-            for p in arm_s["current"]:
-                if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                    obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-                else:
-                    obs_human_states.append(p-ur5_eef_position)
-
-            # for p in arm_state["next"]:
-            #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-            #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-            #     else:
-            #         obs_human_states.append(p-ur5_eef_position)
-
-            for p in arm_s["next2"]:
-                if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-                    obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-                else:
-                    obs_human_states.append(p-ur5_eef_position)
-
-        self.obs_min_dist = np.min(np.asarray(min_dists))
-        obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
-                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+        #-----for debug-----#
+        self.obs_min_dist = 0.5
+        obs=np.zeros(30)
 
 
         return {
