@@ -10,172 +10,23 @@
 
 
 	<!-- Base Frame of Car -->
-	<link name="world"/>
-
-
-
-
-	<link name="shoulder_spine_link">
+	<!-- <link name="body_link">
 		<visual>
 			<geometry>
-				<sphere radius="0.05"/>
+				<box size="0.5 0.1 0.5"/>
 			</geometry>
 		</visual>
-	</link>
+	</link> -->
 
 
-
-	<link name="SpineBase">
+	<link name="body_link">
 		<visual>
-			<geometry>
-				<box size="0.05 0.05 0.05"/>
-			</geometry>
+			<box size="0.5 0.1 0.5"/>
 		</visual>
 	</link>
-
-	<joint name="base_spine_joint" type="fixed">
-		<parent link="world"/>
-		<child link="SpineBase"/>
-		<origin rpy="0 0 0" xyz="0 0 0"/>
-	</joint>
-
-
-
-
-
-	<joint name="shoulder_spine_joint" type="fixed">
-		<parent link="SpineBase"/>
-		<child link="shoulder_spine_link"/>
-		<origin rpy="0 0 0.0" xyz="0 0.45 0"/>
-	</joint>
-
-
-
-	<link name="left_shoulder_link">
-		<visual>
-			<geometry>
-				<sphere radius="0.02"/>
-			</geometry>
-		</visual>
-	</link>
-
-	<joint name="LShoulderX" type="continuous">
-		<parent link="shoulder_spine_link"/>
-		<child link="left_shoulder_link"/>
-		<axis xyz="1 0 0" />
-		<origin rpy="0 0 -1.57" xyz="0.18 0 0.0"/>
-	</joint>
-
-
-	<joint name="LShoulderY" type="continuous" >
-	    <parent link="left_shoulder_link"/>
-	    <child link="left_shoulder_theta_link"/>
-	    <axis xyz="0 1 0" />
-	    <dynamics damping="0.005" />
-	</joint>
-
-	<link name="left_shoulder_theta_link" />
-
-	<joint name="LShoulderZ" type="continuous" >
-	    <parent link="left_shoulder_theta_link"/>
-	    <child link="ShoulderLeft"/>
-	    <axis xyz="0 0 1" />
-	    <dynamics damping="0.005" />
-	</joint>
-
-	<link name="ShoulderLeft"/>
-	<link name="left_upper_arm">
-		<visual>
-			<geometry>
-				<cylinder length="0.28" radius="0.03"/>
-			</geometry>
-		</visual>
-	</link>
-	<joint name="left_should_fixed" type="fixed" >
-	    <parent link="ShoulderLeft"/>
-	    <child link="left_upper_arm"/>
-	    <origin rpy="0 1.57 0" xyz="0.14 0 0.0"/>
-	    <dynamics damping="0.005" />
-	</joint>
-
-
-<!-- elbow -->
-	<link name="left_elbow">
-		<visual>
-			<geometry>
-				<sphere radius="0.02"/>
-			</geometry>
-		</visual>
-	</link>
-
-	<joint name="left_fix_elbow_joint" type="fixed">
-		<parent link="left_upper_arm"/>
-		<child link="left_elbow"/>
-		<origin rpy="1.57 0 3.14" xyz="0 0.0 0.14"/>
-	</joint>
-
-
-	<link name="left_lower_arm">
-		<visual>
-			<geometry>
-				<cylinder length="0.28" radius="0.02"/>
-			</geometry>
-		</visual>
-	</link>
-
-	<joint name="LElbowX" type="continuous" >
-	    <parent link="left_elbow" />
-	    <child link="left_elbow_psi_link" />
-	    <axis xyz="1 0 0" />
-	    <dynamics damping="0.005" />
-	</joint>
-
-	<link name="left_elbow_psi_link" />
-
-	<joint name="LElbowY" type="continuous" >
-	    <parent link="left_elbow_psi_link"/>
-	    <child link="left_elbow_theta_link"/>
-	    <axis xyz="0 1 0" />
-	    <dynamics damping="0.005" />
-	</joint>
-
-	<link name="left_elbow_theta_link" />
-
-	<joint name="LElbowZ" type="continuous" >
-	    <parent link="left_elbow_theta_link"/>
-	    <child link="ElbowLeft"/>
-	    <axis xyz="0 0 1" />
-	    <dynamics damping="0.005" />
-	</joint>
-
-
-	<link name="ElbowLeft"/>
-	<joint name="left_elbow_fixed3" type="fixed" >
-	    <parent link="ElbowLeft"/>
-	    <child link="left_lower_arm"/>
-	    <origin rpy="1.57 0 0.0" xyz="0 0.14 0"/>
-	    <dynamics damping="0.005" />
-	</joint>
-
-	<link name="left_hand">
-		<visual>
-			<geometry>
-				<sphere radius="0.05"/>
-			</geometry>
-		<material name="red"/>
-		</visual>
-	</link>
-	<joint name="left_hand_fixed" type="fixed" >
-	    <parent link="left_lower_arm"/>
-	    <child link="left_hand"/>
-	    <origin rpy="0 0 0.0" xyz="0 0 -0.14"/>
-	    <dynamics damping="0.005" />
-	</joint>
-
-
 
 <!-- HEAD  -->
-<!-- 	<link name="head_link">
+	<link name="head_link">
 		<visual>
 			<geometry>
 				<sphere radius="0.10"/>
@@ -187,11 +38,11 @@
 		<parent link="body_link"/>
 		<child link="head_link"/>
 		<origin rpy="0.0 0.0 0.0" xyz="0.0 0 0.32"/>
-	</joint> -->
+	</joint>
 
 <!-- LEFT ARM -->
 
-<!-- 	<link name="left_shoulder">
+	<link name="left_shoulder">
 		<visual>
 			<geometry>
 				<sphere radius="0.05"/>
@@ -201,7 +52,7 @@
 
 	<joint name="left_fix_shoulder_joint" type="fixed">
 		<parent link="body_link"/>
-		<child link="shoulder_spine_link"/>
+		<child link="left_shoulder"/>
 		<origin rpy="1.57 0 0.0" xyz="0.25 -0.05 0.25"/>
 	</joint>
 
@@ -245,12 +96,12 @@
 	    <child link="left_upper_arm"/>
 	    <origin rpy="0 1.57 0" xyz="0.125 0 0.0"/>
 	    <dynamics damping="0.005" />
-	</joint> -->
+	</joint>
 
 
 <!--  -->
 
-<!-- 	<link name="left_elbow">
+	<link name="left_elbow">
 		<visual>
 			<geometry>
 				<sphere radius="0.05"/>
@@ -261,7 +112,7 @@
 	<joint name="left_fix_elbow_joint" type="fixed">
 		<parent link="left_upper_arm"/>
 		<child link="left_elbow"/>
-		<origin rpy="0 0 0" xyz="0 0.0 0.125"/>
+		<origin rpy="1.57 0 3.14" xyz="0 0.0 0.125"/>
 	</joint>
 
 
@@ -322,12 +173,12 @@
 	    <origin rpy="-1.57 0 0.0" xyz="0 0 -0.125"/>
 	    <dynamics damping="0.005" />
 	</joint>
- -->
+
 
 
 
 <!-- RIGHT ARM -->
-<!-- 
+
 	<link name="right_shoulder">
 		<visual>
 			<geometry>
@@ -382,7 +233,7 @@
 	    <child link="right_upper_arm"/>
 	    <origin rpy="0 1.57 0" xyz="-0.125 0 0.0"/>
 	    <dynamics damping="0.005" />
-	</joint> -->
+	</joint>
 
 
 <!--  -->

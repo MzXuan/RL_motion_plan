@@ -1,2 +1,2 @@
 debug urdf:
-```roslaunch urdf_tutorial display.launch model:="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/assets/kinect_human/upper_body.urdf "```
+roslaunch urdf_tutorial display.launch model:="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/assets/kinect_human/upper_body.urdf"

@@ -40,7 +40,7 @@ def kf_filter():
                       1.00199602e+00, 0.00000000e+00],
                      [0.00000000e+00, 0.00000000e+00, 6.65341280e-05, 0.00000000e+00,
                       0.00000000e+00, 1.00199602e+00]])  # covariance matrix
-    kf.Q = np.eye(6)*0.4   # process matrix (小=相信模型）
+    kf.Q = np.eye(6)*0.4
 
     kf.R = np.array([[0.5, 0, 0, 0, 0, 0],
                      [0, 0.5, 0, 0, 0, 0],
@@ -271,8 +271,8 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
-            with open('/home/xuan/demos/human_data.pkl', 'wb') as handle:
-                pickle.dump(joint_data_lst, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            with open('/home/xuan/demos/human_data_normal.pkl', 'wb') as handle:
+                pickle.dump(joint_data_lst, handle, protocol=2)
                 print("save successfully")
 
             measure=np.asarray(measure)

@@ -401,7 +401,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
                                       base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
             # ---------------real human----------------------------#
-            ah = self.agents[1].reset(self._p, client_id=self.physicsClientId)
+            ah = self.agents[1].reset(self._p, client_id=self.physicsClientId, base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633])
 
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)

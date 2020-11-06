@@ -118,7 +118,7 @@ def main(fpath, env, itr):
     obs = env.get_obs()
     while(id<300):
         try:
-            time.sleep(0.03)
+            time.sleep(0.1)
             # obs = env.get_obs()
             action = get_action(obs)
             # print("action: ", action)
