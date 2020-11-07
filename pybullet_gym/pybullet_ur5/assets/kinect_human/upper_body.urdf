@@ -72,13 +72,22 @@
 		<dynamics damping="0.005" />
 	</joint>
 
+	
+	<link name="left_spine_phi_link" />
 	<joint name="ShoulderSZ" type="continuous">
 		<parent link="left_spine_theta_link"/>
-		<child link="left_spine_to_shoulde_link" />
-		<axis xyz="0 1 0"/>
-		<origin rpy="0 1.57 0" xyz="0.08 0 0"/>
+		<child link="left_spine_phi_link" />
+		<axis xyz="0 0 1"/>
 		<dynamics damping="0.005" />
 	</joint>
+
+	
+	<joint name="Shoulder_fixed" type="fixed">
+		<parent link="left_spine_phi_link"/>
+		<child link="left_spine_to_shoulde_link" />
+		<origin rpy="0 1.57 0" xyz="0.08 0 0"/>
+		
+	</joint>	
 
 
 	<link name="left_spine_to_shoulde_link">
@@ -126,14 +135,14 @@
 	<link name="left_upper_arm">
 		<visual>
 			<geometry>
-				<cylinder length="0.28" radius="0.03"/>
+				<cylinder length="0.24" radius="0.03"/>
 			</geometry>
 		</visual>
 	</link>
 	<joint name="left_should_fixed" type="fixed" >
 	    <parent link="ShoulderLeft"/>
 	    <child link="left_upper_arm"/>
-	    <origin rpy="0 1.57 0" xyz="0.14 0 0.0"/>
+	    <origin rpy="0 1.57 0" xyz="0.12 0 0.0"/>
 	    <dynamics damping="0.005" />
 	</joint>
 
@@ -150,7 +159,7 @@
 	<joint name="left_fix_elbow_joint" type="fixed">
 		<parent link="left_upper_arm"/>
 		<child link="left_elbow"/>
-		<origin rpy="1.57 0 3.14" xyz="0 0.0 0.14"/>
+		<origin rpy="1.57 0 3.14" xyz="0 0.0 0.12"/>
 	</joint>
 
 
@@ -192,7 +201,7 @@
 	<joint name="left_elbow_fixed3" type="fixed" >
 	    <parent link="ElbowLeft"/>
 	    <child link="left_lower_arm"/>
-	    <origin rpy="1.57 0 0.0" xyz="0 0.14 0"/>
+	    <origin rpy="1.57 0 0.0" xyz="0 0.12 0"/>
 	    <dynamics damping="0.005" />
 	</joint>
 
@@ -207,7 +216,7 @@
 	<joint name="left_hand_fixed" type="fixed" >
 	    <parent link="left_lower_arm"/>
 	    <child link="left_hand"/>
-	    <origin rpy="0 0 0.0" xyz="0 0 -0.14"/>
+	    <origin rpy="0 0 0.0" xyz="0 0 -0.12"/>
 	    <dynamics damping="0.005" />
 	</joint>
 

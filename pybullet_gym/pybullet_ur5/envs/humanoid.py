@@ -23,64 +23,8 @@ import pickle
 from scipy.optimize import minimize
 from scipy.optimize import SR1
 
+import human_optimization
 
-
-
-
-def fk_e(theta):
-
-	c0 = np.cos(theta[0])
-	c1 = np.cos(theta[1])
-	c2 = np.cos(theta[2])
-	c3 = np.cos(theta[3])
-	s0 = np.sin(theta[0])
-	s1 = np.sin(theta[1])
-	s2 = np.sin(theta[2])
-	s3 = np.sin(theta[3])
-	result = np.asarray([(7*c0*s2)/25 + (7*c2*s0*s1)/25 + 9/50,
-                                                       9/20 - (7*c1*c2)/25,
-        (7*s0*s2)/25 - (7*c0*c2*s1)/25])
-	print("fk _e result; ", result)
-
-def fk_w(theta):
-
-	c0 = np.cos(theta[0])
-	c1 = np.cos(theta[1])
-	c2 = np.cos(theta[2])
-	c3 = np.cos(theta[3])
-	s0 = np.sin(theta[0])
-	s1 = np.sin(theta[1])
-	s2 = np.sin(theta[2])
-	s3 = np.sin(theta[3])
-	result  = np.asarray([(14*c0*s2)/25 + (14*c2*s0*s1)/25 + 9/50,
- (7*c3)/25 - (14*s3*s0*s2)/25 - (14*c3*c1*c2)/25 + (14*c0*c2*s3*s1)/25 + 17/100,
-(7*s3)/25 + (14*c3*s0*s2)/25 - (14*c1*c2*s3)/25 - (14*c3*c0*c2*s1)/25])
-	print("fk _w result; ", result)
-
-
-def left(theta, inputP_el, inputP_wl):
-
-	c0 = np.cos(theta[0])
-	c1 = np.cos(theta[1])
-	c2 = np.cos(theta[2])
-	c3 = np.cos(theta[3])
-	s0 = np.sin(theta[0])
-	s1 = np.sin(theta[1])
-	s2 = np.sin(theta[2])
-	s3 = np.sin(theta[3])
-	A = np.asarray([(7*c0*s2)/25 + (7*c2*s0*s1)/25 + 9/50,
-        9/20 - (7*c1*c2)/25,
-        (7*s0*s2)/25 - (7*c0*c2*s1)/25]) -inputP_el
-	B = np.asarray([(14*c0*s2)/25 + (14*c2*s0*s1)/25 + 9/50,
- (7*c3)/25 - (14*s3*s0*s2)/25 - (14*c3*c1*c2)/25 + (14*c0*c2*s3*s1)/25 + 17/100,
-(7*s3)/25 + (14*c3*s0*s2)/25 - (14*c1*c2*s3)/25 - (14*c3*c0*c2*s1)/25])-inputP_wl
-
-	print(np.matmul(A, A.T)+np.matmul(B, B.T))
-	print("----------")
-
-	objective = np.matmul(A, A.T)+np.matmul(B, B.T)
-
-	return objective
 
 
 class FileHuman(object):
@@ -123,10 +67,14 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         #                           ['ShoulderRight', 'ElbowRight', 'RShoulder'], ['ElbowRight', 'WristRight', 'RElbow']]
         # self.translation_pairs = [['ShoulderLeft', 'LShoulder'],['ElbowLeft', 'LElbow']]
         self.translation_pairs = [['ShoulderLeft', 'LShoulder']]
+        self.moveable_joints = ["ShoulderSY", "ShoulderSZ",
+                                'LShoulderX', 'LShoulderY','LShoulderZ',
+                                'LElbowX','LElbowZ']
         self.human_base_link = "SpineBase"
         if self.load:
             print("use recorded data")
             self.human_file = FileHuman(file = '/home/xuan/demos/human_data_normal_py3.pkl')
+            # self.human_file = FileHuman(file='/home/xuan/demos/human_data_1.pkl')
 
         else:
             print("use data from camera")
@@ -146,9 +94,13 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                      "arm": np.ones(3) + self.max_obs_dist_threshold,
                      "hand": np.ones(3) + self.max_obs_dist_threshold}
         self.arm_id = None
+
+
+
         super(URDFHumanoid, self).__init__(
             'kinect_human/upper_body.urdf', "human", action_dim=0, obs_dim=obs_dim, fixed_base=1,
             self_collision=True)
+
 
     def reset(self, bullet_client, client_id, base_rotation):
         self._p = bullet_client
@@ -192,9 +144,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
-
-
         return s
+
 
     def get_initial_trans(self):
         self.initial_trans = {}
@@ -226,9 +177,6 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         return j3
 
     def calc_one_state(self, joints, pair, draw=True):
-
-
-
         # # ----------------test frame-------#
         # try:
         #     j1 = joints["SpineBase"]
@@ -296,13 +244,15 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         return obs
 
     def optimize_joint(self, joints):
-        x0 = np.array([self.jdict['LShoulderX'].get_position(),
-                       self.jdict['LShoulderY'].get_position(),
-                       self.jdict['LShoulderZ'].get_position(),
-                       self.jdict['LElbowZ'].get_position()])
+        x0 = np.asarray([self.jdict[j].get_position() for j in self.moveable_joints])
 
+        # x0 = np.zeros(7)
 
         try:
+            jsl = self.calculate_relative_trans(joints["SpineBase"],  joints["ShoulderLeft"]) #elbow -> spinbase
+            print("translation j3 is: {}".format(jsl[:3]))
+            inputP_sl = jsl[:3]
+
             jel = self.calculate_relative_trans(joints["SpineBase"],  joints["ElbowLeft"]) #elbow -> spinbase
             print("translation j3 is: {}".format(jel[:3]))
             inputP_el = jel[:3]
@@ -316,26 +266,24 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
 
-        res = minimize(left, x0, args=(inputP_el, inputP_wl), method='trust-constr', jac="2-point", hess=SR1(),
-                       options={'gtol': 0.005, 'disp': True})
+        res = minimize(human_optimization.left, x0, args=(inputP_sl,inputP_el, inputP_wl),
+                       method='trust-constr', jac="2-point", hess=SR1(),
+                       options={'gtol': 0.008, 'disp': True})
 
         x = res.x
 
         print("result of theta is: ", x)
-
-        fk_e(x)
-        fk_w(x)
+        human_optimization.left(x,inputP_sl,inputP_el, inputP_wl, disp=True)
 
 
         #set joint angle
-        self.jdict['LShoulderX'].reset_position(x[0],0)
-        self.jdict['LShoulderY'].reset_position(x[1], 0)
-        self.jdict['LShoulderZ'].reset_position(x[2], 0)
-        self.jdict['LElbowZ'].reset_position(x[3], 0)
+        for i in range(len(self.moveable_joints)):
+            self.jdict[self.moveable_joints[i]].reset_position(x[i],0)
+
 
         # todo: draw real data
         spine_base_sim = self.parts['SpineBase'].get_pose()
-        print("spine base sim: ", spine_base_sim)
+
 
 
         points= []
