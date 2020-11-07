@@ -317,7 +317,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
         res = minimize(left, x0, args=(inputP_el, inputP_wl), method='trust-constr', jac="2-point", hess=SR1(),
-                       options={'gtol': 0.01, 'disp': True})
+                       options={'gtol': 0.005, 'disp': True})
 
         x = res.x
 

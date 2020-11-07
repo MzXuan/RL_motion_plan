@@ -13,6 +13,46 @@
 	<link name="world"/>
 
 
+	<link name="SpineBase">
+		<visual>
+			<geometry>
+				<sphere radius="0.05"/>
+			</geometry>
+		</visual>
+	</link>
+
+
+	<joint name="base_spine_joint" type="fixed">
+		<parent link="world"/>
+		<child link="SpineBase"/>
+		<origin rpy="0 0 0" xyz="0 0 0"/>
+	</joint>
+
+
+	<link name="SpineLink">
+		<visual>
+			<geometry>
+				<cylinder radius="0.05" length="0.4"/>
+			</geometry>
+		</visual>
+	</link>
+
+
+
+
+	<joint name="spine_joint" type="fixed">
+		<parent link="SpineBase"/>
+		<child link="SpineLink"/>
+		<origin rpy="1.57 0 0.0" xyz="0 0.2 0"/>
+	</joint>
+
+
+
+	<joint name="shoulder_spine_joint" type="fixed">
+		<parent link="SpineLink"/>
+		<child link="shoulder_spine_link"/>
+		<origin rpy="-1.57 0 0.0" xyz="0 0 -0.2"/>
+	</joint>
 
 
 	<link name="shoulder_spine_link">
@@ -23,32 +63,31 @@
 		</visual>
 	</link>
 
+	<link name="left_spine_theta_link" />
+
+	<joint name="ShoulderSY" type="continuous">
+		<parent link="shoulder_spine_link"/>
+		<child link="left_spine_theta_link" />
+		<axis xyz="0 1 0"/>
+		<dynamics damping="0.005" />
+	</joint>
+
+	<joint name="ShoulderSZ" type="continuous">
+		<parent link="left_spine_theta_link"/>
+		<child link="left_spine_to_shoulde_link" />
+		<axis xyz="0 1 0"/>
+		<origin rpy="0 1.57 0" xyz="0.08 0 0"/>
+		<dynamics damping="0.005" />
+	</joint>
 
 
-	<link name="SpineBase">
+	<link name="left_spine_to_shoulde_link">
 		<visual>
 			<geometry>
-				<box size="0.05 0.05 0.05"/>
+				<cylinder radius="0.02" length="0.16"/>
 			</geometry>
 		</visual>
 	</link>
-
-	<joint name="base_spine_joint" type="fixed">
-		<parent link="world"/>
-		<child link="SpineBase"/>
-		<origin rpy="0 0 0" xyz="0 0 0"/>
-	</joint>
-
-
-
-
-
-	<joint name="shoulder_spine_joint" type="fixed">
-		<parent link="SpineBase"/>
-		<child link="shoulder_spine_link"/>
-		<origin rpy="0 0 0.0" xyz="0 0.45 0"/>
-	</joint>
-
 
 
 	<link name="left_shoulder_link">
@@ -60,13 +99,14 @@
 	</link>
 
 	<joint name="LShoulderX" type="continuous">
-		<parent link="shoulder_spine_link"/>
+		<parent link="left_spine_to_shoulde_link"/>
 		<child link="left_shoulder_link"/>
 		<axis xyz="1 0 0" />
-		<origin rpy="0 0 -1.57" xyz="0.18 0 0.0"/>
+		<origin rpy="1.57 0 -1.57" xyz="0 0 0.08"/>
 	</joint>
 
 
+	<link name="left_shoulder_theta_link" />
 	<joint name="LShoulderY" type="continuous" >
 	    <parent link="left_shoulder_link"/>
 	    <child link="left_shoulder_theta_link"/>
@@ -74,7 +114,6 @@
 	    <dynamics damping="0.005" />
 	</joint>
 
-	<link name="left_shoulder_theta_link" />
 
 	<joint name="LShoulderZ" type="continuous" >
 	    <parent link="left_shoulder_theta_link"/>
