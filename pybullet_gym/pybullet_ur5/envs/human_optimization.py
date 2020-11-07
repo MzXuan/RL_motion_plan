@@ -2,12 +2,13 @@ import numpy as np
 
 
 l0 = 0.4
-ls = 0.16
-lua = 0.24
-lla = 0.24
-
+ls = 0.14
+# lua=lla=0.22
 def right(theta, inp_sr, inp_er, inp_wr, disp=False):
 	assert len(theta)
+
+	lua = np.linalg.norm(inp_er-inp_sr)
+	lla = np.linalg.norm(inp_wr-inp_er)
 
 	c = [np.cos(t) for t in theta]
 	s = [np.sin(t) for t in theta]
@@ -76,10 +77,10 @@ def right(theta, inp_sr, inp_er, inp_wr, disp=False):
 	C = p_wr-inp_wr
 
 
-	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+np.matmul(C,C.T)
+	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+5*np.matmul(C,C.T)
 	if disp:
 		print("sl {}, el {}, wl {}".format(p_sr, p_er, p_wr))
-	print("-------------right objective: {}------------------".format(objective))
+		print("-------------right objective: {}------------------".format(objective))
 
 
 	return objective
@@ -97,6 +98,8 @@ def left(theta, inp_sl, inp_el, inp_wl, disp=False):
 	'''
 
 	assert len(theta)
+	lua = np.linalg.norm(inp_el - inp_sl)
+	lla = np.linalg.norm(inp_wl - inp_el)
 
 	c = [np.cos(t) for t in theta]
 	s = [np.sin(t) for t in theta]
@@ -171,10 +174,10 @@ def left(theta, inp_sl, inp_el, inp_wl, disp=False):
 	C = p_wl-inp_wl
 
 
-	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+np.matmul(C,C.T)
+	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+5*np.matmul(C,C.T)
 	if disp:
 		print("sl {}, el {}, wl {}".format(p_sl, p_el, p_wl))
-	print("-------------left objective: {}------------------".format(objective))
+		print("-------------left objective: {}------------------".format(objective))
 
 
 	return objective

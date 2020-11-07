@@ -39,17 +39,22 @@ class FileHuman(object):
             exit()
 
         self.index = 0
+        self.reset_flag=True
         # self.joint_queue = self.joint_queue_list[0]
 
         self.update_joint_queue()
 
 
     def update_joint_queue(self):
-        print("self.index: ", self.index)
+        # print("self.index: ", self.index)
         if self.index > self.data_length-1:
             self.index = np.random.randint(low=0, high=int(self.data_length /2))
+            self.reset_flag=True
+        else:
+            self.reset_flag=False
         self.joints = self.joint_list[self.index]
         self.index += 1
+
 
 
 class URDFHumanoid(robot_bases.URDFBasedRobot):
@@ -76,8 +81,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.human_base_link = "SpineBase"
         if self.load:
             print("use recorded data")
-            self.human_file = FileHuman(file = '/home/xuan/demos/human_data_normal_py3.pkl')
-            # self.human_file = FileHuman(file='/home/xuan/demos/human_data_1.pkl')
+            # self.human_file = FileHuman(file = '/home/xuan/demos/human_data_normal_py3.pkl')
+            self.human_file = FileHuman(file='/home/xuan/demos/human_data_1.pkl')
 
         else:
             print("use data from camera")
@@ -106,6 +111,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
     def reset(self, bullet_client, client_id, base_rotation):
+        #todo: reset change robot
+
         self._p = bullet_client
         self.client_id = client_id
 
@@ -246,16 +253,21 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         return obs
 
-    def optimize_joint(self, joints, arm, disp=False):
+    def optimize_joint(self, joints, arm, disp=False, reset_flag=False):
 
 
         if arm == "Left":
-            x0 = np.asarray([self.jdict[j].get_position() for j in self.left_moveable_joints])
+            if reset_flag:
+                x0 = np.zeros(7)
+            else:
+                x0 = np.asarray([self.jdict[j].get_position() for j in self.left_moveable_joints])
             jointp_name = ["ShoulderLeft","ElbowLeft","WristLeft"]
             func = human_optimization.left
         else:
-            print("!!!!!!!!!!!!!!!!!!!!Right!!!!!!!!!!!!!")
-            x0 = np.asarray([self.jdict[j].get_position() for j in self.right_moveable_joints])
+            if reset_flag:
+                x0 = np.zeros(7)
+            else:
+                x0 = np.asarray([self.jdict[j].get_position() for j in self.right_moveable_joints])
             jointp_name = ["ShoulderRight", "ElbowRight", "WristRight"]
             func = human_optimization.right
 
@@ -278,7 +290,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         res = minimize(func, x0, args=(inputP_s,inputP_e, inputP_w),
                            method='trust-constr', jac="2-point", hess=SR1(),
-                           options={'gtol': 0.008, 'disp': True})
+                           options={'gtol': 0.008, 'disp': False})
         x = res.x
 
 
@@ -321,13 +333,16 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
     def calc_state(self, draw=True):
         if self.load:
             joints = self.human_file.joints
+            reset_flag = self.human_file.reset_flag
 
         else:
             joints = self.human_model.joints
+            reset_flag = False
 
 
-        self.optimize_joint(joints,"Left",disp=True)
-        self.optimize_joint(joints, "Right", disp=True)
+
+        self.optimize_joint(joints,"Left",disp=False, reset_flag=reset_flag)
+        self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
 
 
 
