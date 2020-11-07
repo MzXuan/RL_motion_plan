@@ -1,5 +1,90 @@
 import numpy as np
 
+
+l0 = 0.4
+ls = 0.16
+lua = 0.24
+lla = 0.24
+
+def right(theta, inp_sr, inp_er, inp_wr, disp=False):
+	assert len(theta)
+
+	c = [np.cos(t) for t in theta]
+	s = [np.sin(t) for t in theta]
+
+	p_sr =np.asarray([-ls * c[0] * c[1], l0 - ls * s[1], ls * c[1] * s[0]])
+
+	p_er =np.asarray([ls * c[2] * c[4] - ls + lua * c[2] * c[1] * s[4] + ls * c[2] * s[4] * s[1] - ls * s[2] * s[3] * s[4] - ls * c[2] * c[
+		4] * c[0] * c[1] + lua * c[2] * c[4] * c[0] * s[1] + ls * c[3] * c[1] * s[2] * s[0] + lua * c[4] * c[1] * s[2] * s[
+		3] + ls * c[4] * s[2] * s[3] * s[1] - lua * c[3] * s[2] * s[0] * s[1] + ls * c[0] * c[1] * s[2] * s[3] * s[
+		4] - lua * c[0] * s[2] * s[3] * s[4] * s[1],
+	l0 + ls * c[3] * s[4] - lua * c[3] * c[4] * c[1] - ls * c[3] * c[4] * s[1] + ls * c[1] * s[3] * s[0] - lua * s[3] * s[
+		0] * s[1] - ls * c[3] * c[0] * c[1] * s[4] + lua * c[3] * c[0] * s[4] * s[1],
+	ls * c[2] * c[3] * c[1] * s[0] - ls * c[2] * s[3] * s[4] - lua * c[1] * s[2] * s[4] - ls * s[2] * s[4] * s[1] - ls * c[
+		4] * s[2] + ls * c[4] * c[0] * c[1] * s[2] + lua * c[2] * c[4] * c[1] * s[3] + ls * c[2] * c[4] * s[3] * s[
+		1] - lua * c[2] * c[3] * s[0] * s[1] - lua * c[4] * c[0] * s[2] * s[1] + ls * c[2] * c[0] * c[1] * s[3] * s[
+		4] - lua * c[2] * c[0] * s[3] * s[4] * s[1]])
+
+	p_wr =np.asarray([lua * c[6] * s[5] - ls + ls * c[5] * c[2] * c[4] + lla * c[5] * c[2] * c[1] * s[4] + lua * c[5] * c[2] * c[1] * s[
+		4] + ls * c[6] * c[3] * s[5] * s[4] + ls * c[5] * c[2] * s[4] * s[1] - ls * c[4] * s[5] * s[6] * s[2] - ls * c[5] * \
+	s[2] * s[3] * s[4] - ls * c[5] * c[2] * c[4] * c[0] * c[1] - lla * c[6] * c[3] * c[4] * c[1] * s[5] + lla * c[5] * c[
+		2] * c[4] * c[0] * s[1] - lua * c[6] * c[3] * c[4] * c[1] * s[5] + lua * c[5] * c[2] * c[4] * c[0] * s[1] + lla * c[
+		5] * c[4] * c[1] * s[2] * s[3] - ls * c[6] * c[3] * c[4] * s[5] * s[1] + ls * c[5] * c[3] * c[1] * s[2] * s[
+		0] + lua * c[5] * c[4] * c[1] * s[2] * s[3] - lla * c[5] * c[3] * s[2] * s[0] * s[1] + ls * c[6] * c[1] * s[5] * s[
+		3] * s[0] + ls * c[5] * c[4] * s[2] * s[3] * s[1] - lua * c[5] * c[3] * s[2] * s[0] * s[1] - lla * c[1] * s[5] * s[
+		6] * s[2] * s[4] - lla * c[6] * s[5] * s[3] * s[0] * s[1] - ls * c[2] * s[5] * s[6] * s[3] * s[4] - lua * c[1] * s[
+		5] * s[6] * s[2] * s[4] - lua * c[6] * s[5] * s[3] * s[0] * s[1] - ls * s[5] * s[6] * s[2] * s[4] * s[1] + lla * c[
+		2] * c[4] * c[1] * s[5] * s[6] * s[3] + lla * c[6] * c[3] * c[0] * s[5] * s[4] * s[1] + ls * c[2] * c[3] * c[1] * s[
+		5] * s[6] * s[0] + ls * c[4] * c[0] * c[1] * s[5] * s[6] * s[2] + ls * c[5] * c[0] * c[1] * s[2] * s[3] * s[
+		4] + lua * c[2] * c[4] * c[1] * s[5] * s[6] * s[3] + lua * c[6] * c[3] * c[0] * s[5] * s[4] * s[1] - lla * c[2] * c[
+		3] * s[5] * s[6] * s[0] * s[1] - lla * c[4] * c[0] * s[5] * s[6] * s[2] * s[1] - lla * c[5] * c[0] * s[2] * s[3] * \
+	s[4] * s[1] + ls * c[2] * c[4] * s[5] * s[6] * s[3] * s[1] - lua * c[2] * c[3] * s[5] * s[6] * s[0] * s[1] - lua * c[
+		4] * c[0] * s[5] * s[6] * s[2] * s[1] - lua * c[5] * c[0] * s[2] * s[3] * s[4] * s[1] - ls * c[6] * c[3] * c[0] * c[
+		1] * s[5] * s[4] - lla * c[2] * c[0] * s[5] * s[6] * s[3] * s[4] * s[1] - lua * c[2] * c[0] * s[5] * s[6] * s[3] * \
+	s[4] * s[1] + ls * c[2] * c[0] * c[1] * s[5] * s[6] * s[3] * s[4],
+	l0 - lua + lua * c[5] * c[6] - ls * c[2] * c[4] * s[5] + ls * c[5] * c[6] * c[3] * s[4] - lla * c[2] * c[1] * s[5] * s[
+		4] - ls * c[5] * c[4] * s[6] * s[2] - lua * c[2] * c[1] * s[5] * s[4] - ls * c[2] * s[5] * s[4] * s[1] + ls * s[5] * \
+	s[2] * s[3] * s[4] - lla * c[5] * c[6] * c[3] * c[4] * c[1] - lua * c[5] * c[6] * c[3] * c[4] * c[1] - ls * c[5] * c[
+		6] * c[3] * c[4] * s[1] + ls * c[2] * c[4] * c[0] * c[1] * s[5] - lla * c[2] * c[4] * c[0] * s[5] * s[1] + ls * c[
+		5] * c[6] * c[1] * s[3] * s[0] - lua * c[2] * c[4] * c[0] * s[5] * s[1] - lla * c[5] * c[1] * s[6] * s[2] * s[
+		4] - lla * c[5] * c[6] * s[3] * s[0] * s[1] - lla * c[4] * c[1] * s[5] * s[2] * s[3] - ls * c[5] * c[2] * s[6] * s[
+		3] * s[4] - ls * c[3] * c[1] * s[5] * s[2] * s[0] - lua * c[5] * c[1] * s[6] * s[2] * s[4] - lua * c[5] * c[6] * s[
+		3] * s[0] * s[1] - lua * c[4] * c[1] * s[5] * s[2] * s[3] + lla * c[3] * s[5] * s[2] * s[0] * s[1] - ls * c[5] * s[
+		6] * s[2] * s[4] * s[1] - ls * c[4] * s[5] * s[2] * s[3] * s[1] + lua * c[3] * s[5] * s[2] * s[0] * s[1] - lla * c[
+		5] * c[2] * c[3] * s[6] * s[0] * s[1] - lla * c[5] * c[4] * c[0] * s[6] * s[2] * s[1] + ls * c[5] * c[2] * c[4] * s[
+		6] * s[3] * s[1] - lua * c[5] * c[2] * c[3] * s[6] * s[0] * s[1] - lua * c[5] * c[4] * c[0] * s[6] * s[2] * s[
+		1] - ls * c[0] * c[1] * s[5] * s[2] * s[3] * s[4] + lla * c[0] * s[5] * s[2] * s[3] * s[4] * s[1] + lua * c[0] * s[
+		5] * s[2] * s[3] * s[4] * s[1] - ls * c[5] * c[6] * c[3] * c[0] * c[1] * s[4] + lla * c[5] * c[2] * c[4] * c[1] * s[
+		6] * s[3] + lla * c[5] * c[6] * c[3] * c[0] * s[4] * s[1] + ls * c[5] * c[2] * c[3] * c[1] * s[6] * s[0] + ls * c[
+		5] * c[4] * c[0] * c[1] * s[6] * s[2] + lua * c[5] * c[2] * c[4] * c[1] * s[6] * s[3] + lua * c[5] * c[6] * c[3] * \
+	c[0] * s[4] * s[1] + ls * c[5] * c[2] * c[0] * c[1] * s[6] * s[3] * s[4] - lla * c[5] * c[2] * c[0] * s[6] * s[3] * s[
+		4] * s[1] - lua * c[5] * c[2] * c[0] * s[6] * s[3] * s[4] * s[1],
+	(s[6] * (s[3] * s[0] * s[1] + c[3] * c[4] * c[1] - c[3] * c[0] * s[4] * s[1]) - c[6] * (
+				c[1] * (s[2] * s[4] - c[2] * c[4] * s[3]) + c[0] * s[1] * (c[4] * s[2] + c[2] * s[3] * s[4]) + c[2] * c[3] *
+				s[0] * s[1])) * (lla - l0 + lua) - c[6] * (
+				s[2] * (ls * (c[4] - 1) + l0 * s[4]) + ls * s[2] - c[2] * s[3] * (l0 * (c[4] - 1) - ls * s[4]) + l0 * (
+					c[1] - 1) * (s[2] * s[4] - c[2] * c[4] * s[3]) - l0 * c[2] * s[3] + l0 * c[0] * s[1] * (
+							c[4] * s[2] + c[2] * s[3] * s[4]) + l0 * c[2] * c[3] * s[0] * s[1]) + ls * (
+				s[6] * (c[3] * c[4] * s[1] - c[1] * s[3] * s[0] + c[3] * c[0] * c[1] * s[4]) + c[6] * (
+					c[0] * c[1] * (c[4] * s[2] + c[2] * s[3] * s[4]) - s[1] * (s[2] * s[4] - c[2] * c[4] * s[3]) + c[2] * c[
+				3] * c[1] * s[0])) + s[6] * (
+				l0 * (c[3] - 1) + c[3] * (l0 * (c[4] - 1) - ls * s[4]) + l0 * s[3] * s[0] * s[1] + l0 * c[3] * c[4] * (
+					c[1] - 1) - l0 * c[3] * c[0] * s[4] * s[1]) + s[6] * (l0 - lua)])
+
+	A = p_sr-inp_sr
+	B = p_er-inp_er
+	C = p_wr-inp_wr
+
+
+	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+np.matmul(C,C.T)
+	if disp:
+		print("sl {}, el {}, wl {}".format(p_sr, p_er, p_wr))
+	print("-------------right objective: {}------------------".format(objective))
+
+
+	return objective
+
+
 def left(theta, inp_sl, inp_el, inp_wl, disp=False):
 	'''
 	# theta_ssy = theta[0];
@@ -12,11 +97,6 @@ def left(theta, inp_sl, inp_el, inp_wl, disp=False):
 	'''
 
 	assert len(theta)
-
-	l0 = 0.4
-	ls = 0.16
-	lua = 0.24
-	lla = 0.24
 
 	c = [np.cos(t) for t in theta]
 	s = [np.sin(t) for t in theta]
@@ -94,7 +174,7 @@ def left(theta, inp_sl, inp_el, inp_wl, disp=False):
 	objective = np.matmul(A, A.T)+np.matmul(B, B.T)+np.matmul(C,C.T)
 	if disp:
 		print("sl {}, el {}, wl {}".format(p_sl, p_el, p_wl))
-	print("-------------objective: {}------------------".format(objective))
+	print("-------------left objective: {}------------------".format(objective))
 
 
 	return objective

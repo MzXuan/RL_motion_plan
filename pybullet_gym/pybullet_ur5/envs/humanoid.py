@@ -47,9 +47,8 @@ class FileHuman(object):
     def update_joint_queue(self):
         print("self.index: ", self.index)
         if self.index > self.data_length-1:
-            self.index = np.random.randint(low=0, high=self.data_length - 1)
+            self.index = np.random.randint(low=0, high=int(self.data_length /2))
         self.joints = self.joint_list[self.index]
-
         self.index += 1
 
 
@@ -67,9 +66,13 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         #                           ['ShoulderRight', 'ElbowRight', 'RShoulder'], ['ElbowRight', 'WristRight', 'RElbow']]
         # self.translation_pairs = [['ShoulderLeft', 'LShoulder'],['ElbowLeft', 'LElbow']]
         self.translation_pairs = [['ShoulderLeft', 'LShoulder']]
-        self.moveable_joints = ["ShoulderSY", "ShoulderSZ",
+        self.left_moveable_joints = ["LShoulderSY", "LShoulderSZ",
                                 'LShoulderX', 'LShoulderY','LShoulderZ',
                                 'LElbowX','LElbowZ']
+
+        self.right_moveable_joints = ["RShoulderSY", "RShoulderSZ",
+                                'RShoulderX', 'RShoulderY', 'RShoulderZ',
+                                'RElbowX', 'RElbowZ']
         self.human_base_link = "SpineBase"
         if self.load:
             print("use recorded data")
@@ -243,61 +246,65 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         return obs
 
-    def optimize_joint(self, joints):
-        x0 = np.asarray([self.jdict[j].get_position() for j in self.moveable_joints])
+    def optimize_joint(self, joints, arm, disp=False):
 
-        # x0 = np.zeros(7)
+
+        if arm == "Left":
+            x0 = np.asarray([self.jdict[j].get_position() for j in self.left_moveable_joints])
+            jointp_name = ["ShoulderLeft","ElbowLeft","WristLeft"]
+            func = human_optimization.left
+        else:
+            print("!!!!!!!!!!!!!!!!!!!!Right!!!!!!!!!!!!!")
+            x0 = np.asarray([self.jdict[j].get_position() for j in self.right_moveable_joints])
+            jointp_name = ["ShoulderRight", "ElbowRight", "WristRight"]
+            func = human_optimization.right
+
 
         try:
-            jsl = self.calculate_relative_trans(joints["SpineBase"],  joints["ShoulderLeft"]) #elbow -> spinbase
-            print("translation j3 is: {}".format(jsl[:3]))
-            inputP_sl = jsl[:3]
+            js = self.calculate_relative_trans(joints["SpineBase"],  joints[jointp_name[0]]) #elbow -> spinbase
+            inputP_s = js[:3]
 
-            jel = self.calculate_relative_trans(joints["SpineBase"],  joints["ElbowLeft"]) #elbow -> spinbase
-            print("translation j3 is: {}".format(jel[:3]))
-            inputP_el = jel[:3]
+            je = self.calculate_relative_trans(joints["SpineBase"],  joints[jointp_name[1]]) #elbow -> spinbase
+            # print("translation j3 is: {}".format(je[:3]))
+            inputP_e = je[:3]
 
-            jwl = self.calculate_relative_trans(joints["SpineBase"], joints["WristLeft"])
-            print("translation j3 is: {}".format(jwl[:3]))
-            inputP_wl = jwl[:3]
+            jw = self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[2]])
+            # print("translation j3 is: {}".format(jw[:3]))
+            inputP_w = jw[:3]
 
         except:
             return False
 
 
-
-        res = minimize(human_optimization.left, x0, args=(inputP_sl,inputP_el, inputP_wl),
-                       method='trust-constr', jac="2-point", hess=SR1(),
-                       options={'gtol': 0.008, 'disp': True})
-
+        res = minimize(func, x0, args=(inputP_s,inputP_e, inputP_w),
+                           method='trust-constr', jac="2-point", hess=SR1(),
+                           options={'gtol': 0.008, 'disp': True})
         x = res.x
-
-        print("result of theta is: ", x)
-        human_optimization.left(x,inputP_sl,inputP_el, inputP_wl, disp=True)
 
 
         #set joint angle
-        for i in range(len(self.moveable_joints)):
-            self.jdict[self.moveable_joints[i]].reset_position(x[i],0)
+        if arm=="Left":
+            for i in range(len(self.left_moveable_joints)):
+                self.jdict[self.left_moveable_joints[i]].reset_position(x[i],0)
+        else:
+            for i in range(len(self.right_moveable_joints)):
+                self.jdict[self.right_moveable_joints[i]].reset_position(x[i],0)
 
 
-        # todo: draw real data
-        spine_base_sim = self.parts['SpineBase'].get_pose()
+        if disp:
+            print("result of theta is: ", x)
+            human_optimization.left(x, inputP_s, inputP_e, inputP_w, disp=True)
+            spine_base_sim = self.parts['SpineBase'].get_pose()
+            points= []
+            points.append(spine_base_sim[:3])
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["SpineShoulder"])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[0]])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[1]])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[2]])))
 
+            for i in range(len(points)-1):
+                self._p.addUserDebugLine(points[i],points[i+1],lineColorRGB=[0.9,0.1,0.1], lineWidth=2 , lifeTime=1)
 
-
-        points= []
-
-        points.append(spine_base_sim[:3])
-        points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["SpineShoulder"])))
-
-
-        points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["ShoulderLeft"])))
-
-        points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["ElbowLeft"])))
-        points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["WristLeft"])))
-        for i in range(len(points)-1):
-            self._p.addUserDebugLine(points[i],points[i+1],lineColorRGB=[0.9,0.1,0.1], lineWidth=2 , lifeTime=1)
 
         return x
 
@@ -319,7 +326,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             joints = self.human_model.joints
 
 
-        self.optimize_joint(joints)
+        self.optimize_joint(joints,"Left",disp=True)
+        self.optimize_joint(joints, "Right", disp=True)
+
+
+
+        # calculate relative position to robot end-effector
         # for pair in self.translation_pairs:
         #     self.calc_one_state(joints, pair, draw=False)
 
