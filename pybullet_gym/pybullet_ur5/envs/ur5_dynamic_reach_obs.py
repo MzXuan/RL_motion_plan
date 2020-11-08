@@ -255,7 +255,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.05,
-                 max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
@@ -344,8 +344,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
     def reset(self):
-        self.last_human_eef = [0, 0, 0]
-        self.last_robot_eef = [0, 0, 0]
+        self.last_obs_human = np.full(18,self.max_obs_dist_threshold+0.2)
         self.last_robot_joint = np.zeros(6)
         self.current_safe_dist = self._set_safe_distance()
 
@@ -401,7 +400,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
                                       base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
             # ---------------real human----------------------------#
-            ah = self.agents[1].reset(self._p, client_id=self.physicsClientId, base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633])
+            ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
+                                      base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633], rob_goal=self.goal.copy())
 
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
@@ -567,59 +567,30 @@ class UR5DynamicReachObsEnv(gym.Env):
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
         achieved_goal = ur5_eef_position
-
         self.human_states = self.agents[1].calc_state()
-
-
-
-        # arm_state = self.move_obstacle.calc_state()
-
         infos['succeed'] = dones
 
 
-        # # # ------ drawing ------#
-        # # self._p.addUserDebugLine(self.last_robot_eef, ur5_eef_position, \
-        # #                          lineColorRGB=[0, 0, 1], lineWidth=2, lifeTime=10)
-        #
-        # obs_human_states = []
-        # min_dists = []
-        # for arm_s in self.human_states:
-        #     d = [np.linalg.norm([p-ur5_eef_position]) for p in arm_s["current"]]
-        #
-        #     min_dist = np.min(np.asarray(d))
-        #     if min_dist >  self.max_obs_dist_threshold:
-        #         min_dist =  self.max_obs_dist_threshold
-        #     min_dists.append(min_dist)
-        #
-        #
-        #
-        #     for p in arm_s["current"]:
-        #         if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-        #             obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-        #         else:
-        #             obs_human_states.append(p-ur5_eef_position)
-        #
-        #     # for p in arm_state["next"]:
-        #     #     if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-        #     #         obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-        #     #     else:
-        #     #         obs_human_states.append(p-ur5_eef_position)
-        #
-        #     for p in arm_s["next2"]:
-        #         if np.linalg.norm([p-ur5_eef_position]) >  self.max_obs_dist_threshold:
-        #             obs_human_states.append(np.zeros(3)+self.max_obs_dist_threshold)
-        #         else:
-        #             obs_human_states.append(p-ur5_eef_position)
-        #
-        # self.obs_min_dist = np.min(np.asarray(min_dists))
-        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
-        #                       np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+        delta_p = np.asarray([(p-ur5_eef_position) for p in self.human_states])
+        d = np.linalg.norm(delta_p,axis=1)
+        min_dist = np.min(d)
+
+        #clip obs
+        obs_human = delta_p.copy()
+        indices = np.where(d > self.max_obs_dist_threshold)
+        obs_human[indices] = np.full((1,3), self.max_obs_dist_threshold+0.2)
 
 
-        #-----for debug-----#
-        self.obs_min_dist = 0.5
-        obs=np.zeros(30)
+        self.obs_min_dist = min_dist
 
+        # print("last human",    self.last_obs_human)
+        # print("current human", obs_human)
+
+
+        obs = np.concatenate([np.asarray(ur5_states), np.asarray(self.last_obs_human).flatten(), np.asarray(obs_human).flatten(),
+                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+
+        self.last_obs_human = obs_human.copy()
 
         return {
             'observation': obs.copy(),
@@ -741,7 +712,7 @@ def load_demo():
 class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.025,
-                 max_obs_dist = 0.35 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
@@ -789,8 +760,6 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
 
 
     def reset(self):
-        self.last_human_eef = [0, 0, 0]
-        self.last_robot_eef = [0, 0, 0]
         self.last_robot_joint = np.zeros(6)
         self.current_safe_dist = self._set_safe_distance()
 

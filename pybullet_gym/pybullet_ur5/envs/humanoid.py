@@ -67,10 +67,6 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         self.load =load
 
-        # self.translation_pairs = [['ShoulderLeft', 'ElbowLeft','LShoulder'],['ElbowLeft', 'WristLeft', 'LElbow'],
-        #                           ['ShoulderRight', 'ElbowRight', 'RShoulder'], ['ElbowRight', 'WristRight', 'RElbow']]
-        # self.translation_pairs = [['ShoulderLeft', 'LShoulder'],['ElbowLeft', 'LElbow']]
-        self.translation_pairs = [['ShoulderLeft', 'LShoulder']]
         self.left_moveable_joints = ["LShoulderSY", "LShoulderSZ",
                                 'LShoulderX', 'LShoulderY','LShoulderZ',
                                 'LElbowX','LElbowZ']
@@ -78,6 +74,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.right_moveable_joints = ["RShoulderSY", "RShoulderSZ",
                                 'RShoulderX', 'RShoulderY', 'RShoulderZ',
                                 'RElbowX', 'RElbowZ']
+
+        self.obs_links = ["ShoulderLeft","ElbowLeft","WristLeft","ShoulderRight","ElbowRight","WristRight"]
+
         self.human_base_link = "SpineBase"
         if self.load:
             print("use recorded data")
@@ -110,18 +109,17 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             self_collision=True)
 
 
-    def reset(self, bullet_client, client_id, base_rotation):
-        #todo: reset change robot
+    def reset(self, bullet_client, client_id, base_rotation, rob_goal=None):
 
         self._p = bullet_client
         self.client_id = client_id
 
         self.ordered_joints = []
 
-        if self.load:
-            print("use recorded data")
-        else:
-            print("use data from camera")
+        # if self.load:
+        #     print("use recorded data")
+        # else:
+        #     print("use data from camera")
         # print(os.path.join(os.path.dirname(__file__), "data", self.model_urdf))
 
         if self.jdict is None:
@@ -143,35 +141,50 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                                      useFixedBase=self.fixed_base)
                 self.parts, self.jdict, self.ordered_joints, self.robot_body = self.addToScene(
                     self._p, self.human_id)
-        if self.robot_specific_reset(self._p, base_rotation) is False:
-            return False
 
 
-        self.get_initial_trans()
+        if rob_goal is not None:
+            r = np.linalg.norm(rob_goal)+np.random.uniform(0.3, 0.5)
 
+            bp = r*rob_goal/np.linalg.norm(rob_goal)+\
+                 [np.random.uniform(-0.1,0.1), np.random.uniform(-0.1,0.1),0]
+            bp[2] = 0.05+np.random.uniform(-0.05, 0.05)
 
+            y = [0,0,1]
+            z = [-bp[0],-bp[1],0]/np.linalg.norm([-bp[0],-bp[1],0])
+            x = np.cross(y,z)
 
+            rotation = np.linalg.inv(np.asarray([x,y,z]))
+            # print("rotation", rotation)
+
+            rot_q = pyquaternion.Quaternion(matrix=rotation)
+
+            self.robot_specific_reset(self._p, base_position=bp, base_rotation=[rot_q[1],rot_q[2],rot_q[3],rot_q[0]])
+        else:
+            self.robot_specific_reset(self._p, base_position = [0, -0.8, 0.2], base_rotation=base_rotation)
+
+        # self.get_initial_trans()
 
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
 
 
-    def get_initial_trans(self):
-        self.initial_trans = {}
-        for j in self.jdict:
-            self.jdict[j].reset_position(0,0)
-        for p in self.translation_pairs:
-            p_pose = self.parts[p[0]].get_pose() #x,y,zxyzw
-            spin_pose = self.parts[self.human_base_link].get_pose()
-            self.initial_trans [p[0]] = self.calculate_relative_trans(spin_pose, self.parts[p[0]].get_pose())
+    # def get_initial_trans(self):s
+    #     self.initial_trans = {}
+    #     for j in self.jdict:
+    #         self.jdict[j].reset_position(0,0)
+    #     for p in self.translation_pairs:
+    #         p_pose = self.parts[p[0]].get_pose() #x,y,zxyzw
+    #         spin_pose = self.parts[self.human_base_link].get_pose()
+    #         self.initial_trans [p[0]] = self.calculate_relative_trans(spin_pose, self.parts[p[0]].get_pose())
 
 
-    def robot_specific_reset(self, bullet_client, base_rotation):
+    def robot_specific_reset(self, bullet_client, base_position, base_rotation):
         # WalkerBase.robot_specific_reset(self, bullet_client)
         self._p = bullet_client
         self._p.resetBasePositionAndOrientation(self.human_id,
-                                                posObj = [0, -0.8, 0.25], ornObj = base_rotation)
+                                                posObj = base_position, ornObj = base_rotation)
         # self._p.reset
 
     def calculate_relative_trans(self, j1, j2): #both relative to world
@@ -261,26 +274,26 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                 x0 = np.zeros(7)
             else:
                 x0 = np.asarray([self.jdict[j].get_position() for j in self.left_moveable_joints])
-            jointp_name = ["ShoulderLeft","ElbowLeft","WristLeft"]
+            link_name = ["ShoulderLeft","ElbowLeft","WristLeft"]
             func = human_optimization.left
         else:
             if reset_flag:
                 x0 = np.zeros(7)
             else:
                 x0 = np.asarray([self.jdict[j].get_position() for j in self.right_moveable_joints])
-            jointp_name = ["ShoulderRight", "ElbowRight", "WristRight"]
+            link_name = ["ShoulderRight", "ElbowRight", "WristRight"]
             func = human_optimization.right
 
 
         try:
-            js = self.calculate_relative_trans(joints["SpineBase"],  joints[jointp_name[0]]) #elbow -> spinbase
+            js = self.calculate_relative_trans(joints["SpineBase"],  joints[link_name[0]]) #elbow -> spinbase
             inputP_s = js[:3]
 
-            je = self.calculate_relative_trans(joints["SpineBase"],  joints[jointp_name[1]]) #elbow -> spinbase
+            je = self.calculate_relative_trans(joints["SpineBase"],  joints[link_name[1]]) #elbow -> spinbase
             # print("translation j3 is: {}".format(je[:3]))
             inputP_e = je[:3]
 
-            jw = self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[2]])
+            jw = self.calculate_relative_trans(joints["SpineBase"], joints[link_name[2]])
             # print("translation j3 is: {}".format(jw[:3]))
             inputP_w = jw[:3]
 
@@ -310,14 +323,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             points= []
             points.append(spine_base_sim[:3])
             points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints["SpineShoulder"])))
-            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[0]])))
-            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[1]])))
-            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[jointp_name[2]])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[link_name[0]])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[link_name[1]])))
+            points.append(self.trans_joint_to_sim(self.calculate_relative_trans(joints["SpineBase"], joints[link_name[2]])))
 
             for i in range(len(points)-1):
                 self._p.addUserDebugLine(points[i],points[i+1],lineColorRGB=[0.9,0.1,0.1], lineWidth=2 , lifeTime=1)
-
-
         return x
 
 
@@ -340,24 +351,19 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             reset_flag = False
 
 
-
         self.optimize_joint(joints,"Left",disp=False, reset_flag=reset_flag)
         self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
 
 
-
-        # calculate relative position to robot end-effector
-        # for pair in self.translation_pairs:
-        #     self.calc_one_state(joints, pair, draw=False)
-
         if self.load:
             self.human_file.update_joint_queue()
 
+        link_positions = [self.parts[l].get_position() for l in self.obs_links]
 
-        return np.zeros(9)
+        obs = link_positions
+        return obs
 
-        # obs = [self.calc_one_state("ElbowLeft", "HandLeft", draw=draw), self.calc_one_state("ElbowRight", "HandRight",draw=draw)]
-        # return obs
+
 
 
     def trans_point(self,p):

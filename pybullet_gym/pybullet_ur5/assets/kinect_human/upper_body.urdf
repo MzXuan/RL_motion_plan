@@ -228,7 +228,7 @@
 	    <dynamics damping="0.005" />
 	</joint>
 
-	<link name="left_hand">
+	<link name="WristLeft">
 		<visual>
 			<geometry>
 				<sphere radius="0.05"/>
@@ -238,7 +238,7 @@
 	</link>
 	<joint name="left_hand_fixed" type="fixed" >
 	    <parent link="left_lower_arm"/>
-	    <child link="left_hand"/>
+	    <child link="WristLeft"/>
 	    <origin rpy="0 0 0.0" xyz="0 0 -0.11"/>
 	    <dynamics damping="0.005" />
 	</joint>
@@ -392,7 +392,7 @@
 		</visual>
 	</link>
 
-	<link name="right_hand">
+	<link name="WristRight">
 		<visual>
 			<geometry>
 				<sphere radius="0.05"/>
@@ -402,7 +402,7 @@
 	</link>
 	<joint name="right_hand_fixed" type="fixed" >
 	    <parent link="right_lower_arm"/>
-	    <child link="right_hand"/>
+	    <child link="WristRight"/>
 	    <origin rpy="0 0 0.0" xyz="0 0 -0.11"/>
 	    <dynamics damping="0.005" />
 	</joint>
