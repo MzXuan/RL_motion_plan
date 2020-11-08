@@ -44,6 +44,9 @@ class FileHuman(object):
 
         self.update_joint_queue()
 
+    def write_optimized_result(self,name, angles):
+        self.joints[name] = angles
+
 
     def update_joint_queue(self):
         # print("self.index: ", self.index)
@@ -163,21 +166,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         else:
             self.robot_specific_reset(self._p, base_position = [0, -0.8, 0.2], base_rotation=base_rotation)
 
-        # self.get_initial_trans()
 
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
 
 
-    # def get_initial_trans(self):s
-    #     self.initial_trans = {}
-    #     for j in self.jdict:
-    #         self.jdict[j].reset_position(0,0)
-    #     for p in self.translation_pairs:
-    #         p_pose = self.parts[p[0]].get_pose() #x,y,zxyzw
-    #         spin_pose = self.parts[self.human_base_link].get_pose()
-    #         self.initial_trans [p[0]] = self.calculate_relative_trans(spin_pose, self.parts[p[0]].get_pose())
 
 
     def robot_specific_reset(self, bullet_client, base_position, base_rotation):
@@ -199,72 +193,6 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         j3 = np.concatenate([np.asarray(j3[0]), np.asarray(j3[1])])
         return j3
 
-    def calc_one_state(self, joints, pair, draw=True):
-        # # ----------------test frame-------#
-        # try:
-        #     j1 = joints["SpineBase"]
-        #     j2 = joints["ElbowLeft"]
-        #     j3 = self.calculate_relative_trans(j1, j2) #elbow -> spinbase
-        #     # print("euler angle for j3 {} is {}".format(pair[0], self._p.getEulerFromQuaternion(j3[3:])))
-        #     print("translation j3 is: {}".format(j3[:3]))
-        # except:
-        #     pass
-        #
-
-        # #-----------read data-------------------
-        #
-        # try:
-        #     j1 = joints[self.human_base_link]
-        #     j2 = joints[pair[0]]
-        #
-        #     #step2, trans form initial trans
-        #     #self.initialtrans inv *j3
-        #     j3 = self.calculate_relative_trans(j1,j2) #pair[0] -> spinbase
-        #     j4 = self.calculate_relative_trans(self.initial_trans[pair[0]], j3) #trans shoulder-> initial
-        #
-        #     print("pair[0]", pair[0])
-        #     # print("initial trans", self.initial_trans[pair[0]])
-        #
-        #     euler = self._p.getEulerFromQuaternion(j4[3:])
-        #     print("euler angle for j3 {} is {}".format(pair[0], self._p.getEulerFromQuaternion(j3[3:])))
-        #     print("euler angle for j4 {} is {}".format(pair[0], self._p.getEulerFromQuaternion(j4[3:])))
-        #
-        #     self.jdict[pair[1] + "X"].reset_position(euler[0], 0)
-        #     self.jdict[pair[1] + "Y"].reset_position(euler[1], 0)
-        #     self.jdict[pair[1] + "Z"].reset_position(euler[2], 0)
-        #
-        #     spin_pose = self.parts[self.human_base_link].get_pose()
-        #     current_relative = self.calculate_relative_trans(spin_pose, self.parts["ShoulderLeft"].get_pose())
-        #     print("j3, human shoudler - > spineshoulder in real",
-        #           self._p.getEulerFromQuaternion(j3[3:]))
-        #     print("current relative  human shoudler - > spineshoulder in simulation:",
-        #           self._p.getEulerFromQuaternion(current_relative[3:]))
-        # except:
-        #     pass
-        #
-        # #-------------------------------------------------------------------------------------------------#
-
-        # except:
-        #     elbow_trans = np.ones((3,3))+ self.max_obs_dist_threshold
-        #     hand_trans = np.ones((3,3))+ self.max_obs_dist_threshold
-
-
-
-        # obs={"current":[elbow_trans[0], (elbow_trans[0]+hand_trans[0])/2, hand_trans[0]],
-        #      "next":[elbow_trans[1], (elbow_trans[1]+hand_trans[1])/2, hand_trans[1]],
-        #      "next2":[elbow_trans[2], (elbow_trans[2]+hand_trans[2])/2, hand_trans[2]]}
-
-        obs = {"current": np.zeros(6),
-               "next": np.zeros(6),
-               "next2": np.zeros(6)}
-
-        # print("elbow trans {} and hand_trans {}".format(elbow_trans[2], hand_trans[2]))
-
-        if draw:
-            self._p.addUserDebugLine(elbow_trans[1], hand_trans[1], lineColorRGB=[0, 0, 1], lineWidth=10,
-                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
-
-        return obs
 
     def optimize_joint(self, joints, arm, disp=False, reset_flag=False):
 
@@ -307,13 +235,13 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         x = res.x
 
 
-        #set joint angle
-        if arm=="Left":
-            for i in range(len(self.left_moveable_joints)):
-                self.jdict[self.left_moveable_joints[i]].reset_position(x[i],0)
-        else:
-            for i in range(len(self.right_moveable_joints)):
-                self.jdict[self.right_moveable_joints[i]].reset_position(x[i],0)
+        # #set joint angle
+        # if arm=="Left":
+        #     for i in range(len(self.left_moveable_joints)):
+        #         self.jdict[self.left_moveable_joints[i]].reset_position(x[i],0)
+        # else:
+        #     for i in range(len(self.right_moveable_joints)):
+        #         self.jdict[self.right_moveable_joints[i]].reset_position(x[i],0)
 
 
         if disp:
@@ -346,13 +274,30 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             joints = self.human_file.joints
             reset_flag = self.human_file.reset_flag
 
+            try:
+                xl = joints["LeftAngle"]
+                xr = joints["RightAngle"]
+                # print("use calculated result")
+            except:
+                xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=reset_flag)
+                xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
+                self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
+                self.human_file.write_optimized_result(name="RightAngle", angles=xr)
+                # print("calculating result")
+
         else:
             joints = self.human_model.joints
-            reset_flag = False
+            xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=False)
+            xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=False)
 
 
-        self.optimize_joint(joints,"Left",disp=False, reset_flag=reset_flag)
-        self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
+
+
+        #set
+        for i in range(len(self.left_moveable_joints)):
+            self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
+        for i in range(len(self.right_moveable_joints)):
+            self.jdict[self.right_moveable_joints[i]].reset_position(xr[i],0)
 
 
         if self.load:
@@ -383,5 +328,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
     def alive_bonus(self, z, pitch):
         return +2 if z > 0.78 else -1  # 2 here because 17 joints produce a lot of electricity cost just from policy noise, living must be better than dying
+
+
 
 
