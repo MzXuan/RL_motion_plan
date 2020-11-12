@@ -271,7 +271,7 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
-            with open('/home/xuan/demos/human_data_normal.pkl', 'wb') as handle:
+            with open('/home/xuan/demos/human_data_8.pkl', 'wb') as handle:
                 pickle.dump(joint_data_lst, handle, protocol=2)
                 print("save successfully")
 

@@ -342,7 +342,7 @@ def main(args):
             else:
                 start_time = time.time()
                 actions, Q, q, _ = model.step_with_q(obs)
-                print("solving time is: ", time.time()-start_time)
+                # print("solving time is: ", time.time()-start_time)
                 data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
 
 

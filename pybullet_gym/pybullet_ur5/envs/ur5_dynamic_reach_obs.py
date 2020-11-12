@@ -627,7 +627,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -4
+        a2 = -6
         a3 = -0.3
         asmooth = -0.01
 
@@ -645,6 +645,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         for c in collisions:
             bodyinfo1 = self._p.getBodyInfo(c[1])
             bodyinfo2 = self._p.getBodyInfo(c[2])
+
             # print("bodyinfo1: ", bodyinfo1, "bodyinfo2: ", bodyinfo2)
             # print("collisions", collisions)
             # print("linkid 1 ", c[3])

@@ -28,16 +28,23 @@ import human_optimization
 
 
 class FileHuman(object):
-    def __init__(self, file):
-        try:
-            with open(file, 'rb') as handle:
-                self.joint_list = pickle.load(handle)
-            print("load human data successfully")
-            self.data_length = len(self.joint_list)
-        except:
-            print("!!!!!!!!!!!!!!fail to load data !!!!!!!")
-            exit()
+    def __init__(self, file, index_range):
+        self.file_index_range = index_range
+        self.file_list = []
+        self.len_list = []
+        for i in index_range:
+            file_name = file+str(i)+'.pkl'
+            try:
+                with open(file_name, 'rb') as handle:
+                    demo = pickle.load(handle)
+                    self.file_list.append(demo)
+                    self.len_list.append(len(demo))
+                print("load human data successfully")
+            except:
+                print("!!!!!!!!!!!!!!failed to load data !!!!!!!")
+                exit()
 
+        self.file_index =0
         self.index = 0
         self.reset_flag=True
         # self.joint_queue = self.joint_queue_list[0]
@@ -50,12 +57,14 @@ class FileHuman(object):
 
     def update_joint_queue(self):
         # print("self.index: ", self.index)
-        if self.index > self.data_length-1:
-            self.index = np.random.randint(low=0, high=int(self.data_length /2))
+        if self.index > self.len_list[self.file_index]-1:
+            self.file_index = np.random.choice(self.file_index_range)
+
+            self.index = np.random.randint(low=0, high=int(self.len_list[self.file_index]/2))
             self.reset_flag=True
         else:
             self.reset_flag=False
-        self.joints = self.joint_list[self.index]
+        self.joints = self.file_list[self.file_index][self.index]
         self.index += 1
 
 
@@ -84,7 +93,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         if self.load:
             print("use recorded data")
             # self.human_file = FileHuman(file = '/home/xuan/demos/human_data_normal_py3.pkl')
-            self.human_file = FileHuman(file='/home/xuan/demos/human_data_1.pkl')
+            self.human_file = FileHuman(file='/home/xuan/demos/human_data_', index_range=range(2,9))
 
         else:
             print("use data from camera")
@@ -130,8 +139,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                 self.human_id = self._p.loadURDF(os.path.join(assets.getDataPath(), self.model_urdf),
                                      basePosition=self.basePosition,
                                      baseOrientation=self.baseOrientation,
-                                     useFixedBase=self.fixed_base,
-                                     flags=pybullet.URDF_USE_SELF_COLLISION)
+                                     useFixedBase=self.fixed_base)
 
                 self.parts, self.jdict, self.ordered_joints, self.robot_body = self.addToScene(
                     self._p,
@@ -149,9 +157,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         if rob_goal is not None:
             r = np.linalg.norm(rob_goal)+np.random.uniform(0.3, 0.5)
 
+            if r< 0.7:
+                r = 0.7
+
             bp = r*rob_goal/np.linalg.norm(rob_goal)+\
                  [np.random.uniform(-0.1,0.1), np.random.uniform(-0.1,0.1),0]
-            bp[2] = 0.05+np.random.uniform(-0.05, 0.05)
+            bp[2] -=np.random.uniform(0.4,0.6)
 
             y = [0,0,1]
             z = [-bp[0],-bp[1],0]/np.linalg.norm([-bp[0],-bp[1],0])
@@ -203,14 +214,16 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             else:
                 x0 = np.asarray([self.jdict[j].get_position() for j in self.left_moveable_joints])
             link_name = ["ShoulderLeft","ElbowLeft","WristLeft"]
-            func = human_optimization.left
+            func_shoulder = human_optimization.left_shoulder
+            func_elbow = human_optimization.left_elbow
         else:
             if reset_flag:
                 x0 = np.zeros(7)
             else:
                 x0 = np.asarray([self.jdict[j].get_position() for j in self.right_moveable_joints])
             link_name = ["ShoulderRight", "ElbowRight", "WristRight"]
-            func = human_optimization.right
+            func_shoulder = human_optimization.right_shoulder
+            func_elbow = human_optimization.right_elbow
 
 
         try:
@@ -229,24 +242,23 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             return False
 
 
-        res = minimize(func, x0, args=(inputP_s,inputP_e, inputP_w),
+        res1 = minimize(func_shoulder, x0[:-2], args=(inputP_s,inputP_e),
                            method='trust-constr', jac="2-point", hess=SR1(),
                            options={'gtol': 0.008, 'disp': False})
-        x = res.x
+        theta_s = res1.x
 
+        res2 = minimize(func_elbow, x0[-2:], args=(theta_s, inputP_w),
+                       method='trust-constr', jac="2-point", hess=SR1(),
+                       options={'gtol': 0.008, 'disp': False})
+        theta_w = res2.x
 
-        # #set joint angle
-        # if arm=="Left":
-        #     for i in range(len(self.left_moveable_joints)):
-        #         self.jdict[self.left_moveable_joints[i]].reset_position(x[i],0)
-        # else:
-        #     for i in range(len(self.right_moveable_joints)):
-        #         self.jdict[self.right_moveable_joints[i]].reset_position(x[i],0)
+        x = np.concatenate([theta_s, theta_w])
 
 
         if disp:
             print("result of theta is: ", x)
-            human_optimization.left(x, inputP_s, inputP_e, inputP_w, disp=True)
+            # human_optimization.left_shoulder(x, inputP_s, inputP_e, inputP_w, disp=True)
+            # human_optimization.left_wrist(x, inputP_s, inputP_e, inputP_w, disp=True)
             spine_base_sim = self.parts['SpineBase'].get_pose()
             points= []
             points.append(spine_base_sim[:3])
@@ -270,38 +282,38 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         return point
 
     def calc_state(self, draw=True):
-        if self.load:
-            joints = self.human_file.joints
-            reset_flag = self.human_file.reset_flag
-
-            try:
-                xl = joints["LeftAngle"]
-                xr = joints["RightAngle"]
-                # print("use calculated result")
-            except:
-                xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=reset_flag)
-                xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
-                self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
-                self.human_file.write_optimized_result(name="RightAngle", angles=xr)
-                # print("calculating result")
-
-        else:
-            joints = self.human_model.joints
-            xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=False)
-            xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=False)
-
-
-
-
-        #set
-        for i in range(len(self.left_moveable_joints)):
-            self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
-        for i in range(len(self.right_moveable_joints)):
-            self.jdict[self.right_moveable_joints[i]].reset_position(xr[i],0)
+        # if self.load:
+        #     joints = self.human_file.joints
+        #     reset_flag = self.human_file.reset_flag
+        #
+        #     try:
+        #         xl = joints["LeftAngle"]
+        #         xr = joints["RightAngle"]
+        #         # print("use calculated result")
+        #     except:
+        #         xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=reset_flag)
+        #         xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
+        #         self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
+        #         self.human_file.write_optimized_result(name="RightAngle", angles=xr)
+        #         # print("calculating result")
+        #
+        # else:
+        #     joints = self.human_model.joints
+        #     xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=False)
+        #     xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=False)
+        #
 
 
-        if self.load:
-            self.human_file.update_joint_queue()
+
+        # #set
+        # for i in range(len(self.left_moveable_joints)):
+        #     self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
+        # for i in range(len(self.right_moveable_joints)):
+        #     self.jdict[self.right_moveable_joints[i]].reset_position(xr[i],0)
+
+        #
+        # if self.load:
+        #     self.human_file.update_joint_queue()
 
         link_positions = [self.parts[l].get_position() for l in self.obs_links]
 
@@ -320,8 +332,43 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
     def apply_action(self, a):
 
-        # if self.load:
-        #     self.file_human.update_joint_queue()
+        disp = False
+
+        if self.load:
+            joints = self.human_file.joints
+            reset_flag = self.human_file.reset_flag
+
+            # xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=reset_flag)
+            # xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=reset_flag)
+            # self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
+            # self.human_file.write_optimized_result(name="LeftAngle", angles=xr)
+
+            try:
+                xl = joints["LeftAngle"]
+                xr = joints["RightAngle"]
+                # print("use calculated result")
+            except:
+                xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=reset_flag)
+                xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=reset_flag)
+                self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
+                self.human_file.write_optimized_result(name="RightAngle", angles=xr)
+                # print("calculating result")
+
+
+        else:
+            joints = self.human_model.joints
+            xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=False)
+            xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=False)
+
+        #set
+        for i in range(len(self.left_moveable_joints)):
+            self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
+        for i in range(len(self.right_moveable_joints)):
+            self.jdict[self.right_moveable_joints[i]].reset_position(xr[i],0)
+
+
+        if self.load:
+            self.human_file.update_joint_queue()
 
         return 0
 
