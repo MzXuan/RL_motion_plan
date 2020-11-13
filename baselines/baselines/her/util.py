@@ -72,6 +72,27 @@ def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
     return input
 
 
+def rnn(input, layers_sizes, reuse=None, flatten=False, name=""):
+    """Creates a simple neural network
+    """
+    #todo: add gru cell
+    for i, size in enumerate(layers_sizes):
+        activation = tf.nn.relu if i < len(layers_sizes) - 1 else None
+        states = tf.keras.layers.GRU(8, return_sequences=False, return_state=True)(input)
+        input = tf.layers.dense(inputs=tf.concat[input,states],
+                                units=size,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                reuse=reuse,
+                                name=name + '_' + str(i))
+        if activation:
+            input = activation(input)
+    if flatten:
+        assert layers_sizes[-1] == 1
+        input = tf.reshape(input, [-1])
+    return input
+
+
+
 def install_mpi_excepthook():
     import sys
     from mpi4py import MPI

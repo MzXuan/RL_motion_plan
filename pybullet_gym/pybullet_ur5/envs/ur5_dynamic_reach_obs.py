@@ -627,7 +627,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -6
+        a2 = -12
         a3 = -0.3
         asmooth = -0.01
 

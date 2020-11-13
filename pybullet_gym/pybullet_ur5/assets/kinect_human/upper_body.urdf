@@ -40,7 +40,7 @@
 	<link name="SpineLink">
 		<visual>
 			<geometry>
-				<cylinder radius="0.08" length="0.4"/>
+				<box size="0.1 0.05 0.4"/>
 			</geometry>
 		</visual>
 		<collision>
@@ -190,12 +190,12 @@
 	<link name="left_upper_arm">
 		<visual>
 			<geometry>
-				<cylinder length="0.22" radius="0.03"/>
+				<cylinder length="0.22" radius="0.05"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder length="0.22" radius="0.03"/>
+				<cylinder length="0.22" radius="0.05"/>
 			</geometry>
 		</collision>
 	</link>
@@ -232,12 +232,12 @@
 	<link name="left_lower_arm">
 		<visual>
 			<geometry>
-				<cylinder length="0.28" radius="0.02"/>
+				<cylinder length="0.28" radius="0.04"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder length="0.28" radius="0.02"/>
+				<cylinder length="0.28" radius="0.04"/>
 			</geometry>
 		</collision>
 	</link>
@@ -251,17 +251,17 @@
 
 	<link name="left_elbow_psi_link" />
 
-	<joint name="LElbowY" type="continuous" >
+<!-- 	<joint name="LElbowY" type="continuous" >
 	    <parent link="left_elbow_psi_link"/>
 	    <child link="left_elbow_theta_link"/>
 	    <axis xyz="0 1 0" />
 	    <dynamics damping="0.005" />
-	</joint>
+	</joint> -->
 
-	<link name="left_elbow_theta_link" />
+	<!-- <link name="left_elbow_theta_link" /> -->
 
 	<joint name="LElbowZ" type="continuous" >
-	    <parent link="left_elbow_theta_link"/>
+	    <parent link="left_elbow_psi_link"/>
 	    <child link="ElbowLeft"/>
 	    <axis xyz="0 0 1" />
 	    <dynamics damping="0.005" />
@@ -386,12 +386,12 @@
 	<link name="right_upper_arm">
 		<visual>
 			<geometry>
-				<cylinder length="0.22" radius="0.03"/>
+				<cylinder length="0.22" radius="0.05"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder length="0.22" radius="0.03"/>
+				<cylinder length="0.22" radius="0.05"/>
 			</geometry>
 		</collision>
 	</link>
@@ -432,18 +432,18 @@
 	</joint>
 
 	<link name="right_elbow_psi_link" />
-
+<!-- 
 	<joint name="RElbowY" type="continuous" >
 	    <parent link="right_elbow_psi_link"/>
 	    <child link="right_elbow_theta_link"/>
 	    <axis xyz="0 1 0" />
 	    <dynamics damping="0.005" />
-	</joint>
+	</joint> -->
 
-	<link name="right_elbow_theta_link" />
+	<!-- <link name="right_elbow_theta_link" /> -->
 
 	<joint name="RElbowZ" type="continuous" >
-	    <parent link="right_elbow_theta_link"/>
+	    <parent link="right_elbow_psi_link"/>
 	    <child link="ElbowRight"/>
 	    <axis xyz="0 0 1" />
 	    <dynamics damping="0.005" />
@@ -461,12 +461,12 @@
 	<link name="right_lower_arm">
 		<visual>
 			<geometry>
-				<cylinder length="0.28" radius="0.02"/>
+				<cylinder length="0.28" radius="0.04"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder length="0.28" radius="0.02"/>
+				<cylinder length="0.28" radius="0.04"/>
 			</geometry>
 		</collision>
 	</link>

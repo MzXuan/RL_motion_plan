@@ -50,6 +50,7 @@ class FileHuman(object):
         # self.joint_queue = self.joint_queue_list[0]
 
         self.update_joint_queue()
+        self.update_joint_queue()
 
     def write_optimized_result(self,name, angles):
         self.joints[name] = angles
@@ -58,8 +59,7 @@ class FileHuman(object):
     def update_joint_queue(self):
         # print("self.index: ", self.index)
         if self.index > self.len_list[self.file_index]-1:
-            self.file_index = np.random.choice(self.file_index_range)
-
+            self.file_index = np.random.choice(range(len(self.len_list)))
             self.index = np.random.randint(low=0, high=int(self.len_list[self.file_index]/2))
             self.reset_flag=True
         else:
@@ -207,7 +207,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
     def optimize_joint(self, joints, arm, disp=False, reset_flag=False):
 
-
+        # x0 = np.zeros(7)
         if arm == "Left":
             if reset_flag:
                 x0 = np.zeros(7)
@@ -244,12 +244,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         res1 = minimize(func_shoulder, x0[:-2], args=(inputP_s,inputP_e),
                            method='trust-constr', jac="2-point", hess=SR1(),
-                           options={'gtol': 0.008, 'disp': False})
+                           options={'gtol': 0.001, 'disp': False})
         theta_s = res1.x
 
         res2 = minimize(func_elbow, x0[-2:], args=(theta_s, inputP_w),
                        method='trust-constr', jac="2-point", hess=SR1(),
-                       options={'gtol': 0.008, 'disp': False})
+                       options={'gtol': 0.001, 'disp': False})
         theta_w = res2.x
 
         x = np.concatenate([theta_s, theta_w])
@@ -354,13 +354,14 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                 self.human_file.write_optimized_result(name="RightAngle", angles=xr)
                 # print("calculating result")
 
-
         else:
             joints = self.human_model.joints
             xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=False)
             xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=False)
 
         #set
+
+        # print("xl is: ", xl)
         for i in range(len(self.left_moveable_joints)):
             self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
         for i in range(len(self.right_moveable_joints)):
