@@ -106,10 +106,7 @@ class Moving_obstacle():
                 or np.linalg.norm(state['current'][0]) < safe_dist \
                 or np.linalg.norm(state['current'][1]) < safe_dist:
             self.rob_reset()
-            # self.velocity =np.zeros(3)
-            # basepose = self._p.getBasePositionAndOrientation(bodyUniqueId=self.id)
-            # current_pos = basepose[0]
-            # current_ori = basepose[1]
+
 
         # move to next step
         self.create_next_action()
@@ -318,6 +315,9 @@ class UR5DynamicReachObsEnv(gym.Env):
         #                        [-1, -0.9, -1.0],
         #                        [0.000000, 0.000000, 0.0, 1])
 
+        self.long_table_body = bullet_client.loadURDF(os.path.join(assets.getDataPath(), "scenes_data", "circletable/circletable.urdf"),
+                               [0, 0, -0.005],
+                               [0.7068252, 0, 0, -0.7073883])
 
         self.goal_id = bullet_client.loadURDF(
             os.path.join(assets.getDataPath(), "scenes_data", "targetball/targetball.urdf"),
@@ -430,7 +430,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             goal[1] += np.random.uniform(-0.45, 0.45)
             goal[2] += np.random.uniform(-0.2, 0.2)
             if abs(goal[0]) < max_xyz[0] and abs(goal[1]) < max_xyz[1]\
-                    and  abs(goal[1]) > 0.2 and goal[2] > 0\
+                    and  abs(goal[1]) > 0.3 and goal[2] > 0\
                     and abs(goal[2]) < max_xyz[2]:
                 goal_reset = True
         return goal
@@ -443,18 +443,6 @@ class UR5DynamicReachObsEnv(gym.Env):
     def get_obs(self):
         return self._get_obs()
 
-
-    def _is_close(self, p, threshold = 0.3):
-        dist = np.linalg.norm((np.asarray(self.robot_base)-np.asarray(p)))
-        if dist < 0.4 or dist > 1.0:
-            return True
-
-        for pp in self.box_pos:
-            dist = np.linalg.norm((pp - np.asarray(p)))
-            if dist < threshold:
-                return True
-        else:
-            return False
 
     def render(self, mode='human', close=False):
         if mode == "human":
@@ -627,8 +615,8 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -12
-        a3 = -0.3
+        a2 = -20
+        a3 = -0.6
         asmooth = -0.01
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
@@ -821,8 +809,7 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
 
             ar = self.agent.reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base,
                                       base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef, joint_angle = initial_conf )
-            for obstacles in self.move_obstacles:
-                obstacles.reset(self._p, self.goal)
+
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
                 continue

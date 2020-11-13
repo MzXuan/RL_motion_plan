@@ -30,13 +30,27 @@
 	</link>
 
 
+
+
 	<joint name="base_spine_joint" type="fixed">
 		<parent link="world"/>
 		<child link="SpineBase"/>
 		<origin rpy="0 0 0" xyz="0 0 0"/>
 	</joint>
 
+	<link name="SpineLink">
+	    <visual>
+	      <origin rpy="-1.57 0 0" xyz="-0.14 -0.06 0.2" />
+	      <geometry>
+	        <mesh filename="spine.STL" scale="0.8 1 1"/>
+	      </geometry>
+	      <material name="">
+	        <color rgba="1 1 1 1" />
+	      </material>
+	    </visual>
+	</link>
 
+<!-- 
 	<link name="SpineLink">
 		<visual>
 			<geometry>
@@ -48,7 +62,7 @@
 				<cylinder radius="0.08" length="0.4"/>
 			</geometry>
 		</collision>
-	</link>
+	</link> -->
 
 	<joint name="spine_joint" type="fixed">
 		<parent link="SpineBase"/>

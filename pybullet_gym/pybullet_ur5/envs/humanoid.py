@@ -155,34 +155,86 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
         if rob_goal is not None:
-            r = np.linalg.norm(rob_goal)+np.random.uniform(0.3, 0.5)
+            self.rob_goal=rob_goal
+            self.human_base_reset(rob_goal)
 
-            if r< 0.7:
-                r = 0.7
-
-            bp = r*rob_goal/np.linalg.norm(rob_goal)+\
-                 [np.random.uniform(-0.1,0.1), np.random.uniform(-0.1,0.1),0]
-            bp[2] -=np.random.uniform(0.4,0.6)
-
-            y = [0,0,1]
-            z = [-bp[0],-bp[1],0]/np.linalg.norm([-bp[0],-bp[1],0])
-            x = np.cross(y,z)
-
-            rotation = np.linalg.inv(np.asarray([x,y,z]))
-            # print("rotation", rotation)
-
-            rot_q = pyquaternion.Quaternion(matrix=rotation)
-
-            self.robot_specific_reset(self._p, base_position=bp, base_rotation=[rot_q[1],rot_q[2],rot_q[3],rot_q[0]])
+            #
+            #
+            # human_goal = rob_goal.copy()
+            # human_goal[2]=0
+            # human_goal = human_goal+[np.random.uniform(-0.15,0.15), np.random.uniform(-0.15,0.15),0]
+            #
+            # self.human_goal = human_goal
+            #
+            # r = np.linalg.norm(human_goal[:2])+np.random.uniform(0.3, 0.4)
+            # if r< 0.5:
+            #     r = 0.5
+            # print("robot goal ", human_goal)
+            # print("np...",np.linalg.norm(human_goal[:2]) )
+            # print("r", r)
+            #
+            # bp = r*human_goal/np.linalg.norm(human_goal)
+            # bp[2] +=np.random.uniform(-0.2, 0.1)
+            #
+            # y = [0,0,1]
+            # z = [-bp[0],-bp[1],0]/np.linalg.norm([-bp[0],-bp[1],0])
+            # x = np.cross(y,z)
+            #
+            # rotation = np.linalg.inv(np.asarray([x,y,z]))
+            # rot_q = pyquaternion.Quaternion(matrix=rotation)
+            #
+            # self.robot_specific_reset(self._p, base_position=bp, base_rotation=[rot_q[1],rot_q[2],rot_q[3],rot_q[0]])
         else:
             self.robot_specific_reset(self._p, base_position = [0, -0.8, 0.2], base_rotation=base_rotation)
-
+            self.human_base_velocity=np.zeros(3)
 
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
 
+    def human_base_reset(self, rob_goal):
+        '''
+        add moving human base
+        '''
+        # set human goal
+        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.2, 0.3)
+        if r < 0.5:
+            r = 0.5
+        human_goal = rob_goal.copy()
+        human_goal[:2] = r * rob_goal[:2] / np.linalg.norm(rob_goal[:2])
+        human_goal[2] =  0+np.random.uniform(-0.2, 0.1)
 
+        y = [0, 0, 1]
+        z = [-human_goal[0], -human_goal[1], 0] / np.linalg.norm([-human_goal[0], -human_goal[1], 0])
+        x = np.cross(y, z)
+        rotation = np.linalg.inv(np.asarray([x, y, z]))
+        rot_q = pyquaternion.Quaternion(matrix=rotation)
+
+        #set human start position
+        success = False
+        while not success:
+            a = human_goal
+            x_b = np.random.choice([-1,1])
+            y_b = -x_b*a[0]/a[1]
+
+            b = [x_b, y_b, a[2]]
+
+            r = 0.4
+
+            p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
+
+            xh = p_r[0]
+            yh = p_r[1]
+            zh = p_r[2]
+            # zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
+
+            pos = [xh, yh, zh]
+
+            self.human_base_velocity = 0.01*(np.asarray(human_goal)-np.asarray(pos))/np.linalg.norm((np.asarray(human_goal)-np.asarray(pos)))
+            if np.linalg.norm(pos)>0.3:
+                success=True
+        # self._p.addUserDebugLine(human_goal, p_r, lineColorRGB=[0.9, 0.1, 0.1], lineWidth=2, lifeTime=10)
+        self.robot_specific_reset(self._p, base_position=pos, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
 
     def robot_specific_reset(self, bullet_client, base_position, base_rotation):
@@ -281,42 +333,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         return point
 
-    def calc_state(self, draw=True):
-        # if self.load:
-        #     joints = self.human_file.joints
-        #     reset_flag = self.human_file.reset_flag
-        #
-        #     try:
-        #         xl = joints["LeftAngle"]
-        #         xr = joints["RightAngle"]
-        #         # print("use calculated result")
-        #     except:
-        #         xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=reset_flag)
-        #         xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=reset_flag)
-        #         self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
-        #         self.human_file.write_optimized_result(name="RightAngle", angles=xr)
-        #         # print("calculating result")
-        #
-        # else:
-        #     joints = self.human_model.joints
-        #     xl = self.optimize_joint(joints, "Left", disp=False, reset_flag=False)
-        #     xr = self.optimize_joint(joints, "Right", disp=False, reset_flag=False)
-        #
-
-
-
-        # #set
-        # for i in range(len(self.left_moveable_joints)):
-        #     self.jdict[self.left_moveable_joints[i]].reset_position(xl[i],0)
-        # for i in range(len(self.right_moveable_joints)):
-        #     self.jdict[self.right_moveable_joints[i]].reset_position(xr[i],0)
-
-        #
-        # if self.load:
-        #     self.human_file.update_joint_queue()
-
+    def calc_state(self):
         link_positions = [self.parts[l].get_position() for l in self.obs_links]
-
         obs = link_positions
         return obs
 
@@ -338,11 +356,17 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             joints = self.human_file.joints
             reset_flag = self.human_file.reset_flag
 
-            # xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=reset_flag)
-            # xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=reset_flag)
-            # self.human_file.write_optimized_result(name="LeftAngle", angles=xl)
-            # self.human_file.write_optimized_result(name="LeftAngle", angles=xr)
+            #1. move human base
+            hrange = [1.0, 1.0, 0.8]
+            pos, orn = self._p.getBasePositionAndOrientation(self.human_id)
+            if abs(pos[0]) > hrange[0] or abs(pos[1]) > hrange[1] \
+                    or abs(pos[2]) > hrange[2]:
+                self.human_base_reset(self.rob_goal)
+            else:
+                self.robot_specific_reset(self._p, base_position=pos+self.human_base_velocity,
+                                  base_rotation=orn)
 
+            #2. set arm position
             try:
                 xl = joints["LeftAngle"]
                 xr = joints["RightAngle"]

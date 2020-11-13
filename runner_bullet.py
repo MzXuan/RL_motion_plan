@@ -247,7 +247,7 @@ def main(args):
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 20
+        seed = 100
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -340,10 +340,10 @@ def main(args):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                start_time = time.time()
+                # start_time = time.time()
                 actions, Q, q, _ = model.step_with_q(obs)
                 # print("solving time is: ", time.time()-start_time)
-                data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
+                # data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
 
 
 

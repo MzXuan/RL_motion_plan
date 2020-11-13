@@ -1,5 +1,5 @@
 import tensorflow as tf
-from baselines.her.util import store_args, nn
+from baselines.her.util import store_args, nn, rnn
 
 
 class ActorCritic:
@@ -81,19 +81,19 @@ class ActorCriticRNN:
 
         # Networks.
         with tf.variable_scope('pi'):
-            self.pi_tf = self.max_u * tf.tanh(nn(
+            self.pi_tf = self.max_u * tf.tanh(rnn(
                 input_pi, [self.hidden] * self.layers + [self.dimu]))
         with tf.variable_scope('Q'):
             # for policy training
             input_Q = tf.concat(axis=1, values=[o, g, self.pi_tf / self.max_u])
-            self.Q_pi_tf = nn(input_Q, [self.hidden] * self.layers + [1])
+            self.Q_pi_tf = rnn(input_Q, [self.hidden] * self.layers + [1])
             # for critic training
             input_Q = tf.concat(axis=1, values=[o, g, self.u_tf / self.max_u])
             self._input_Q = input_Q  # exposed for tests
-            self.Q_tf = nn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
+            self.Q_tf = rnn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
         with tf.variable_scope('qc'): #Q for collision checking
             # for collision checking, not use for policy training
             input_Qc = tf.concat(axis=1, values=[o, g])
             self._input_Qc = input_Qc  # exposed for tests
-            self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
+            self.Qc_tf = rnn(input_Qc, [self.hidden] * self.layers + [1])
 
