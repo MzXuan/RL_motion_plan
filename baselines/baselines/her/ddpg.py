@@ -437,6 +437,7 @@ class DDPG(object):
         target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
         self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
 
+
         # target_Qc_tf = self.target.Qc_tf
         # target_Qcc_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Qc_tf, *clip_range)
         self.Qc_loss_tf = tf.reduce_mean(tf.square(batch_tf['rc'] - self.main.Qc_tf))#todo: this may be wrong
@@ -462,6 +463,20 @@ class DDPG(object):
         Q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
         Qc_grads_tf = tf.gradients(self.Qc_loss_tf, self._vars('main/qc'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
+
+        ## ... create graph ...
+
+
+        graph_def = tf.get_default_graph().as_graph_def()
+        graphpb_txt = str(graph_def)
+        with open('/home/xuan/log/graphpb_nn.txt', 'w') as f:
+            f.write(graphpb_txt)
+
+        print("Q_GRADS_TF IS: ", Q_grads_tf)
+
+        print("Qc_GRADS_TF IS: ", Qc_grads_tf)
+
+        print("pi_GRADS_TF IS: ", pi_grads_tf)
 
 
         assert len(self._vars('main/Q')) == len(Q_grads_tf)

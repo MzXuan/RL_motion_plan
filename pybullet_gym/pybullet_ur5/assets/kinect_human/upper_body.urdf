@@ -9,11 +9,8 @@
   </material>
 
 
-
-
 	<!-- Base Frame of human, spine -->
 	<link name="world"/>
-
 
 	<link name="SpineBase">
 		<visual>
@@ -30,8 +27,6 @@
 	</link>
 
 
-
-
 	<joint name="base_spine_joint" type="fixed">
 		<parent link="world"/>
 		<child link="SpineBase"/>
@@ -40,7 +35,7 @@
 
 	<link name="SpineLink">
 	    <visual>
-	      <origin rpy="-1.57 0 0" xyz="-0.14 -0.06 0.2" />
+	      <origin rpy="-1.57 0 3.14" xyz="0.14 0.08 0.2" />
 	      <geometry>
 	        <mesh filename="spine.STL" scale="0.8 1 1"/>
 	      </geometry>
@@ -149,12 +144,12 @@
 	<link name="left_spine_to_shoulde_link">
 		<visual>
 			<geometry>
-				<cylinder radius="0.02" length="0.16"/>
+				<cylinder radius="0.03" length="0.16"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder radius="0.02" length="0.16"/>
+				<cylinder radius="0.03" length="0.16"/>
 			</geometry>
 		</collision>
 	</link>
@@ -345,12 +340,12 @@
 	<link name="right_spine_to_shoulde_link">
 		<visual>
 			<geometry>
-				<cylinder radius="0.02" length="0.16"/>
+				<cylinder radius="0.03" length="0.16"/>
 			</geometry>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder radius="0.02" length="0.16"/>
+				<cylinder radius="0.03" length="0.16"/>
 			</geometry>
 		</collision>
 	</link>

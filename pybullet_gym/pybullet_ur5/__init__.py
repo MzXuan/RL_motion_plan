@@ -25,7 +25,7 @@ register(
 register(
     id='UR5DynamicReachEnv-v2',
     entry_point='pybullet_ur5.envs.ur5_dynamic_reach_obs:UR5DynamicReachObsEnv',
-    max_episode_steps=300,
+    max_episode_steps=400,
     # max_episode_steps=400,
     reward_threshold=20000.0,
 )

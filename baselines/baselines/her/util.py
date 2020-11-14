@@ -50,6 +50,8 @@ def import_function(spec):
 def flatten_grads(var_list, grads):
     """Flattens a variables and their gradients.
     """
+    # print("varlist:", var_list)
+    # print("grad: ", grads)
     return tf.concat([tf.reshape(grad, [U.numel(v)])
                       for (v, grad) in zip(var_list, grads)], 0)
 
@@ -72,14 +74,58 @@ def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
     return input
 
 
-def rnn(input, layers_sizes, reuse=None, flatten=False, name=""):
+def rnn(input, layers_sizes, reuse=False, flatten=False, name=""):
     """Creates a simple neural network
     """
     #todo: add gru cell
+
+    # print("shape of gru input: ", gru_input.shape)
+
+    # out,states = tf.keras.layers.GRU(32, return_sequences=True, return_state=True)(
+    #     tf.stack([input[14:14+18],input[14:14+18]], axis=1)) #[batch, timesteps, feature]
+
+    # out = tf.nn.rnn_cell.GRUCell(32, reuse=reuse)(
+    #     tf.stack([input[14:-4],input[14:-4]], axis=1))  # [batch, timesteps, feature]
+
+    # gru_cell = tf.nn.rnn_cell.GRUCell(32)
+    #
+    # outputs, state = tf.nn.dynamic_rnn(gru_cell, tf.stack([input[14:-4],input[14:-4]], axis=1),
+    #                                              dtype=tf.float32)
+    # print("states shape", outputs.shape)
+
+    def gru_cell(reuse):
+        return tf.nn.rnn_cell.GRUCell(32, reuse=reuse)
+        # return tf.keras.layers.GRUCell(32)
+        # return tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8)
+
+
+
+    # input_exp_dim = tf.stack([input[:,14:14+180],input[:,14:14+180]], axis=1)
+
+    human_dim = 18
+    human_step = 10
+    batch_size = input.shape[0]
+
+    in_human_flat = tf.expand_dims(input[:,14:14+human_dim*human_step],axis=2)
+    print("shape of in flat", in_human_flat.shape)
+    input_human =tf.reshape(in_human_flat, shape = [-1,10, 18])
+
+    # input_human = tf.keras.layers.Reshape(target_shape=(batch_size,human_step, human_dim))(
+    #     input[:,14:14+human_dim*human_step])
+
+    out,state = tf.keras.layers.RNN(gru_cell(reuse), return_sequences=True, return_state=True)(input_human)
+
+    input = tf.concat([input[:,:14],input[:,14+human_dim*human_step:], state], axis=1)
+
+
+
+
     for i, size in enumerate(layers_sizes):
         activation = tf.nn.relu if i < len(layers_sizes) - 1 else None
-        states = tf.keras.layers.GRU(8, return_sequences=False, return_state=True)(input)
-        input = tf.layers.dense(inputs=tf.concat[input,states],
+
+
+
+        input = tf.layers.dense(inputs=input,
                                 units=size,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 reuse=reuse,

@@ -12,6 +12,7 @@ X_EPISODES = 'episodes'
 X_WALLTIME = 'walltime_hrs'
 Y_REWARD = 'reward'
 Y_TIMESTEPS = 'timesteps'
+Y_SUCCESS = 'success_rate'
 POSSIBLE_X_AXES = [X_TIMESTEPS, X_EPISODES, X_WALLTIME]
 EPISODES_WINDOW = 100
 COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink',
@@ -73,6 +74,8 @@ def split_by_task(taskpath):
 def plot_results(dirs, num_timesteps=10e6, xaxis=X_TIMESTEPS, yaxis=Y_REWARD, title='', split_fn=split_by_task):
     results = plot_util.load_results(dirs)
     plot_util.plot_results(results, xy_fn=lambda r: ts2xy(r.monitor, xaxis, yaxis), split_fn=split_fn, average_group=True, resample=int(1e6))
+    # plot_util.plot_results(results, xy_fn=lambda r: ts2xy(r.progress, xaxis, yaxis), split_fn=split_fn,
+    #                        average_group=True, resample=int(1e6))
 
 # Example usage in jupyter-notebook
 # from baselines.results_plotter import plot_results
@@ -85,9 +88,9 @@ def main():
     import os
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # parser.add_argument('--dirs', help='List of log directories', nargs = '*', default=['./log'])
-    parser.add_argument('--dirs', help='List of log directories', nargs='*', default=['/home/xuan/log/ur5_reach_her_5'])
+    parser.add_argument('--dirs', help='List of log directories', nargs='*', default=['/home/xuan/log/ur5_reach_c20_1113_1'])
     parser.add_argument('--num_timesteps', type=int, default=int(10e6))
-    parser.add_argument('--xaxis', help = 'Varible on X-axis', default = X_TIMESTEPS)
+    parser.add_argument('--xaxis', help = 'Varible on X-axis', default = X_EPISODES)
     parser.add_argument('--yaxis', help = 'Varible on Y-axis', default = Y_REWARD)
     parser.add_argument('--task_name', help = 'Title of plot', default = 'Breakout')
     args = parser.parse_args()

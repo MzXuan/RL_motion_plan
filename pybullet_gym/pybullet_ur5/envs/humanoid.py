@@ -115,6 +115,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.arm_id = None
 
 
+        self.human_iter = 0
+
 
         super(URDFHumanoid, self).__init__(
             'kinect_human/upper_body.urdf', "human", action_dim=0, obs_dim=obs_dim, fixed_base=1,
@@ -197,9 +199,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         add moving human base
         '''
         # set human goal
-        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.2, 0.3)
-        if r < 0.5:
-            r = 0.5
+        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.35, 0.5)
+        if r < 0.7:
+            r = 0.7
         human_goal = rob_goal.copy()
         human_goal[:2] = r * rob_goal[:2] / np.linalg.norm(rob_goal[:2])
         human_goal[2] =  0+np.random.uniform(-0.2, 0.1)
@@ -219,7 +221,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
             b = [x_b, y_b, a[2]]
 
-            r = 0.4
+            r = 0.6
 
             p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
 
@@ -357,7 +359,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             reset_flag = self.human_file.reset_flag
 
             #1. move human base
-            hrange = [1.0, 1.0, 0.8]
+            hrange = [1.2, 1.2, 0.8]
             pos, orn = self._p.getBasePositionAndOrientation(self.human_id)
             if abs(pos[0]) > hrange[0] or abs(pos[1]) > hrange[1] \
                     or abs(pos[2]) > hrange[2]:
@@ -393,7 +395,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
         if self.load:
-            self.human_file.update_joint_queue()
+            self.human_iter+=1
+            if self.human_iter % 2 == 0:
+                self.human_file.update_joint_queue()
 
         return 0
 
