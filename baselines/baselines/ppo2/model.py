@@ -68,7 +68,7 @@ class Model(object):
         vpred = train_model.vf
         vpredclipped = OLDVPRED + tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
         # Unclipped value
-        vf_losses1 = tf.square(vpred - R)
+        vf_losses1 = tf.square(vpred - OLDVPRED)
         # Clipped value
         vf_losses2 = tf.square(vpredclipped - R)
 

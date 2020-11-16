@@ -74,33 +74,14 @@ def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
     return input
 
 
-def rnn(input, layers_sizes, reuse=False, flatten=False, name=""):
+def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
     """Creates a simple neural network
     """
-    #todo: add gru cell
-
-    # print("shape of gru input: ", gru_input.shape)
-
-    # out,states = tf.keras.layers.GRU(32, return_sequences=True, return_state=True)(
-    #     tf.stack([input[14:14+18],input[14:14+18]], axis=1)) #[batch, timesteps, feature]
-
-    # out = tf.nn.rnn_cell.GRUCell(32, reuse=reuse)(
-    #     tf.stack([input[14:-4],input[14:-4]], axis=1))  # [batch, timesteps, feature]
-
-    # gru_cell = tf.nn.rnn_cell.GRUCell(32)
-    #
-    # outputs, state = tf.nn.dynamic_rnn(gru_cell, tf.stack([input[14:-4],input[14:-4]], axis=1),
-    #                                              dtype=tf.float32)
-    # print("states shape", outputs.shape)
 
     def gru_cell(reuse):
         return tf.nn.rnn_cell.GRUCell(32, reuse=reuse)
         # return tf.keras.layers.GRUCell(32)
         # return tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8)
-
-
-
-    # input_exp_dim = tf.stack([input[:,14:14+180],input[:,14:14+180]], axis=1)
 
     human_dim = 18
     human_step = 10
@@ -132,6 +113,7 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, name=""):
                                 name=name + '_' + str(i))
         if activation:
             input = activation(input)
+
     if flatten:
         assert layers_sizes[-1] == 1
         input = tf.reshape(input, [-1])

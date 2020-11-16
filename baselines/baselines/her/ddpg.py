@@ -349,6 +349,7 @@ class DDPG(object):
         else:
             transitions = self.buffer.sample(self.batch_size) #otherwise only sample from primary buffer
 
+
         o, o_2, g = transitions['o'], transitions['o_2'], transitions['g']
         ag, ag_2 = transitions['ag'], transitions['ag_2']
         transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
@@ -393,6 +394,7 @@ class DDPG(object):
         logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dimu, self.max_u))
         self.sess = tf_util.get_session()
 
+
         # running averages
         with tf.variable_scope('o_stats') as vs:
             if reuse:
@@ -403,13 +405,14 @@ class DDPG(object):
                 vs.reuse_variables()
             self.g_stats = Normalizer(self.dimg, self.norm_eps, self.norm_clip, sess=self.sess)
 
+
         # mini-batch sampling.
         batch = self.staging_tf.get()
-
         batch_tf = OrderedDict([(key, batch[i])
                                 for i, key in enumerate(self.stage_shapes.keys())])
         batch_tf['r'] = tf.reshape(batch_tf['r'], [-1, 1])
         batch_tf['rc'] = tf.reshape(batch_tf['rc'], [-1, 1])
+
 
         #choose only the demo buffer samples
         mask = np.concatenate((np.zeros(self.batch_size - self.demo_batch_size), np.ones(self.demo_batch_size)), axis = 0)
