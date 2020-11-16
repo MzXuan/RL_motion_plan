@@ -49,6 +49,7 @@ class ActorCritic:
             self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
 
 
+
 class ActorCriticRNN:
     #todo: add rnn feature extration
     #todo: store hidden variable
@@ -70,6 +71,7 @@ class ActorCriticRNN:
             hidden (int): number of hidden units that should be used in hidden layers
             layers (int): number of hidden layers
         """
+
         self.o_tf = inputs_tf['o']
         self.g_tf = inputs_tf['g']
         self.u_tf = inputs_tf['u']
@@ -80,11 +82,12 @@ class ActorCriticRNN:
         input_pi = tf.concat(axis=1, values=[o, g])  # for actor
 
 
-
         # Networks.
         with tf.variable_scope('pi'):
             self.pi_tf = self.max_u * tf.tanh(rnn(
                 input_pi, [self.hidden] * self.layers + [self.dimu]))
+
+            #todo: add collision checking
 
 
         with tf.variable_scope('Q'):

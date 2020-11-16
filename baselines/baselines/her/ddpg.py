@@ -472,11 +472,11 @@ class DDPG(object):
         with open('/home/xuan/log/graphpb_nn.txt', 'w') as f:
             f.write(graphpb_txt)
 
-        print("Q_GRADS_TF IS: ", Q_grads_tf)
-
-        print("Qc_GRADS_TF IS: ", Qc_grads_tf)
-
-        print("pi_GRADS_TF IS: ", pi_grads_tf)
+        # print("Q_GRADS_TF IS: ", Q_grads_tf)
+        #
+        # print("Qc_GRADS_TF IS: ", Qc_grads_tf)
+        #
+        # print("pi_GRADS_TF IS: ", pi_grads_tf)
 
 
         assert len(self._vars('main/Q')) == len(Q_grads_tf)
