@@ -199,7 +199,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         add moving human base
         '''
         # set human goal
-        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.35, 0.5)
+        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.2, 0.4)
         if r < 0.7:
             r = 0.7
         human_goal = rob_goal.copy()
@@ -213,30 +213,40 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         rot_q = pyquaternion.Quaternion(matrix=rotation)
 
         #set human start position
-        success = False
-        while not success:
-            a = human_goal
-            x_b = np.random.choice([-1,1])
-            y_b = -x_b*a[0]/a[1]
+        theta = np.arctan2(human_goal[1], human_goal[0])
+        self.r = r
+        self.theta_range = [theta+0.8, theta-0.8]
+        self.v_theta = 0.02
+        self.reach_flag= True
 
-            b = [x_b, y_b, a[2]]
+        self.robot_specific_reset(self._p, base_position=human_goal, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
-            r = 0.6
 
-            p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
 
-            xh = p_r[0]
-            yh = p_r[1]
-            zh = p_r[2]
-            # zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
-
-            pos = [xh, yh, zh]
-
-            self.human_base_velocity = 0.01*(np.asarray(human_goal)-np.asarray(pos))/np.linalg.norm((np.asarray(human_goal)-np.asarray(pos)))
-            if np.linalg.norm(pos)>0.3:
-                success=True
-        # self._p.addUserDebugLine(human_goal, p_r, lineColorRGB=[0.9, 0.1, 0.1], lineWidth=2, lifeTime=10)
-        self.robot_specific_reset(self._p, base_position=pos, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
+        # success = False
+        # while not success:
+        #     a = human_goal
+        #     x_b = np.random.choice([-1,1])
+        #     y_b = -x_b*a[0]/a[1]
+        #
+        #     b = [x_b, y_b, a[2]]
+        #
+        #     r = 0.6
+        #
+        #     p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
+        #
+        #     xh = p_r[0]
+        #     yh = p_r[1]
+        #     zh = p_r[2]
+        #     # zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
+        #
+        #     pos = [xh, yh, zh]
+        #
+        #     self.human_base_velocity = 0.01*(np.asarray(human_goal)-np.asarray(pos))/np.linalg.norm((np.asarray(human_goal)-np.asarray(pos)))
+        #     if np.linalg.norm(pos)>0.3:
+        #         success=True
+        # # self._p.addUserDebugLine(human_goal, p_r, lineColorRGB=[0.9, 0.1, 0.1], lineWidth=2, lifeTime=10)
+        # self.robot_specific_reset(self._p, base_position=pos, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
 
     def robot_specific_reset(self, bullet_client, base_position, base_rotation):
@@ -341,14 +351,13 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         return obs
 
 
-
-
     def trans_point(self,p):
         point=np.zeros(4)
         point[:3] = p
         point[3] = 1
         p_new = np.matmul(self.trans_matrix, point)[:3]
         return p_new
+
 
     def apply_action(self, a):
 
@@ -359,14 +368,44 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             reset_flag = self.human_file.reset_flag
 
             #1. move human base
-            hrange = [1.2, 1.2, 0.8]
+
             pos, orn = self._p.getBasePositionAndOrientation(self.human_id)
-            if abs(pos[0]) > hrange[0] or abs(pos[1]) > hrange[1] \
-                    or abs(pos[2]) > hrange[2]:
-                self.human_base_reset(self.rob_goal)
+            theta = np.arctan2(pos[1], pos[0])
+
+
+            if theta<self.theta_range[1]:
+                self.reach_flag=True
+
+            elif theta>self.theta_range[0]:
+                self.reach_flag=False
+
+            if self.reach_flag:
+                v = self.v_theta+np.random.uniform(-0.01,0.01)
             else:
-                self.robot_specific_reset(self._p, base_position=pos+self.human_base_velocity,
-                                  base_rotation=orn)
+                v= -self.v_theta+np.random.uniform(-0.01,0.01)
+
+
+            t = theta+v
+            pos_new=np.zeros(3)
+            pos_new[0] = self.r*np.cos(t)
+            pos_new[1] = self.r * np.sin(t)
+            pos_new[2] = pos[2]
+
+            y = [0, 0, 1]
+            z = [-pos_new[0], -pos_new[1], 0] / np.linalg.norm([-pos_new[0], -pos_new[1], 0])
+            x = np.cross(y, z)
+            rotation = np.linalg.inv(np.asarray([x, y, z]))
+            rot_q = pyquaternion.Quaternion(matrix=rotation)
+
+            self.robot_specific_reset(self._p, base_position=pos_new,
+                                      base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
+
+            # if abs(pos[0]) > hrange[0] or abs(pos[1]) > hrange[1] \
+            #         or abs(pos[2]) > hrange[2]:
+            #     self.human_base_reset(self.rob_goal)
+            # else:
+            #     self.robot_specific_reset(self._p, base_position=pos+self.human_base_velocity,
+            #                       base_rotation=orn)
 
             #2. set arm position
             try:

@@ -442,7 +442,7 @@ class DDPG(object):
 
 
         # target_Qc_tf = self.target.Qc_tf
-        # target_Qcc_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Qc_tf, *clip_range)
+        # target_Qcc_tf = tf.clip_by_value(batch_tf['rc'] + self.gamma * self.target.Qc_tf, *clip_range)
         self.Qc_loss_tf = tf.reduce_mean(tf.square(batch_tf['rc'] - self.main.Qc_tf))#todo: this may be wrong
 
         if self.bc_loss ==1 and self.q_filter == 1 : # train with demonstrations and use bc_loss and q_filter both
@@ -469,17 +469,10 @@ class DDPG(object):
 
         ## ... create graph ...
 
-
         graph_def = tf.get_default_graph().as_graph_def()
         graphpb_txt = str(graph_def)
         with open('/home/xuan/log/graphpb_nn.txt', 'w') as f:
             f.write(graphpb_txt)
-
-        # print("Q_GRADS_TF IS: ", Q_grads_tf)
-        #
-        # print("Qc_GRADS_TF IS: ", Qc_grads_tf)
-        #
-        # print("pi_GRADS_TF IS: ", pi_grads_tf)
 
 
         assert len(self._vars('main/Q')) == len(Q_grads_tf)

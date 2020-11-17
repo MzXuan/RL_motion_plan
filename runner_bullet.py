@@ -247,7 +247,7 @@ def main(args):
         env.render("human")
 
         logger.log("Running trained model")
-        seed = 100
+        seed = 80
         np.random.seed(seed)
         tf.set_random_seed(seed)
         random.seed(seed)
@@ -260,8 +260,8 @@ def main(args):
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
 
-
-
+        #
+        #
         # #--------------------------- draw Q function for different robot state-------------------------------------#
         # # todo: manual update obs, test different Q, draw in pybullet simulator
         # # write an obs updater in environment
@@ -304,10 +304,12 @@ def main(args):
         # for next_eef in line_traj:
         #     #todo: batch operation
         #     actions, Q, q, _ = model.step_with_q(obs)
-        #     obs_lst.append(obs['observation'][:3])
+        #     # obs_lst.append(obs['observation'][:3])
+        #     obs_lst.append(obs['desired_goal'][:3])
         #     q_lst.append(q)
         #
-        #     obs = env.update_robot_obs(next_eef)
+        #     # obs = env.update_robot_obs(next_eef)
+        #     obs = env.update_goal_obs(next_eef)
         #     env.render()
         #
         # print("Q_list: ", q_lst)

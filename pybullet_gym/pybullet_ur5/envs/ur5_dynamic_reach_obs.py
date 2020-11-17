@@ -292,10 +292,18 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.n_actions = 3
         self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
+        # self.observation_space = gym.spaces.Dict(dict(
+        #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+        #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+        #     observation=gym.spaces.Box(-np.inf, np.inf, shape=(198,), dtype='float32'),
+        # ))
+
+
+
         self.observation_space = gym.spaces.Dict(dict(
             desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
             achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(198,), dtype='float32'),
+            observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
         ))
 
         # Set observation and action spaces
@@ -505,11 +513,15 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.agents[0].bullet_ik(next_eef)
         obs = self.get_obs()
 
+
         return obs
 
     def update_goal_obs(self, next_goal):
         # 2. change goal state
-        return 0
+        obs = self.get_obs()
+        obs["desired_goal"] = next_goal
+
+        return obs
 
 
     def step(self, action):
@@ -587,7 +599,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.last_human_obs_list.append(np.asarray(obs_human).flatten())
         # print("shape of human states: ", np.asarray(self.last_human_obs_list).shape)
 
-        human_obs_input = np.asarray(self.last_human_obs_list).flatten()
+        human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
         obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                               np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 

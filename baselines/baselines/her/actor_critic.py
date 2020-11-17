@@ -25,6 +25,7 @@ class ActorCritic:
         self.g_tf = inputs_tf['g']
         self.u_tf = inputs_tf['u']
 
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
         # Prepare inputs for actor and critic.
         o = self.o_stats.normalize(self.o_tf)
         g = self.g_stats.normalize(self.g_tf)
@@ -86,8 +87,6 @@ class ActorCriticRNN:
         with tf.variable_scope('pi'):
             self.pi_tf = self.max_u * tf.tanh(rnn(
                 input_pi, [self.hidden] * self.layers + [self.dimu]))
-
-            #todo: add collision checking
 
 
         with tf.variable_scope('Q'):
