@@ -1,6 +1,0 @@
-setup.py
-gym_rlmp.egg-info/PKG-INFO
-gym_rlmp.egg-info/SOURCES.txt
-gym_rlmp.egg-info/dependency_links.txt
-gym_rlmp.egg-info/requires.txt
-gym_rlmp.egg-info/top_level.txt
