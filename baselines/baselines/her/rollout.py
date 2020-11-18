@@ -129,12 +129,12 @@ class RolloutWorker:
             episode['info_{}'.format(key)] = value
 
         # stats
-        print("T is: ", self.T)
-        print("shape of dones is: ", np.array(dones).shape)
-        print("shape of success is: ", np.array(successes).shape)
+        # print("T is: ", self.T)
+        # print("shape of dones is: ", np.array(dones).shape)
+        # print("shape of success is: ", np.array(successes).shape)
         successful = np.array(successes)[-1, :]
 
-        print("successful is: ", successful)
+        # print("successful is: ", successful)
         assert successful.shape == (self.rollout_batch_size,)
         success_rate = np.mean(successful)
         self.success_history.append(success_rate)
