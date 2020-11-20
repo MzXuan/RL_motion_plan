@@ -1,3 +1,7 @@
+The Baselines has been changed, you should download it and run:
+pip install -e .
+And you can run the same command in pybullet_gym
+
 ## bullet runner
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_reach_c20_1024_5 --log_path=~/log/ur5_reach_c20_1024_5
 
