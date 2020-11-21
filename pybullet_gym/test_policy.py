@@ -5,8 +5,8 @@ import os, glob
 import time
 import pybullet_ur5
 import gym
-import cv2
-import cam_utils
+# import cv2
+# import cam_utils
 
 import os.path as osp
 import numpy as np
