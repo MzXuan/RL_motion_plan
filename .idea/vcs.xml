@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pybullet_planning-dev" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/stable-baselines" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/trajopt_reimpl" vcs="Git" />
   </component>
