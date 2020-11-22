@@ -275,9 +275,14 @@ class UR5EefRobot(UR5Robot):
 
 		#------------  pose from simulator -------------#
 		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position,self.orientation,
-														lowerLimits = self.lower_limit, upperLimits=self.upper_limit
+														target_position,self.orientation
 														)
+
+		# jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+		# 												target_position, self.orientation,
+		# 												lowerLimits=self.lower_limit, upperLimits=self.upper_limit
+		#
+		# 												)
 
 		target_jp = np.asarray(jointPoses[:6])
 		# print("next joint: ", target_jp)
@@ -286,10 +291,13 @@ class UR5EefRobot(UR5Robot):
 			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
 	def bullet_ik(self, target_position):
-		jointPoses =  self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position,self.orientation,
-														lowerLimits=self.lower_limit, upperLimits=self.upper_limit
+		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+														target_position, self.orientation
 														)
+		# jointPoses =  self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+		# 												target_position,self.orientation,
+		# 												lowerLimits=self.lower_limit, upperLimits=self.upper_limit
+		# 												)
 
 		target_jp = np.asarray(jointPoses[:6])
 		# print("next joint: ", target_jp)
