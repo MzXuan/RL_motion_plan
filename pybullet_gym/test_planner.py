@@ -20,6 +20,7 @@ from pybullet_planning import multiply, get_collision_fn
 from pybullet_planning import inverse_kinematics, sample_tool_ik
 from pybullet_planning import set_joint_positions, wait_for_duration
 from pybullet_planning import get_joint_positions, plan_waypoints_joint_motion, plan_joint_motion, compute_forward_kinematics
+from pybullet_planning.motion_planners import stomp
 
 import ikfast_ur5
 
@@ -205,6 +206,9 @@ def min_dist_conf(initial_conf, conf_list):
     id_min = np.argmin(np.asarray(dist_list))
     return conf_list[id_min]
 
+def stomp_planning(initial, end):
+    return 0
+
 
 def main(env, test):
     seed = np.random.randint(1,200)
@@ -221,59 +225,60 @@ def main(env, test):
     print(env.action_space.shape)
     print(" ---------------------------- ")
 
-    get_action = lambda obs: [0.1, 0.1, 0, 0, 0, 0]
+    get_action = lambda obs: [0.1, 0.1, 0]
     env.render(mode="human")
     obs = env.reset()
-    robot, workspace, movable_joints = test_moving_links_joints(False, env)
+    #todo: start planning
+    stomp_planning(obs['achieved_goal'], obs['desired_goal'])
 
-    test_ur5_ik(robot, workspace,movable_joints, env)
-
-
-    # env.render(mode="human")
-    #prepare collect buffer list
-    obs_lst = []
-    center_lst = []
-    goal_label = []
+    time.sleep(10)
 
 
 
 
+    # robot, workspace, movable_joints = test_moving_links_joints(False, env)
+
+    # test_ur5_ik(robot, workspace,movable_joints, env)
     # obs = env.reset()
     # print("obs initial", obs)
     # id=0
-    # env.render(mode="human")
     #
+    # env.render()
     # ## start simulation loop ##
+    #
+    # obs = env.get_obs()
     # while(id<300):
-    #     time.sleep(0.03)
+    #     try:
+    #         time.sleep(0.1)
+    #         action = get_action(obs)
+    #         obs, rew, done, info = env.step(action)
     #
-    #     action = get_action(obs)
-    #
-    #     obs, rew, done, info = env.step(action)
-    #
-    #     if done == True:
-    #         #reset all
-    #         time.sleep(1)
-    #         env.reset()
-    #
-    #         #reset
-    #         obs_lst = []
-    #         center_lst = []
-    #         goal_label = []
-    #         id+=1
-    #         seed+=1
-    #         np.random.seed(seed)
-    #         tf.set_random_seed(seed)
-    #         random.seed(seed)
+    #         if done == True:
+    #             #reset all
+    #             print("reset")
+    #             env.reset()
+    #             id+=1
+    #             seed+=1
+    #             np.random.seed(seed)
+    #             tf.set_random_seed(seed)
+    #             random.seed(seed)
     #
     #         env.render()
+    #
+    #     except KeyboardInterrupt:
+    #         env.close()
+    #         raise
+
+
+
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="UR5HumanCollisionEnv-v0")
+    # parser.add_argument("--env", type=str, default="UR5HumanCollisionEnv-v0")
     # parser.add_argument("--env", type=str, default="PyUR5ReachEnv-v2")
     # parser.add_argument("--env", type=str, default="UR5HumanSharedEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
 
     parser.add_argument("--test", action="store_true")
 

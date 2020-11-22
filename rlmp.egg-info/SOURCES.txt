@@ -1,6 +1,0 @@
-setup.py
-rlmp.egg-info/PKG-INFO
-rlmp.egg-info/SOURCES.txt
-rlmp.egg-info/dependency_links.txt
-rlmp.egg-info/requires.txt
-rlmp.egg-info/top_level.txt

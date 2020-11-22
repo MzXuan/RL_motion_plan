@@ -8,7 +8,6 @@ from humanoid import SelfMoveHumanoid
 from ur5_real import UR5RealRobot
 from ur5eef import UR5EefRobot
 from humanoid_real import RealHumanoid
-from .ur5_dynamic_reach import UR5DynamicReachEnv
 
 
 import assets
