@@ -17,7 +17,7 @@ MAX_ITERATION_STEPS = 10
 STOP_TOLERANCE = 1e-2
 class STOMP:
 
-    def __init__(self, D, N, K, initial_traj = None):
+    def __init__(self, D, N, K, initial_traj = None, collision_fn = None):
         '''
         D: dof
         N: steps, include start and end
@@ -39,6 +39,8 @@ class STOMP:
         self.K = K
         self.D = D
         self.Q = initial_traj
+        if collision_fn is None:
+            self.collision_fn = lambda x: 1 if np.linalg.norm(x)>1.5 else 0
 
 
     def plan(self, q0, qN):
@@ -113,6 +115,7 @@ class STOMP:
         '''
         rollout:N*D
         '''
+
         state_costs = []
         for i in range(self.N):
             q = rollout[i,:]
@@ -144,7 +147,7 @@ class STOMP:
             denom = c_max - c_min
             if denom < MIN_COST_DIFFERENCE:
                 denom = MIN_COST_DIFFERENCE
-            exp_cost_matrix[:,n]= -10*(c_n-c_min)/denom
+            exp_cost_matrix[:,n]= np.exp(-10*(c_n-c_min)/denom)
 
 
         probabilities = np.zeros((self.K, self.N))
@@ -156,7 +159,8 @@ class STOMP:
 
     def compute_state_cost(self, q):
         #todo: add state cost
-        cost = np.random.uniform(0,1)
+        # cost = np.random.uniform(0,1)
+        cost = self.collision_fn(q)
         return cost
 
     def compute_controll_cost(self, Q):
