@@ -9,6 +9,6 @@ if __name__ == "__main__":
     K = 10
     stomp_planner = STOMP(D, N, K)
 
-    stomp_planner.plan([0,0],[0,0])
+    stomp_planner.plan([0,0],[10,10])
 
 

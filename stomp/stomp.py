@@ -50,13 +50,14 @@ class STOMP:
         step = 0
         while step<MAX_ITERATION_STEPS:
             Q_update = self.run_single_iteration()
+            update_cost = np.sum(self.compute_rollout_cost(Q_update)) + self.compute_controll_cost(Q_update)
             step+=1
             self.Q = Q_update
 
-            update_cost = np.sum(self.compute_rollout_cost()) + self.compute_controll_cost(Q_update)
             #stop or not?
 
-
+            print("update cost", update_cost)
+            print("Q_cost", self.Q_cost)
             if abs(update_cost-self.Q_cost) < STOP_TOLERANCE:
                 break
 
@@ -69,11 +70,14 @@ class STOMP:
         #1. create K noisy trajectory:
         noisy_paramters, noisy_trajectories = self.generate_noisy_parameter() #K*N*D
 
-        # debug: print noise_Q and check it
-        # plot_traj(rollouts, self.Q.copy(), self.N)
-
         #2. compute cost of rollouts
         Q_update = self.update_parameter(noisy_paramters, noisy_trajectories)
+
+        # debug: print noise_Q and check it
+        plot_rollouts(noisy_trajectories, self.N)
+        plot_traj(self.Q.copy(), self.N)
+
+
         return Q_update
 
 
@@ -81,7 +85,8 @@ class STOMP:
         noisy_paramters = []
         noisy_trajectories = []
         for k in range(self.K):
-            ek = np.random.multivariate_normal(np.zeros(self.N), 1/self.N*self.R_inv/np.max(self.R_inv),self.D)
+            # ek = np.random.multivariate_normal(np.zeros(self.N), 1/self.N*self.R_inv/np.max(self.R_inv),self.D)
+            ek = np.random.multivariate_normal(np.zeros(self.N),  self.R_inv / np.max(self.R_inv), self.D)
             ek[:,0] = 0
             ek[:,-1] = 0
             ek=ek.T
@@ -101,7 +106,7 @@ class STOMP:
         probabilities = self.compute_probabilities(cost_matrix)
         #calculate update parameters
         normal_delta_theta = self.compute_delta_parameters(probabilities, noisy_paramters)
-        return self.Q.copy+normal_delta_theta
+        return self.Q.copy()+normal_delta_theta
 
 
     def compute_rollout_cost(self, rollout):
@@ -155,18 +160,17 @@ class STOMP:
         return cost
 
     def compute_controll_cost(self, Q):
-        control_cost = 0.5*np.matmul(np.matmul(Q.T, self.R),Q)
+        control_cost = np.linalg.norm(np.matmul(self.A, Q), ord=2)
         return control_cost
 
 
 
-
-def plot_traj(rollouts, last_traj, steps):
+def plot_rollouts(rollouts, steps):
     for r in rollouts:
-        t = r.theta_parameters
-        plt.plot(range(steps), t[0,:], 'r-')
+        plt.plot(r[:,0], r[:,1], 'r-')
 
-    plt.plot(range(steps), last_traj[0,:], 'b-')
+def plot_traj(last_traj, steps):
+    plt.plot(last_traj[:,0], last_traj[:,1], 'b-')
     plt.show()
 
 
