@@ -73,7 +73,8 @@ def goal_distance(goal_a, goal_b):
 class L(list):
      def append(self, item):
          list.append(self, item)
-         if len(self) > 3: del self[0]
+         if len(self) > 6: del self[0]
+
 
 
 # class Moving_obstacle():
@@ -291,20 +292,24 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.reward_type = reward_type
 
         self.n_actions = 3
+
+
+
         self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
-        # self.observation_space = gym.spaces.Dict(dict(
-        #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-        #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-        #     observation=gym.spaces.Box(-np.inf, np.inf, shape=(198,), dtype='float32'),
-        # ))
 
-
-
-        self.observation_space = gym.spaces.Dict(dict(
-            desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-            observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
-        ))
+        self.USE_RNN = True
+        if self.USE_RNN:
+            self.observation_space = gym.spaces.Dict(dict(
+                desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+                achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+                observation=gym.spaces.Box(-np.inf, np.inf, shape=(126,), dtype='float32'),
+            ))
+        else:
+            self.observation_space = gym.spaces.Dict(dict(
+                desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+                achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
+                observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
+            ))
 
         # Set observation and action spaces
 
@@ -313,7 +318,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             agent.observation_space for agent in self.agents
         ])
 
-        self.last_human_obs_list = L(np.zeros((10,18)))
+        self.last_human_obs_list = L(np.zeros((6,18)))
 
 
 
@@ -397,9 +402,9 @@ class UR5DynamicReachObsEnv(gym.Env):
         collision_flag = True
         while collision_flag:
 
-            x = np.random.uniform(-0.6, 0.6)
-            y = np.random.uniform(-0.6, 0.6)
-            z = np.random.uniform(0.1, 0.5)
+            x = np.random.uniform(-0.7, 0.7)
+            y = np.random.uniform(-0.7, 0.7)
+            z = np.random.uniform(0.1, 0.7)
 
             self.robot_start_eef = [x, y, z]
 
@@ -413,6 +418,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             # ---------------real human----------------------------#
             ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
                                       base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633], rob_goal=self.goal.copy())
+
 
             if ar is False:
                 # print("failed to find valid robot solution of pose", robot_eef_pose)
@@ -585,23 +591,19 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
         self.obs_min_dist = min_dist
-
-        # print("last human",    self.last_obs_human)
-        # print("current human", obs_human)
-
-
-        # obs = np.concatenate([np.asarray(ur5_states), np.asarray(self.last_obs_human).flatten(), np.asarray(obs_human).flatten(),
-        #                       np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
-
-        # print("shape of ur5 states: ", np.asarray(ur5_states).shape)
-        # print("shape of human states: ", np.asarray(obs_human).flatten().shape)
-
-        self.last_human_obs_list.append(np.asarray(obs_human).flatten())
+        self.last_human_obs_list.append(np.asarray(obs_human.copy()).flatten())
         # print("shape of human states: ", np.asarray(self.last_human_obs_list).shape)
 
-        human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
-        obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
-                              np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+        if self.USE_RNN:
+            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
+
+            # print("human_obs_input", self.last_human_obs_list)
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+        else:
+            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
         # print("shape of obs is: ", obs.shape)
 

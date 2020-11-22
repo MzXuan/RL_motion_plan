@@ -9,6 +9,7 @@ import numpy as np
 import random
 import time
 import pybullet
+import os
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -78,10 +79,16 @@ def train(args, extra_args):
     print('Training {} on {}:{} with arguments \n{}'.format(args.alg, env_type, env_id, alg_kwargs))
 
 
+    her_path = "/home/xuan/her_models"
+    try:
+        os.makedirs(her_path)
+    except:
+        print("makedir error")
     model = learn(
         env=env,
         seed=seed,
         total_timesteps=total_timesteps,
+        save_path=her_path,
         **alg_kwargs
     )
 
@@ -337,17 +344,26 @@ def main(args):
         fail_count = 0
         success_count = 0
         not_reach_count =0
+
+
+        time_list = []
         while traj_count < 300:
             time.sleep(0.03)
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                # start_time = time.time()
+                start_time = time.time()
                 actions, Q, q, _ = model.step_with_q(obs)
-                # print("solving time is: ", time.time()-start_time)
+                print("solving time is: ", time.time()-start_time)
+                time_list.append(time.time()-start_time)
                 # data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
 
 
+            if len(time_list) > 3000:
+                time_list = np.array(time_list[1:])
+                print("mean of solving time: ", np.mean(time_list))
+                print("std of solving time ", np.std(time_list))
+                return
 
             obs, rew, done, info = env.step(actions)
             #

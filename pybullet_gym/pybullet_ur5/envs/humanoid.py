@@ -199,12 +199,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         add moving human base
         '''
         # set human goal
-        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.2, 0.4)
+        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.25, 0.4)
         if r < 0.7:
             r = 0.7
         human_goal = rob_goal.copy()
         human_goal[:2] = r * rob_goal[:2] / np.linalg.norm(rob_goal[:2])
-        human_goal[2] =  0+np.random.uniform(-0.2, 0.1)
+        human_goal[2] =  0+np.random.uniform(-0.2, 0.3)
 
         y = [0, 0, 1]
         z = [-human_goal[0], -human_goal[1], 0] / np.linalg.norm([-human_goal[0], -human_goal[1], 0])

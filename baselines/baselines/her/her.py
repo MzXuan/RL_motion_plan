@@ -37,6 +37,8 @@ def train(*, policy, rollout_worker, evaluator,
     # num_timesteps = n_epochs * n_cycles * rollout_length * number of rollout workers
     for epoch in range(n_epochs):
         # train
+        policy.reset_loss_buff()
+
         rollout_worker.clear_history()
         for _ in range(n_cycles):
             episode = rollout_worker.generate_rollouts()

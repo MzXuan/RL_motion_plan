@@ -60,7 +60,7 @@ class RolloutWorker:
         ag[:] = self.initial_ag
 
         # generate episodes
-        obs, rews, achieved_goals, acts, goals, successes = [], [], [], [], [], []
+        obs, rews, achieved_goals, acts, goals, successes, collisions = [], [], [], [], [], [], []
         dones = []
         info_values = [np.empty((self.T - 1, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
@@ -93,6 +93,7 @@ class RolloutWorker:
             o_new = obs_dict_new['observation']
             ag_new = obs_dict_new['achieved_goal']
             success = np.array([i.get('is_success', 0.0) for i in info])
+            collision = np.array([i.get('is_collision', 0.0) for i in info])
 
             if any(done):
                 # here we assume all environments are done is ~same number of steps, so we terminate rollouts whenever any of the envs returns done
@@ -114,6 +115,7 @@ class RolloutWorker:
             rews.append(rew)
             achieved_goals.append(ag.copy())
             successes.append(success.copy())
+            collisions.append(collision.copy())
             acts.append(u.copy())
             goals.append(self.g.copy())
             o[...] = o_new
@@ -129,14 +131,28 @@ class RolloutWorker:
             episode['info_{}'.format(key)] = value
 
         # stats
-        # print("T is: ", self.T)
-        # print("shape of dones is: ", np.array(dones).shape)
-        # print("shape of success is: ", np.array(successes).shape)
-        successful = np.array(successes)[-1, :]
 
-        # print("successful is: ", successful)
+
+        # collision_count = np.count_nonzero(np.array(collisions))
+        # if collision_count > 0:
+        #     successful = np.array([0.])
+        # else:
+        #     success_count = np.count_nonzero(np.array(successes))
+        #     successful =  np.array([np.sum(np.array(successes)) / len(successes)])
+
+        collision_count = np.count_nonzero(np.array(collisions))
+        success_count = np.count_nonzero(np.array(successes))
+        successful = np.array([(success_count-collision_count)/len(successes)])
+
+
+
+
+
         assert successful.shape == (self.rollout_batch_size,)
         success_rate = np.mean(successful)
+
+
+
         self.success_history.append(success_rate)
         if self.compute_Q:
             self.Q_history.append(np.mean(Qs))

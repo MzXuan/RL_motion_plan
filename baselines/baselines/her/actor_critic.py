@@ -25,7 +25,7 @@ class ActorCritic:
         self.g_tf = inputs_tf['g']
         self.u_tf = inputs_tf['u']
 
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
+        print("!!!!!!!!!!!!!!!!!!!USE MLP MODEL!!!!!!!!!!!!!!!!!!!!!1")
         # Prepare inputs for actor and critic.
         o = self.o_stats.normalize(self.o_tf)
         g = self.g_stats.normalize(self.g_tf)
@@ -45,7 +45,11 @@ class ActorCritic:
             self.Q_tf = nn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
         with tf.variable_scope('qc'): #Q for collision checking
             # for collision checking, not use for policy training
-            input_Qc = tf.concat(axis=1, values=[o, g])
+            # input_Qc = tf.concat(axis=1, values=[o, g])
+            # self._input_Qc = input_Qc  # exposed for tests
+            # self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
+
+            input_Qc = tf.concat(axis=1, values=[o[:, 0:14], o[:, -40:], g])
             self._input_Qc = input_Qc  # exposed for tests
             self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
 
@@ -77,6 +81,7 @@ class ActorCriticRNN:
         self.g_tf = inputs_tf['g']
         self.u_tf = inputs_tf['u']
 
+        print("!!!!!!!!!!!!!!!!!!!USE RNN POLICY!!!!!!!!!!!!!!!!!!!!!1")
         # Prepare inputs for actor and critic.
         o = self.o_stats.normalize(self.o_tf)
         g = self.g_stats.normalize(self.g_tf)
@@ -101,7 +106,7 @@ class ActorCriticRNN:
             self.Q_tf = rnn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
         with tf.variable_scope('qc'): #Q for collision checking
             # for collision checking, not use for policy training
-            input_Qc = tf.concat(axis=1, values=[o, g])
+            input_Qc = tf.concat(axis=1, values=[o[:,0:14],o[:,-40:], g])
             self._input_Qc = input_Qc  # exposed for tests
-            self.Qc_tf = rnn(input_Qc, [self.hidden] * self.layers + [1])
+            self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
 

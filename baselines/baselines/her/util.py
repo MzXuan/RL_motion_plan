@@ -84,12 +84,12 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
         # return tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8)
 
     human_dim = 18
-    human_step = 10
+    human_step = 6
     batch_size = input.shape[0]
 
     in_human_flat = tf.expand_dims(input[:,14:14+human_dim*human_step],axis=2)
     print("shape of in flat", in_human_flat.shape)
-    input_human =tf.reshape(in_human_flat, shape = [-1,10, 18])
+    input_human =tf.reshape(in_human_flat, shape = [-1,human_step, 18])
 
     # input_human = tf.keras.layers.Reshape(target_shape=(batch_size,human_step, human_dim))(
     #     input[:,14:14+human_dim*human_step])

@@ -20,8 +20,8 @@ DEFAULT_PARAMS = {
     # ddpg
     'layers': 3,  # number of layers in the critic/actor networks
     'hidden': 256,  # number of neurons in each hidden layers
-    'network_class': 'baselines.her.actor_critic:ActorCritic',
-    # 'network_class': 'baselines.her.actor_critic:ActorCriticRNN',
+    # 'network_class': 'baselines.her.actor_critic:ActorCritic',
+    'network_class': 'baselines.her.actor_critic:ActorCriticRNN',
     'Q_lr': 0.001,  # critic learning rate
     'pi_lr': 0.001,  # actor learning rate
     'buffer_size': int(1E6),  # for experience replay
@@ -31,11 +31,11 @@ DEFAULT_PARAMS = {
     'scope': 'ddpg',  # can be tweaked for testing
     'relative_goals': False,
     # training
-    'n_cycles': 50,  # per epoch
+    'n_cycles': 20,  # per epoch
     'rollout_batch_size': 2,  # per mpi thread
     'n_batches': 40,  # training batches per cycle
     'batch_size': 256,  # per mpi thread, measured in transitions and reduced to even multiple of chunk_length.
-    'n_test_rollouts': 10,  # number of test rollouts per epoch, each consists of rollout_batch_size rollouts
+    'n_test_rollouts': 5,  # number of test rollouts per epoch, each consists of rollout_batch_size rollouts
     'test_with_polyak': False,  # run test episodes with the target network
     # exploration
     'random_eps': 0.3,  # percentage of time a random action is taken

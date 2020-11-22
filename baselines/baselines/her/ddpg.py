@@ -322,14 +322,15 @@ class DDPG(object):
 
     def _grads(self):
         # Avoid feed_dict here for performance!
-        critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad = self.sess.run([
+        critic_loss, actor_loss, Qc_loss, Q_grad, Qc_grad, pi_grad = self.sess.run([
             self.Q_loss_tf,
             self.main.Q_pi_tf,
+            self.Qc_loss_tf,
             self.Q_grad_tf,
             self.Qc_grad_tf,
             self.pi_grad_tf
         ])
-        return critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad
+        return critic_loss, actor_loss, Qc_loss, Q_grad, Qc_grad, pi_grad
 
     def _update(self, Q_grad, Qc_grad, pi_grad):
         self.Q_adam.update(Q_grad, self.Q_lr)
@@ -367,9 +368,15 @@ class DDPG(object):
     def train(self, stage=True):
         if stage:
             self.stage_batch()
-        critic_loss, actor_loss, Q_grad, Qc_grad, pi_grad = self._grads()
+        critic_loss, actor_loss, Qc_loss, Q_grad, Qc_grad, pi_grad = self._grads()
         self._update(Q_grad, Qc_grad, pi_grad)
+        self.Q_loss_log.append(critic_loss)
+        self.Qc_loss_log.append(Qc_loss)
         return critic_loss, actor_loss
+
+    def reset_loss_buff(self):
+        self.Q_loss_log = []
+        self.Qc_loss_log = []
 
     def _init_target_net(self):
         self.sess.run(self.init_target_net_op)
@@ -512,6 +519,8 @@ class DDPG(object):
         logs += [('stats_o/std', np.mean(self.sess.run([self.o_stats.std])))]
         logs += [('stats_g/mean', np.mean(self.sess.run([self.g_stats.mean])))]
         logs += [('stats_g/std', np.mean(self.sess.run([self.g_stats.std])))]
+        logs += [('stats_Q_loss/mean', np.mean(np.array(self.Q_loss_log)))]
+        logs += [('stats_Qc_loss/mean', np.mean(np.array(self.Qc_loss_log)))]
 
         if prefix != '' and not prefix.endswith('/'):
             return [(prefix + '/' + key, val) for key, val in logs]
