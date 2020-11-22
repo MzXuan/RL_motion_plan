@@ -40,8 +40,8 @@ class UR5EefRobot(UR5Robot):
 
 		self.last_position = [0,0,0]
 		self.ee_link = "ee_link"
-		self.lower_limits = [-6, -6, 0, -6, -6, -6]
-		self.upper_limits = [6, 0, 6, 0, 6, 6]
+		self.lower_limits = [-3.5, -3.5, -3.5, -3.5, -3.5, -6]
+		self.upper_limits = [3.5, 3.5, 3.5, 3.5, 3.5, 6]
 		# self.orientation = [0, 0.7071068, 0, 0.7071068]
 		# self.orientation = [0.707, 0, 0.707, 0]
 		self.orientation = [0, 0.841471, 0, 0.5403023]
@@ -140,20 +140,32 @@ class UR5EefRobot(UR5Robot):
 
 		self.robot_body.reset_pose(base_position, base_rotation)
 
-		ik_fn = ikfast_ur5.get_ik
+		# ik_fn = ikfast_ur5.get_ik
+		#
+		# pose = self._p.multiplyTransforms(positionA=[0, 0, 0], orientationA=[0, 0, -1, 0],
+		# 								  positionB=eef_position, orientationB=eef_orienration)
+		#
+		#
+		# position = np.asarray(pose[0])
+		# rotation = np.array(self._p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
+		# solutions = ik_fn(position, rotation, [1])
+		#
+		# n_conf_list = [normalize_conf(np.asarray([0,0,0,0,0,0]), conf) for conf in solutions]
+		#
+		# feasible_solutions = self.select_ik_solution(n_conf_list)
 
-		pose = self._p.multiplyTransforms(positionA=[0, 0, 0], orientationA=[0, 0, -1, 0],
-										  positionB=eef_position, orientationB=eef_orienration)
 
-
-		position = np.asarray(pose[0])
-		rotation = np.array(self._p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
-		solutions = ik_fn(position, rotation, [1])
-
-		n_conf_list = [normalize_conf(np.asarray([0,0,0,0,0,0]), conf) for conf in solutions]
-
-
+		#test pybullet ik
+		conf = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+														eef_position,eef_orienration
+														)
+		n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf)]
 		feasible_solutions = self.select_ik_solution(n_conf_list)
+
+
+
+
+
 		if feasible_solutions == []:
 			print("can not find feasible soltion for robot eef: ", eef_position)
 			return False

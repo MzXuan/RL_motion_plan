@@ -18,7 +18,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.02"/>
       </geometry>
       <material name="red"/>
     </visual>
@@ -26,7 +26,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.02"/>
       </geometry>
       <material name="red"/>
     </collision>
@@ -43,7 +43,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder radius="0.05" length="0.22"/>
+        <cylinder radius="0.02" length="0.22"/>
       </geometry>
       <material name="red"/>
     </visual>
@@ -51,7 +51,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder radius="0.05" length="0.22"/>
+        <cylinder radius="0.02" length="0.22"/>
       </geometry>
       <material name="red"/>
     </collision>
