@@ -20,11 +20,11 @@ from pybullet_planning import multiply, get_collision_fn
 from pybullet_planning import inverse_kinematics, sample_tool_ik
 from pybullet_planning import set_joint_positions, wait_for_duration
 from pybullet_planning import get_joint_positions, plan_waypoints_joint_motion, plan_joint_motion, compute_forward_kinematics
-from pybullet_planning.motion_planners import stomp
+from pybullet_planning.motion_planners.stomp import STOMP
 
 import ikfast_ur5
 
-
+import pyquaternion
 
 def test_moving_links_joints(viewer, env):
     # connect(use_gui=viewer)
@@ -55,6 +55,93 @@ def test_moving_links_joints(viewer, env):
 
 
     return robot, workspace, movable_joints
+
+def normalize_conf(start, end):
+    circle = 6.2831854
+    normal_e = []
+    for s, e in zip(start, end):
+        if e > s:
+            test = e - circle
+        else:
+            test = e + circle
+        normal_e.append(test if np.linalg.norm(test-s)<np.linalg.norm(e-s) else e)
+    return normal_e
+
+def min_dist_conf(initial_conf, conf_list):
+
+    dist_list = [np.linalg.norm([np.asarray(initial_conf)- np.asarray(conf)]) for conf in conf_list]
+    id_min = np.argmin(np.asarray(dist_list))
+    return conf_list[id_min]
+
+
+class UR5Planner():
+    def __init__(self, robot, workspace, ik_joints, env):
+        self.ur5_collision_fn(robot, ik_joints, workspace)
+        D = 3
+        N = 40
+        K = 10
+        self.stomp = STOMP(D, N, K, collision_fn = self.collision_fn, ik_fn = self.calculate_ur5_ik)
+
+
+    def calculate_ur5_ik(self, p):
+        ik_fn = ikfast_ur5.get_ik
+
+        Tb = np.array([[ -1, 0,  0, 0],
+                        [0, -1,  0, 0],
+                        [0,  0,  1, 0],
+                        [0,  0,  0, 1]])
+
+        ori = [0, 0.841471, 0, 0.5403023]
+        quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
+        T = quat.transformation_matrix
+        T[:3, 3] = p
+        Tp = np.matmul(Tb, T)
+        pos = Tp[:3, 3]
+        solutions = ik_fn(list(pos), Tp[:3, :3], [1])
+
+        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
+
+        conf = n_conf_list[0]
+        return conf
+
+
+    def stomp_planning(self, initial, end):
+        # initial_conf = self.calculate_ur5_ik(initial)
+
+        self.stomp.plan(initial, end)
+
+        return
+
+    def ur5_ik_fn(self, p):
+        ik_fn = ikfast_ur5.get_ik
+
+        Tb = np.array([[ -1, 0,  0, 0],
+                        [0, -1,  0, 0],
+                        [0,  0,  1, 0],
+                        [0,  0,  0, 1]])
+
+        ori = [0, 0.841471, 0, 0.5403023]
+        quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
+        T = quat.transformation_matrix
+        T[:3, 3] = p
+
+        Tp = np.matmul(Tb, T)
+
+        q8d = pyquaternion.Quaternion(matrix=Tp)
+        pos = Tp[:3, 3]
+        solutions = ik_fn(list(pos), [q8d[3], q8d[0], q8d[1],q8d[2]], [1])
+
+        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
+        result = n_conf_list[0]
+        return result
+
+
+    def ur5_collision_fn(self, robot, ik_joints, workspace):
+        self.collision_fn = get_collision_fn(robot, ik_joints, obstacles=[workspace],
+                                        attachments=[], self_collisions=True,
+                                        #    disabled_collisions=disabled_collisions,
+                                        #    extra_disabled_collisions=extra_disabled_collisions,
+                                        custom_limits={})
 
 
 def test_ur5_ik(robot, workspace, ik_joints, env):
@@ -105,7 +192,7 @@ def test_ur5_ik(robot, workspace, ik_joints, env):
                                     custom_limits={})
     # Let's check if our ik sampler is working properly
     sample_ik_fn = get_sample_ik_fn(robot, ik_fn, robot_base_link, ik_joints)
-    p_current = env.robot_current_p
+    p_current = [0.5,0.5,0.5]
     p = (env.goal, env.goal_orient)
 
     initial_conf = get_joint_positions(robot, ik_joints)
@@ -142,72 +229,59 @@ def test_ur5_ik(robot, workspace, ik_joints, env):
     final_conf = min_dist_conf(initial_conf, n_conf_list)
 
     print("start_cont is {} and final_conf is {}: ".format(initial_conf, final_conf))
-    path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
-                             self_collisions=True, diagnosis=True)
 
-    # for final_conf in n_conf_list:
-    #     print("start_cont is {} and final_conf is {}: ".format(initial_conf, final_conf))
-    #     path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
-    #                              self_collisions=True, diagnosis=True)
-
-    # path = plan_waypoints_joint_motion(robot, ik_joints, [final_conf], obstacles=[workspace],
-    #                          self_collisions=True)
-    if path is None:
-        print('se3 planning fails!')
-        return
-
-    # print("path is: ", path)
-    time_step = 0.1
-
-
-    cartesion_path = [compute_forward_kinematics(fk_fn, conf)[0] for conf in path]
-    print("cartesion path: ", cartesion_path)
-
-
-    for i, conf in enumerate(path):
-
-        env.render(mode="human")
-        cprint('conf: {}'.format(conf))
-        set_joint_positions(robot, ik_joints, conf)
-        wait_for_duration(time_step)
-
-    ##---------test cartesian motion planner-------##
-    # ee_poses=[p_current, p]
-    # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, sample_ik_fn, collision_fn)
-    # # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, bullet_ik_fn, collision_fn)
-    # print("path is: ", path)
     #
+    #
+    #
+    # # ----- test planner---------#
+    # path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
+    #                          self_collisions=True, diagnosis=True)
+    #
+    # # for final_conf in n_conf_list:
+    # #     print("start_cont is {} and final_conf is {}: ".format(initial_conf, final_conf))
+    # #     path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
+    # #                              self_collisions=True, diagnosis=True)
+    #
+    # # path = plan_waypoints_joint_motion(robot, ik_joints, [final_conf], obstacles=[workspace],
+    # #                          self_collisions=True)
     # if path is None:
-    #     cprint('ladder graph (w/o releasing dof) cartesian planning cannot find a plan!', 'red')
-    # else:
-    #     cprint('ladder graph (w/o releasing dof) cartesian planning find a plan!', 'green')
-    #     cprint('Cost: {}'.format(cost), 'yellow')
-    #     time_step =5
-    #     for conf in path:
-    #         env.render(mode="human")
-    #         cprint('conf: {}'.format(conf))
-    #         set_joint_positions(robot, ik_joints, conf)
-    #         wait_for_duration(time_step)
+    #     print('se3 planning fails!')
+    #     return
+    #
+    # # print("path is: ", path)
+    # time_step = 0.1
+    #
+    #
+    # cartesion_path = [compute_forward_kinematics(fk_fn, conf)[0] for conf in path]
+    # print("cartesion path: ", cartesion_path)
+    #
+    #
+    # for i, conf in enumerate(path):
+    #
+    #     env.render(mode="human")
+    #     cprint('conf: {}'.format(conf))
+    #     set_joint_positions(robot, ik_joints, conf)
+    #     wait_for_duration(time_step)
+    #
+    # ##---------test cartesian motion planner-------##
+    # # ee_poses=[p_current, p]
+    # # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, sample_ik_fn, collision_fn)
+    # # # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, bullet_ik_fn, collision_fn)
+    # # print("path is: ", path)
+    # #
+    # # if path is None:
+    # #     cprint('ladder graph (w/o releasing dof) cartesian planning cannot find a plan!', 'red')
+    # # else:
+    # #     cprint('ladder graph (w/o releasing dof) cartesian planning find a plan!', 'green')
+    # #     cprint('Cost: {}'.format(cost), 'yellow')
+    # #     time_step =5
+    # #     for conf in path:
+    # #         env.render(mode="human")
+    # #         cprint('conf: {}'.format(conf))
+    # #         set_joint_positions(robot, ik_joints, conf)
+    # #         wait_for_duration(time_step)
 
-def normalize_conf(start, end):
-    circle = 6.2831854
-    normal_e = []
-    for s, e in zip(start, end):
-        if e > s:
-            test = e - circle
-        else:
-            test = e + circle
-        normal_e.append(test if np.linalg.norm(test-s)<np.linalg.norm(e-s) else e)
-    return normal_e
 
-def min_dist_conf(initial_conf, conf_list):
-
-    dist_list = [np.linalg.norm([np.asarray(initial_conf)- np.asarray(conf)]) for conf in conf_list]
-    id_min = np.argmin(np.asarray(dist_list))
-    return conf_list[id_min]
-
-def stomp_planning(initial, end):
-    return 0
 
 
 def main(env, test):
@@ -229,7 +303,17 @@ def main(env, test):
     env.render(mode="human")
     obs = env.reset()
     #todo: start planning
-    stomp_planning(obs['achieved_goal'], obs['desired_goal'])
+    # stomp_planning(obs['achieved_goal'], obs['desired_goal'])
+
+    # ik_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+    #             "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
+    ik_joints = [1, 2, 3, 4, 5, 6]
+
+    ur5_planner = UR5Planner(robot = env.agents[0].robot_body.bodies[0], workspace = env.agents[1].robot_body.bodies[0],
+                             ik_joints = ik_joints ,env=env)
+
+    ur5_planner.stomp_planning(initial = obs['achieved_goal'], end = obs['desired_goal'])
+
 
     time.sleep(10)
 

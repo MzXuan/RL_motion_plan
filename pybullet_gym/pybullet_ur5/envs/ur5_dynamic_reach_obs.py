@@ -226,6 +226,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         #---- random goal -----#
         self.goal=np.zeros(3)
+        self.goal_orient = [0.0, 0.707, 0.0, -0.707]
 
         collision_flag = True
         while collision_flag:
@@ -254,6 +255,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
             self._p.stepSimulation()
             obs = self._get_obs()
+
 
 
             collision_flag = self._contact_detection()
