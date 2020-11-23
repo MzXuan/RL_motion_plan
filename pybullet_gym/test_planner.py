@@ -5,6 +5,7 @@ import os, glob
 import time
 import pybullet_ur5
 import gym
+import pybullet
 
 import numpy as np
 import tensorflow as tf
@@ -12,6 +13,7 @@ import random
 import matplotlib.pyplot as plt
 import pickle
 from termcolor import cprint
+
 
 
 from pybullet_planning import link_from_name, get_moving_links, get_link_name
@@ -76,7 +78,11 @@ def min_dist_conf(initial_conf, conf_list):
 
 class UR5Planner():
     def __init__(self, robot, workspace, ik_joints, env):
+        self.robot = robot
+        self.env = env
+        self.clientid = env.physicsClientId
         self.ur5_collision_fn(robot, ik_joints, workspace)
+
         D = 3
         N = 40
         K = 10
@@ -84,56 +90,94 @@ class UR5Planner():
 
 
     def calculate_ur5_ik(self, p):
-        ik_fn = ikfast_ur5.get_ik
+        #-------------bullet ik------------------------------
 
-        Tb = np.array([[ -1, 0,  0, 0],
-                        [0, -1,  0, 0],
-                        [0,  0,  1, 0],
-                        [0,  0,  0, 1]])
 
+        ee_link_name = self.env.agents[0].ee_link
+        robot_base_link_name = 'base_link'
         ori = [0, 0.841471, 0, 0.5403023]
-        quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
-        T = quat.transformation_matrix
-        T[:3, 3] = p
-        Tp = np.matmul(Tb, T)
-        pos = Tp[:3, 3]
-        solutions = ik_fn(list(pos), Tp[:3, :3], [1])
+        tool_link = link_from_name(self.robot, ee_link_name)
 
-        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
-
+        pb_q = pybullet.calculateInverseKinematics(self.robot, tool_link,
+                                                        p, ori, physicsClientId = self.clientid
+                                                        )
+        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in [pb_q]]
         conf = n_conf_list[0]
         return conf
+
+        # #------------------------ik fn--------------------
+        # ik_fn = ikfast_ur5.get_ik
+        #
+        # Tb = np.array([[ -1, 0,  0, 0],
+        #                 [0, -1,  0, 0],
+        #                 [0,  0,  1, 0],
+        #                 [0,  0,  0, 1]])
+        #
+        # ori = [0, 0.841471, 0, 0.5403023]
+        # quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
+        # T = quat.transformation_matrix
+        # T[:3, 3] = p
+        # Tp = np.matmul(Tb, T)
+        # pos = Tp[:3, 3]
+        # solutions = ik_fn(list(pos), Tp[:3, :3], [1])
+        #
+        # n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
+        #
+        # conf = n_conf_list[0]
+        # return conf
 
 
     def stomp_planning(self, initial, end):
         # initial_conf = self.calculate_ur5_ik(initial)
+        # print("initial conf", initial_conf)
 
-        self.stomp.plan(initial, end)
+        # ts = time.time()
 
+        ca_result = self.stomp.plan(initial, end)
+        # print("solving time is:", time.time()-ts)
+        for i in range(len(ca_result)-1):
+            pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
         return
 
+
     def ur5_ik_fn(self, p):
-        ik_fn = ikfast_ur5.get_ik
+        #-------------bullet ik------------------------------
 
-        Tb = np.array([[ -1, 0,  0, 0],
-                        [0, -1,  0, 0],
-                        [0,  0,  1, 0],
-                        [0,  0,  0, 1]])
 
-        ori = [0, 0.841471, 0, 0.5403023]
-        quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
-        T = quat.transformation_matrix
-        T[:3, 3] = p
+        ee_link_name = self.env.agents[0].ee_link
+        robot_base_link_name = 'base_link'
 
-        Tp = np.matmul(Tb, T)
-
-        q8d = pyquaternion.Quaternion(matrix=Tp)
-        pos = Tp[:3, 3]
-        solutions = ik_fn(list(pos), [q8d[3], q8d[0], q8d[1],q8d[2]], [1])
-
-        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
+        tool_link = link_from_name(self.robot, ee_link_name)
+        pb_q = inverse_kinematics(self.robot, tool_link, p)
+        if pb_q is None:
+            cprint('pb ik can\'t find an ik solution', 'red')
+        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in [pb_q]]
         result = n_conf_list[0]
         return result
+
+        #
+        #
+        # #----------------ik fn------------------------
+        # ik_fn = ikfast_ur5.get_ik
+        # Tb = np.array([[ -1, 0,  0, 0],
+        #                 [0, -1,  0, 0],
+        #                 [0,  0,  1, 0],
+        #                 [0,  0,  0, 1]])
+        #
+        # ori = [0, 0.841471, 0, 0.5403023]
+        # quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
+        # T = quat.transformation_matrix
+        # T[:3, 3] = p
+        #
+        # Tp = np.matmul(Tb, T)
+        #
+        # q8d = pyquaternion.Quaternion(matrix=Tp)
+        # pos = Tp[:3, 3]
+        # solutions = ik_fn(list(pos), [q8d[3], q8d[0], q8d[1],q8d[2]], [1])
+        #
+        # n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
+        # result = n_conf_list[0]
+        # return result
 
 
     def ur5_collision_fn(self, robot, ik_joints, workspace):
