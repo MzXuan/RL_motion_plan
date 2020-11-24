@@ -559,7 +559,7 @@ def load_demo():
 
 class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.025,
+                 early_stop=True, distance_threshold = 0.025,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         super(UR5DynamicReachPlannerEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,

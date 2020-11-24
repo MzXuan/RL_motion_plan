@@ -341,9 +341,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         point = self._p.multiplyTransforms(positionA = w_sb[:3], orientationA = w_sb[3:],
                                    positionB = trans2[:3], orientationB = trans2[3:])[0]
-
-
         return point
+
 
     def calc_state(self):
         link_positions = [self.parts[l].get_position() for l in self.obs_links]
