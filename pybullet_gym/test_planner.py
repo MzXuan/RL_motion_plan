@@ -15,6 +15,11 @@ import pickle
 from termcolor import cprint
 
 
+import sched
+import time
+import threading
+
+
 
 from pybullet_planning import link_from_name, get_moving_links, get_link_name
 from pybullet_planning import get_joint_names, get_movable_joints
@@ -81,22 +86,30 @@ class UR5Planner():
         self.robot = robot
         self.env = env
         self.clientid = env.physicsClientId
+        self.ik_joints = ik_joints
+        ee_link_name = self.env.agents[0].ee_link
+        self.tool_link = link_from_name(self.robot, ee_link_name)
+        # self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", \
+        #                       "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.ur5_collision_fn(robot, ik_joints, workspace)
 
-        D = 3
+        D = 6
         N = 40
+        dt = 0.05
+        max_joint_v = 0.5
+
         K = 10
-        self.stomp = STOMP(D, N, K, collision_fn = self.collision_fn, ik_fn = self.calculate_ur5_ik)
+        self.stomp = STOMP(D, N, K, dt, max_joint_v, collision_fn = self.collision_fn, ik_fn = self.calculate_ur5_ik)
 
 
     def calculate_ur5_ik(self, p):
         #-------------bullet ik------------------------------
 
 
-        ee_link_name = self.env.agents[0].ee_link
+
         robot_base_link_name = 'base_link'
         ori = [0, 0.841471, 0, 0.5403023]
-        tool_link = link_from_name(self.robot, ee_link_name)
+        tool_link = self.tool_link
 
         pb_q = pybullet.calculateInverseKinematics(self.robot, tool_link,
                                                         p, ori, physicsClientId = self.clientid
@@ -127,57 +140,34 @@ class UR5Planner():
         # return conf
 
 
+    def get_eef_from_conf(self, q):
+        for i in range(6):
+            pybullet.resetJointState(self.robot, self.ik_joints[i], q[i], 0, self.clientid)
+        pos = pybullet.getLinkState(self.robot, self.tool_link, physicsClientId = self.clientid)[0]
+        return pos
+
     def stomp_planning(self, initial, end):
-        # initial_conf = self.calculate_ur5_ik(initial)
-        # print("initial conf", initial_conf)
+        #---configuration space result---#
+        initial_conf = self.calculate_ur5_ik(initial)
+        end_conf = self.calculate_ur5_ik(end)
+        conf_result = self.stomp.plan(initial_conf, end_conf)
+        #for debug
+        ca_result = [self.get_eef_from_conf(q) for q in conf_result]
 
-        # ts = time.time()
 
-        ca_result = self.stomp.plan(initial, end)
-        # print("solving time is:", time.time()-ts)
         for i in range(len(ca_result)-1):
             pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
-        return
 
+        #reset to beginning
+        self.get_eef_from_conf(conf_result[0])
+        return conf_result
 
-    def ur5_ik_fn(self, p):
-        #-------------bullet ik------------------------------
+        #----cartesian result-----#
+        # ca_result = self.stomp.plan(initial, end)
+        # for i in range(len(ca_result)-1):
+        #     pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
+        # return
 
-
-        ee_link_name = self.env.agents[0].ee_link
-        robot_base_link_name = 'base_link'
-
-        tool_link = link_from_name(self.robot, ee_link_name)
-        pb_q = inverse_kinematics(self.robot, tool_link, p)
-        if pb_q is None:
-            cprint('pb ik can\'t find an ik solution', 'red')
-        n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in [pb_q]]
-        result = n_conf_list[0]
-        return result
-
-        #
-        #
-        # #----------------ik fn------------------------
-        # ik_fn = ikfast_ur5.get_ik
-        # Tb = np.array([[ -1, 0,  0, 0],
-        #                 [0, -1,  0, 0],
-        #                 [0,  0,  1, 0],
-        #                 [0,  0,  0, 1]])
-        #
-        # ori = [0, 0.841471, 0, 0.5403023]
-        # quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
-        # T = quat.transformation_matrix
-        # T[:3, 3] = p
-        #
-        # Tp = np.matmul(Tb, T)
-        #
-        # q8d = pyquaternion.Quaternion(matrix=Tp)
-        # pos = Tp[:3, 3]
-        # solutions = ik_fn(list(pos), [q8d[3], q8d[0], q8d[1],q8d[2]], [1])
-        #
-        # n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
-        # result = n_conf_list[0]
-        # return result
 
 
     def ur5_collision_fn(self, robot, ik_joints, workspace):
@@ -188,142 +178,62 @@ class UR5Planner():
                                         custom_limits={})
 
 
-def test_ur5_ik(robot, workspace, ik_joints, env):
 
-    ee_link_name = env.agents[0].ee_link
-    robot_base_link_name = 'base_link'
+class UR5Mover:
+    def __init__(self, robot, ik_joints, env):
+        self.robot = robot
+        self.env = env
+        self.clientid = env.physicsClientId
+        self.ik_joints = ik_joints
+        ee_link_name = self.env.agents[0].ee_link
+        self.tool_link = link_from_name(self.robot, ee_link_name)
+        self.n=0
+        self.dt = 0.1
 
-    tool_link = link_from_name(robot, ee_link_name)
-    robot_base_link = link_from_name(robot, robot_base_link_name)
+    def move(self, conf_traj):
+        self.conf_traj = conf_traj
 
+        self.move_step()
 
-    ik_fn = ikfast_ur5.get_ik
-    fk_fn = ikfast_ur5.get_fk
+        # for i in range(6):
+        #     pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
+        #                             target_p[i], target_v[i], positionGain=1, velocityGain=0.5)
+        # scheduler = sched.scheduler(time.time, time.sleep)
+        # self.schedule_it(scheduler, 1/self.dt, 10, self.move_step, conf_traj)
+        # scheduler.run()
 
-    # we have to specify ik fn wrapper and feed it into pychoreo
-    def get_sample_ik_fn(robot, ik_fn, robot_base_link, ik_joints, tool_from_root=None):
-        def sample_ik_fn(world_from_tcp):
-            if tool_from_root:
-                world_from_tcp = multiply(world_from_tcp, tool_from_root)
-            return sample_tool_ik(ik_fn, robot, ik_joints, world_from_tcp, robot_base_link, get_all=True)
-
-        return sample_ik_fn
-
-    def get_bullet_ik_fn(robot, tool_link):
-        def bullet_ik_fn(p):
-            return inverse_kinematics(robot, tool_link, p)
-        return bullet_ik_fn
-
-
-    # #bullet ik#
-    # bullet_ik_fn = get_bullet_ik_fn(robot, ik_fn)
-    # p = (env.goal, None)
-    # p_current = env.robot_current_p
-    # # p = (env.goal, env.goal_orient)
-    # p = (env.goal, None)
-    # initial_conf = get_joint_positions(robot, ik_joints)
-    #
-    # print("p start is {} and p end is {}  ".format(p_current, p))
-    #
-    # pb_q = inverse_kinematics(robot, tool_link, p)
-    # if pb_q is None:
-    #     cprint('pb ik can\'t find an ik solution', 'red')
-
-    collision_fn = get_collision_fn(robot, ik_joints, obstacles=[workspace],
-                                    attachments=[], self_collisions=True,
-                                    #    disabled_collisions=disabled_collisions,
-                                    #    extra_disabled_collisions=extra_disabled_collisions,
-                                    custom_limits={})
-    # Let's check if our ik sampler is working properly
-    sample_ik_fn = get_sample_ik_fn(robot, ik_fn, robot_base_link, ik_joints)
-    p_current = [0.5,0.5,0.5]
-    p = (env.goal, env.goal_orient)
-
-    initial_conf = get_joint_positions(robot, ik_joints)
-
-    print("p start is {} and p end is {}  ".format(p_current, p))
-
-    # print('-' * 5)
-    # initial_qs = sample_ik_fn(p_current)
-    # print("initial_qs: ", initial_qs)
-    # if collision_fn is not None:
-    #     initial_conf_list = [conf for conf in initial_qs if conf and not collision_fn(conf, diagnosis=False)]
-    # initial_conf = initial_conf_list[0]
-
-    qs = sample_ik_fn(p)
-    print(qs)
-
-    if qs is not None:
-        cprint('But Ikfast does find one! {}'.format(qs[0]), 'green')
-    else:
-        cprint('ikfast can\'t find an ik solution', 'red')
-
-    # we ignore self collision in this tutorial, the collision_fn only considers joint limit now
-    # See : https://github.com/yijiangh/pybullet_planning/blob/dev/tests/test_collisions.py
-    # for more info on examples on using collision function
-
-    if collision_fn is not None:
-        conf_list = [conf for conf in qs if conf and not collision_fn(conf, diagnosis=False)]
+        # self.schedule_it(1 / self.dt, 10, self.move_step, conf_traj)
 
 
-    set_joint_positions(robot, ik_joints, initial_conf)
+    def move_step(self):
+        print("self.n is", self.n)
 
-    n_conf_list= [normalize_conf(np.asarray(initial_conf),conf) for conf in conf_list]
+        conf_traj = self.conf_traj
 
-    final_conf = min_dist_conf(initial_conf, n_conf_list)
+        print("length of conf is: ", len(conf_traj))
+        if self.n>=len(conf_traj)-1:
+            print("cancel....")
+            # self.move_timer.cancel()
+            return
+        target_p = conf_traj[self.n,:]
+        target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt
+        for i in range(6):
+            pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
+                                    target_p[i], target_v[i],
+                                           positionGain=1, velocityGain=0.5, maxVelocity=0.8, physicsClientId=self.clientid)
+        pybullet.stepSimulation(physicsClientId=self.clientid)
+        self.n+=1
 
-    print("start_cont is {} and final_conf is {}: ".format(initial_conf, final_conf))
 
-    #
-    #
-    #
-    # # ----- test planner---------#
-    # path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
-    #                          self_collisions=True, diagnosis=True)
-    #
-    # # for final_conf in n_conf_list:
-    # #     print("start_cont is {} and final_conf is {}: ".format(initial_conf, final_conf))
-    # #     path = plan_joint_motion(robot, ik_joints, final_conf, obstacles=[workspace],
-    # #                              self_collisions=True, diagnosis=True)
-    #
-    # # path = plan_waypoints_joint_motion(robot, ik_joints, [final_conf], obstacles=[workspace],
-    # #                          self_collisions=True)
-    # if path is None:
-    #     print('se3 planning fails!')
-    #     return
-    #
-    # # print("path is: ", path)
-    # time_step = 0.1
-    #
-    #
-    # cartesion_path = [compute_forward_kinematics(fk_fn, conf)[0] for conf in path]
-    # print("cartesion path: ", cartesion_path)
-    #
-    #
-    # for i, conf in enumerate(path):
-    #
-    #     env.render(mode="human")
-    #     cprint('conf: {}'.format(conf))
-    #     set_joint_positions(robot, ik_joints, conf)
-    #     wait_for_duration(time_step)
-    #
-    # ##---------test cartesian motion planner-------##
-    # # ee_poses=[p_current, p]
-    # # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, sample_ik_fn, collision_fn)
-    # # # path, cost = plan_cartesian_motion_lg(robot, ik_joints, ee_poses, bullet_ik_fn, collision_fn)
-    # # print("path is: ", path)
-    # #
-    # # if path is None:
-    # #     cprint('ladder graph (w/o releasing dof) cartesian planning cannot find a plan!', 'red')
-    # # else:
-    # #     cprint('ladder graph (w/o releasing dof) cartesian planning find a plan!', 'green')
-    # #     cprint('Cost: {}'.format(cost), 'yellow')
-    # #     time_step =5
-    # #     for conf in path:
-    # #         env.render(mode="human")
-    # #         cprint('conf: {}'.format(conf))
-    # #         set_joint_positions(robot, ik_joints, conf)
-    # #         wait_for_duration(time_step)
+        self.move_timer = threading.Timer(self.dt, self.move_step).start()
+
+        print("target P", target_p)
+
+
+
+def move_human(env):
+    env.agents[1].apply_action(0)
+
 
 
 
@@ -346,17 +256,36 @@ def main(env, test):
     get_action = lambda obs: [0.1, 0.1, 0]
     env.render(mode="human")
     obs = env.reset()
-    #todo: start planning
-    # stomp_planning(obs['achieved_goal'], obs['desired_goal'])
 
+
+    #---------prepare planning------------------
     # ik_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
     #             "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
     ik_joints = [1, 2, 3, 4, 5, 6]
 
     ur5_planner = UR5Planner(robot = env.agents[0].robot_body.bodies[0], workspace = env.agents[1].robot_body.bodies[0],
                              ik_joints = ik_joints ,env=env)
+    ur5_mover = UR5Mover(robot = env.agents[0].robot_body.bodies[0], ik_joints = ik_joints ,env=env)
 
-    ur5_planner.stomp_planning(initial = obs['achieved_goal'], end = obs['desired_goal'])
+
+
+    #-------------start planning------------------------------
+    conf_result = ur5_planner.stomp_planning(initial = obs['achieved_goal'], end = obs['desired_goal'])
+
+    #-----start moving------
+    ur5_mover.move(conf_result)
+
+
+
+    dt = 0.1
+    replan_t = 1
+
+    for _ in range(50000):
+        for n in range(int(replan_t/dt)):
+            move_human(env)
+            # move_human(env)
+            time.sleep(0.1)
+        #todo: replan use a new thrading
 
 
     time.sleep(10)

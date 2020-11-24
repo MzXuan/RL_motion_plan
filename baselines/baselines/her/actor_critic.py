@@ -106,7 +106,10 @@ class ActorCriticRNN:
             self.Q_tf = rnn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
         with tf.variable_scope('qc'): #Q for collision checking
             # for collision checking, not use for policy training
-            input_Qc = tf.concat(axis=1, values=[o[:,0:14],o[:,-40:], g])
+            # input_Qc = tf.concat(axis=1, values=[o[:,0:14],o[:,-40:], g])
+            # self._input_Qc = input_Qc  # exposed for tests
+            # self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
+
+            input_Qc = tf.concat(axis=1, values=[o[:, 0:14], o[:, -40:], g])
             self._input_Qc = input_Qc  # exposed for tests
             self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
-
