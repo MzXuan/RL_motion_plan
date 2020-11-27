@@ -83,7 +83,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.04,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse"):
+                 reward_type="sparse", use_rnn = True):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -126,7 +126,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
 
-        self.USE_RNN = False
+        self.USE_RNN = use_rnn
         if self.USE_RNN:
             self.observation_space = gym.spaces.Dict(dict(
                 desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
@@ -393,6 +393,8 @@ class UR5DynamicReachObsEnv(gym.Env):
         if self.early_stop:
             if info["is_success"] or info["is_collision"]:
                 done = True
+
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs, reward, done, info
 

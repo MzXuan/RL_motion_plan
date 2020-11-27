@@ -62,15 +62,16 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.04,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse"):
+                 reward_type="sparse",  use_rnn = True):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
                  early_stop=early_stop, distance_threshold = distance_threshold,
                  max_obs_dist = max_obs_dist ,dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
-                 reward_type=reward_type)
+                 reward_type=reward_type,  use_rnn = use_rnn)
 
         # --- following demo----
         self.demo_data = load_demo()
         self.sphere_radius = 0.03
+        self.last_collision = False
         #--------------------------
 
     def _set_agents(self, max_obs_dist):
@@ -162,10 +163,110 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
         return obs
 
+    def _get_obs(self):
+        '''
+        :return:
+        obs_robot: [robot states, human states]
+        obs_humanoid: [human states, robot states]
+        info of every agent: [enf_effector_position, done]
+        done of every agent: [True or False]
+        '''
+        infos = {}
+        dones = [False for _ in range(self._n_agents)]
+        ur5_states = self.agents[0].calc_state()
+        ur5_eef_position = ur5_states[:3]
+        achieved_goal = ur5_eef_position
+        self.human_states = self.agents[1].calc_state()
+        infos['succeed'] = dones
+
+
+        delta_p = np.asarray([(p-ur5_eef_position) for p in self.human_states])
+        d = np.linalg.norm(delta_p,axis=1)
+        min_dist = np.min(d)
+
+        #clip obs
+        obs_human = delta_p.copy()
+        indices = np.where(d > self.max_obs_dist_threshold)
+        obs_human[indices] = np.full((1,3), self.max_obs_dist_threshold+0.2)
+
+
+        try:
+            self.goal, _,self.goal_indices = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
+        except:
+            print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
+
+
+        self.obs_min_dist = min_dist
+        self.last_human_obs_list.append(np.asarray(obs_human.copy()).flatten())
+        # print("shape of human states: ", np.asarray(self.last_human_obs_list).shape)
+
+        if self.USE_RNN:
+            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
+
+            # print("human_obs_input", self.last_human_obs_list)
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+        else:
+            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+
+        # print("shape of obs is: ", obs.shape)
+
+        self.last_obs_human = obs_human.copy()
+
+        return {
+            'observation': obs.copy(),
+            'achieved_goal': achieved_goal.copy(),
+            'desired_goal': self.goal.copy(),
+        }
+
     def draw_path(self, path):
         for i in range(len(path)-1):
             self._p.addUserDebugLine(path[i], path[i+1],
                                      lineColorRGB=[0.8,0.8,0.0],lineWidth=4 )
+
+    def set_sphere(self, r):
+        self.sphere_radius = r
+
+    def update_r(self, obs_lst, q_lst, draw=True):
+        # for obstacles in self.move_obstacles:
+        #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+        #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+
+        q_lst = np.asarray(q_lst)
+        try:
+            min_q = min(q_lst)
+            print("min_q", min_q)
+        except:
+            self.last_collision = False
+            self.set_sphere(0.1)
+            return 0
+
+        if min_q<-0.025:
+            self.last_collision = True
+            self.set_sphere(0.5)
+            #normalize Q for color
+            color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
+
+            if draw:
+                self.draw_q(obs_lst, q_lst, color_lst)
+            # for obs, q, c in zip(obs_lst, q_lst, color_lst):
+            #     if q<-0.025:
+            #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
+            #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
+        elif self.last_collision is False:
+            self.set_sphere(0.1)
+        else:
+            self.last_collision=False
+            return 0
+
+    def draw_q(self, obs_lst, q_lst, color_lst):
+        for obs, q, c in zip(obs_lst, q_lst, color_lst):
+            if q < -0.025:
+                self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
+                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
+                                         lifeTime=2)
 
 
 
