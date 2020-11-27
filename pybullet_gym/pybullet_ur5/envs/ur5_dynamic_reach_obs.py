@@ -125,7 +125,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
 
-        self.USE_RNN = True
+        self.USE_RNN = False
         if self.USE_RNN:
             self.observation_space = gym.spaces.Dict(dict(
                 desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),

@@ -47,6 +47,7 @@ class FileHuman(object):
         self.file_index =0
         self.index = 0
         self.reset_flag=True
+        self.play_end = False
         # self.joint_queue = self.joint_queue_list[0]
 
         self.update_joint_queue()
@@ -62,6 +63,7 @@ class FileHuman(object):
             self.file_index = np.random.choice(range(len(self.len_list)))
             self.index = np.random.randint(low=0, high=int(self.len_list[self.file_index]/2))
             self.reset_flag=True
+            self.play_end = True
         else:
             self.reset_flag=False
         self.joints = self.file_list[self.file_index][self.index]
@@ -69,15 +71,19 @@ class FileHuman(object):
 
 
 
+
+
+
 class URDFHumanoid(robot_bases.URDFBasedRobot):
     self_collision = True
     foot_list = ["right_foot", "left_foot"]  # "left_hand", "right_hand"
 
-    def __init__(self,max_obs_dist_threshold, obs_dim=27, load=False):
+    def __init__(self, max_obs_dist_threshold, obs_dim=27, load=False, test=True):
         self.power = 0.41
         self.camera_x = 0
 
-        self.load =load
+        self.load = load
+        self.test = test
 
         self.left_moveable_joints = ["LShoulderSY", "LShoulderSZ",
                                 'LShoulderX', 'LShoulderY','LShoulderZ',
@@ -90,21 +96,24 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.obs_links = ["ShoulderLeft","ElbowLeft","WristLeft","ShoulderRight","ElbowRight","WristRight"]
 
         self.human_base_link = "SpineBase"
-        if self.load:
+        if self.load and self.test:
             print("use recorded data")
-            # self.human_file = FileHuman(file = '/home/xuan/demos/human_data_normal_py3.pkl')
+            self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=range(1, 7))
+        elif self.load:
+            print("use recorded data")
             self.human_file = FileHuman(file='/home/xuan/demos/human_data_', index_range=range(2,9))
 
         else:
             print("use data from camera")
             self.human_model = HumanModel()
 
+        trans_mat = pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
+        trans_mat[:3, 3] = [-0.81, -0.55, 0.75]
+        self.trans_matrix = trans_mat
+
 
         high = np.inf * np.ones([obs_dim])
         self.observation_space = gym.spaces.Box(-high, high)
-        trans_mat =  pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
-        trans_mat[:3,3]=[-1.301, -0.295, 0.652]
-        self.trans_matrix = trans_mat
 
         self.robot_name = 'humanoid'
 
@@ -155,44 +164,47 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                 self.parts, self.jdict, self.ordered_joints, self.robot_body = self.addToScene(
                     self._p, self.human_id)
 
+        if self.test:
+            self.apply_action(0)
 
-        if rob_goal is not None:
-            self.rob_goal=rob_goal
-            self.human_base_reset(rob_goal)
-
-            #
-            #
-            # human_goal = rob_goal.copy()
-            # human_goal[2]=0
-            # human_goal = human_goal+[np.random.uniform(-0.15,0.15), np.random.uniform(-0.15,0.15),0]
-            #
-            # self.human_goal = human_goal
-            #
-            # r = np.linalg.norm(human_goal[:2])+np.random.uniform(0.3, 0.4)
-            # if r< 0.5:
-            #     r = 0.5
-            # print("robot goal ", human_goal)
-            # print("np...",np.linalg.norm(human_goal[:2]) )
-            # print("r", r)
-            #
-            # bp = r*human_goal/np.linalg.norm(human_goal)
-            # bp[2] +=np.random.uniform(-0.2, 0.1)
-            #
-            # y = [0,0,1]
-            # z = [-bp[0],-bp[1],0]/np.linalg.norm([-bp[0],-bp[1],0])
-            # x = np.cross(y,z)
-            #
-            # rotation = np.linalg.inv(np.asarray([x,y,z]))
-            # rot_q = pyquaternion.Quaternion(matrix=rotation)
-            #
-            # self.robot_specific_reset(self._p, base_position=bp, base_rotation=[rot_q[1],rot_q[2],rot_q[3],rot_q[0]])
         else:
-            self.robot_specific_reset(self._p, base_position = [0, -0.8, 0.2], base_rotation=base_rotation)
-            self.human_base_velocity=np.zeros(3)
+            if rob_goal is not None:
+                self.rob_goal=rob_goal
+                self.human_base_reset(rob_goal)
+
+            else:
+                self.robot_specific_reset(self._p, base_position = [0, -0.8, 0.2], base_rotation=base_rotation)
+                self.human_base_velocity=np.zeros(3)
 
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
+
+
+    def trans_point(self,p):
+        point=np.zeros(4)
+        point[:3] = p
+        point[3] = 1
+        p_new = np.matmul(self.trans_matrix, point)[:3]
+        return p_new
+
+    def trans_pose(self,pos, ori):
+        # ori: xyzw
+
+        point=np.zeros(4)
+        point[:3] = pos
+        point[3] = 1
+        mat0 = pyquaternion.Quaternion(ori[3],ori[0],ori[1],ori[2]).transformation_matrix
+        mat0[:,3]=point
+
+        trans_new = np.matmul(self.trans_matrix, mat0)
+        pos = trans_new[:3,3]
+        rot = pyquaternion.Quaternion(matrix=trans_new) #w,x,y,z
+        # rot_q =
+
+        return pos,[rot[1],rot[2],rot[3],rot[0]]
+
+
 
     def human_base_reset(self, rob_goal):
         '''
@@ -220,7 +232,6 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.reach_flag= True
 
         self.robot_specific_reset(self._p, base_position=human_goal, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
-
 
 
         # success = False
@@ -366,38 +377,50 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             joints = self.human_file.joints
             reset_flag = self.human_file.reset_flag
 
-            #1. move human base
+            #1.-----move human base--------
+            if self.test:
+                if self.human_file.play_end:
+                    print("!!!!!!!!!!!!!!!!end test!!!!!")
+                    return
+                #testing using real human data
+                base = joints['SpineBase']
+                pos, ori = self.trans_pose(pos = base[:3], ori = base[3:])
+                self.robot_specific_reset(self._p, base_position=pos,
+                                          base_rotation=ori)
 
-            pos, orn = self._p.getBasePositionAndOrientation(self.human_id)
-            theta = np.arctan2(pos[1], pos[0])
 
-
-            if theta<self.theta_range[1]:
-                self.reach_flag=True
-
-            elif theta>self.theta_range[0]:
-                self.reach_flag=False
-
-            if self.reach_flag:
-                v = self.v_theta+np.random.uniform(-0.01,0.01)
             else:
-                v= -self.v_theta+np.random.uniform(-0.01,0.01)
+                #training
+                pos, orn = self._p.getBasePositionAndOrientation(self.human_id)
+                theta = np.arctan2(pos[1], pos[0])
 
 
-            t = theta+v
-            pos_new=np.zeros(3)
-            pos_new[0] = self.r*np.cos(t)
-            pos_new[1] = self.r * np.sin(t)
-            pos_new[2] = pos[2]
+                if theta<self.theta_range[1]:
+                    self.reach_flag=True
 
-            y = [0, 0, 1]
-            z = [-pos_new[0], -pos_new[1], 0] / np.linalg.norm([-pos_new[0], -pos_new[1], 0])
-            x = np.cross(y, z)
-            rotation = np.linalg.inv(np.asarray([x, y, z]))
-            rot_q = pyquaternion.Quaternion(matrix=rotation)
+                elif theta>self.theta_range[0]:
+                    self.reach_flag=False
 
-            self.robot_specific_reset(self._p, base_position=pos_new,
-                                      base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
+                if self.reach_flag:
+                    v = self.v_theta+np.random.uniform(-0.01,0.01)
+                else:
+                    v= -self.v_theta+np.random.uniform(-0.01,0.01)
+
+
+                t = theta+v
+                pos_new=np.zeros(3)
+                pos_new[0] = self.r*np.cos(t)
+                pos_new[1] = self.r * np.sin(t)
+                pos_new[2] = pos[2]
+
+                y = [0, 0, 1]
+                z = [-pos_new[0], -pos_new[1], 0] / np.linalg.norm([-pos_new[0], -pos_new[1], 0])
+                x = np.cross(y, z)
+                rotation = np.linalg.inv(np.asarray([x, y, z]))
+                rot_q = pyquaternion.Quaternion(matrix=rotation)
+
+                self.robot_specific_reset(self._p, base_position=pos_new,
+                                          base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
             # if abs(pos[0]) > hrange[0] or abs(pos[1]) > hrange[1] \
             #         or abs(pos[2]) > hrange[2]:

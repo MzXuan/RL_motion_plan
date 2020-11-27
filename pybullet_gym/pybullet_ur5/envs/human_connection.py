@@ -230,7 +230,7 @@ class HumanModel(object):
 
             self.last_time_stamp = current_time
             self.count +=1
-        # print("value dict", self.joints)
+        print("value dict", self.joints)
         # print("joint velocity", self.joint_velocity['HandRight'])
 
 
@@ -271,7 +271,7 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
-            with open('/home/xuan/demos/human_data_8.pkl', 'wb') as handle:
+            with open('/home/xuan/demos/human_test_6.pkl', 'wb') as handle:
                 pickle.dump(joint_data_lst, handle, protocol=2)
                 print("save successfully")
 

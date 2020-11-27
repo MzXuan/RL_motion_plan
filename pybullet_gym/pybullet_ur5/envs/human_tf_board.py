@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 name2 = name_list[i-1]
             joint = file_human.joint_queue[name]
             br.sendTransform((joint[:3]),
-                             (joint[3], joint[4], joint[5],joint[6]),
+                             (joint[3], joint[4], joint[5],joint[6]),  #x,y,z, w
                              rospy.Time.now(),
                              name,
                             "world")
