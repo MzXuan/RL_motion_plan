@@ -127,6 +127,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.human_iter = 0
 
 
+
         super(URDFHumanoid, self).__init__(
             'kinect_human/upper_body.urdf', "human", action_dim=0, obs_dim=obs_dim, fixed_base=1,
             self_collision=True)

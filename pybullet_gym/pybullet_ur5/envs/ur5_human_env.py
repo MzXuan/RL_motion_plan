@@ -48,7 +48,7 @@ def move_to_start(ur5, data):
 
 def move_along_path(ur5, ws_path_gen, dt=0.02):
     toolp,_,_ = ur5.get_tool_state()
-    next_goal, next_vel = ws_path_gen.next_goal(toolp, 0.08)
+    next_goal, next_vel,_ = ws_path_gen.next_goal(toolp, 0.08)
 
     ref_vel = (next_goal-toolp)
     print(f"current goal {toolp}, next goal {next_goal}, next_vel {next_vel}, ref_vel {ref_vel}")
@@ -147,7 +147,8 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #-------set goal from record demo-------------
         rob_eef = ar[:3]
         self.final_goal = self.demo_data[-1]['toolp']
-        self.goal = self.ws_path_gen.next_goal(rob_eef, self.sphere_radius)
+        self.goal,_,_ = self.ws_path_gen.next_goal(rob_eef, self.sphere_radius)
+        print("goal,", self.goal)
         #------------------------------------------
 
         self._p.stepSimulation()
