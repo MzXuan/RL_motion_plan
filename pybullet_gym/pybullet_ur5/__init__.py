@@ -55,13 +55,7 @@ register(
     reward_threshold=20000.0,
 )
 
-register(
-    id='UR5HumanPlanEnv-v0',
-    entry_point= 'pybullet_ur5.envs.ur5_human_env:UR5HumanPlanEnv',
-    max_episode_steps=200,
-    # max_episode_steps=400,
-    reward_threshold=20000.0,
-)
+
 
 
 

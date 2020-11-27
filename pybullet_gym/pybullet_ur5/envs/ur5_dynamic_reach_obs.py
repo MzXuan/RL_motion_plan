@@ -97,8 +97,9 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.frame_skip = 8
 
 
-        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip),
-                       URDFHumanoid(max_obs_dist, load = True)]
+        self._set_agents(max_obs_dist)
+        # self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load = True)]
 
         self.arm_states = None
 
@@ -148,6 +149,10 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.last_human_obs_list = L(np.zeros((6,18)))
 
+
+    def _set_agents(self, max_obs_dist):
+        self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip),
+                       URDFHumanoid(max_obs_dist, load = True)]
 
 
 
@@ -567,153 +572,6 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
                  max_obs_dist = max_obs_dist ,dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
                  reward_type=reward_type)
 
-        # self.iter_num = 0
-        # self.max_episode_steps = max_episode_steps
-        #
-        # self.scene = None
-        # self.physicsClientId = -1
-        # self.ownsPhysicsClient = 0
-        # self.isRender = render
-        #
-        # self.hz = 240
-        # self.sim_dt = 1.0 / self.hz
-        # self.frame_skip = 8
-        #
-        # self.agent = UR5Robot(dt= self.sim_dt*self.frame_skip)
-        #
-        # self._n_agents = 1
-        # self.seed()
-        # self._cam_dist = 1
-        # self._cam_yaw = 0
-        # self._cam_pitch = -30
-        #
-        # self.target_off_set=0.2
-        # self.distance_threshold = distance_threshold #for success
-        #
-        # self.max_obs_dist_threshold = max_obs_dist
-        # self.safe_dist_lowerlimit= dist_lowerlimit
-        # self.safe_dist_upperlimit = dist_upperlimit
-        #
-        # # self.distance_threshold = distance_threshold
-        # self.early_stop=early_stop
-        # self.reward_type = reward_type
-        #
-        # self.n_actions = 3
-        # self.action_space = gym.spaces.Box(-1., 1., shape=( self.n_actions,), dtype='float32')
-        # self.observation_space = gym.spaces.Dict(dict(
-        #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-        #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(3,), dtype='float32'),
-        #     observation=gym.spaces.Box(-np.inf, np.inf, shape=(54,), dtype='float32'),
-        # ))
-        #
-        # # Set observation and action spaces
-        # self.agents_observation_space = self.agent.observation_space
-        # self.agents_action_space = self.agent.action_space
-
-
-    #
-    # def reset(self):
-    #     self.last_robot_joint = np.zeros(6)
-    #     self.current_safe_dist = self._set_safe_distance()
-    #
-    #
-    #     if (self.physicsClientId < 0):
-    #         self.ownsPhysicsClient = True
-    #
-    #         if self.isRender:
-    #             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
-    #         else:
-    #             self._p = bullet_client.BulletClient()
-    #
-    #         self._p.setGravity(0, 0, -9.81)
-    #         self._p.setTimeStep(self.sim_dt)
-    #
-    #         self.physicsClientId = self._p._client
-    #         self._p.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
-    #
-    #
-    #     if self.scene is None:
-    #         self.scene = self.create_single_player_scene(self._p)
-    #     if not self.scene.multiplayer and self.ownsPhysicsClient:
-    #         self.scene.episode_restart(self._p)
-    #
-    #     self.camera_adjust()
-    #
-    #     self.agent.scene = self.scene
-    #
-    #
-    #     self.frame = 0
-    #     self.iter_num = 0
-    #
-    #     self.robot_base = [0, 0, 0]
-    #
-    #     #---- random goal -----#
-    #     self.goal=np.zeros(3)
-    #     self.goal_orient = [0.0, 0.707, 0.0, -0.707]
-    #
-    #
-    #     reset_success_flag = False
-    #     while not reset_success_flag:
-    #
-    #         x = np.random.uniform(-0.6, 0.6)
-    #         y = np.random.uniform(-0.6, 0.6)
-    #         z = np.random.uniform(0.1, 0.5)
-    #
-    #         self.robot_start_eef = [x, y, z]
-    #
-    #         self.goal = self.random_set_goal()
-    #
-    #         #initial joint states from file
-    #         initial_conf =[3.2999753952026367, -1.6784923712359827, 1.9284234046936035,
-    #                        -1.791076962147848, -1.490676228200094, -0.0026128927813928726]
-    #
-    #         final_conf = [0.4617765545845032, -1.4414008299456995, 1.71844482421875,
-    #                       -1.7910407225238245, -1.490664307271139, -0.002636734639303029]
-    #
-    #
-    #         ar = self.agent.reset(self._p, client_id=self.physicsClientId,base_position=self.robot_base,
-    #                                   base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef, joint_angle = initial_conf )
-    #
-    #         if ar is False:
-    #             # print("failed to find valid robot solution of pose", robot_eef_pose)
-    #             continue
-    #
-    #         self._p.stepSimulation()
-    #         obs = self._get_obs()
-    #         # collision_flag = self._contact_detection()
-    #         # print("collision_flag is :", collision_flag)
-    #
-    #         # ---- for motion planner---#
-    #         collisions = self._p.getContactPoints()
-    #         if len(collisions) != 0:
-    #             reset_success_flag = False
-    #             continue
-    #
-    #
-    #         start_time = time.time()
-    #         result = self.motion_planner(initial_conf = initial_conf, final_conf = final_conf)
-    #         print("use time: ", time.time()-start_time)
-    #         if result is not None:
-    #             (joint_path, cartesian_path) = result
-    #             self.reference_traj = np.asarray(joint_path)
-    #             reset_success_flag = True
-    #         #
-    #         #     print("cartesian_path", cartesian_path)
-    #             #todo: draw cartesian path; and move through joint path
-    #             # self.draw_path(cartesian_path)
-    #
-    #             self.goal = np.asarray(cartesian_path[2])
-    #         print("initial conf",initial_conf)
-    #         for obstacles in self.move_obstacles:
-    #             obstacles.reset(self._p, self.goal)
-    #         print("ar ", ar)
-    #
-    #     s = []
-    #     s.append(ar)
-    #     self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0, 0, 0, 1])
-    #
-    #
-    #     return obs
 
     def draw_path(self, path):
         for i in range(len(path)-1):
@@ -753,25 +611,6 @@ class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
         sample_ik_fn = get_sample_ik_fn(robot, ik_fn, robot_base_link, ik_joints)
         p_end = (self.goal, self.goal_orient)
 
-        # # calculate initial ik and end ik
-        # initial_conf = get_joint_positions(robot, ik_joints)
-        #
-        # #calculate end ik
-        # qs = sample_ik_fn(p_end)
-        # if collision_fn is not None:
-        #
-        #     conf_list = [conf for conf in qs if conf and not collision_fn(conf, diagnosis=True)]
-        # try:
-        #     conf_list[0]
-        # except:
-        #     return None
-        #
-        # n_conf_list = [normalize_conf(np.asarray(initial_conf), conf) for conf in conf_list]
-        # final_conf = min_dist_conf(initial_conf, n_conf_list)
-
-        # print("initial conf: ", initial_conf)
-        # print("goal is: ", self.goal)
-        # print("fina_conf: ", final_conf)
 
         # set robot to initial configuration
         if initial_conf is not None:
