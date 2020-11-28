@@ -139,6 +139,9 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
                                   base_rotation=[0.0005629, 0.707388, 0.706825, 0.0005633])
 
         #------prepare path-----------------
+
+
+
         path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
         vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
         self.ws_path_gen = WsPathGen(path, vel_path, self.distance_threshold)
@@ -370,7 +373,13 @@ class UR5HumanPlanEnv(UR5DynamicReachObsEnv):
                                   base_rotation=[0.0005629, 0.707388, 0.706825, 0.0005633])
 
         #------prepare reference path-----------------
-        self.reference_path = [self.demo_data[i]['robjp'] for i in range(len(self.demo_data))]
+        for i in range(len(self.demo_data) - 1):
+            if np.linalg.norm(np.array(self.demo_data[i]['robjp']) -np.array(self.demo_data[i+1]['robjp']))<0.01:
+                start_idx = i
+            else:
+                break
+
+        self.reference_path = [self.demo_data[i]['robjp'] for i in range(start_idx, len(self.demo_data))]
 
         self.goal = self.demo_data[-1]['toolp']
 

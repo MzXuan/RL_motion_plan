@@ -136,29 +136,14 @@ class UR5Planner():
             self.steps_count.append(step-1)
         print("steps count", self.steps_count)
 
-        #for debug
+        #-----for visual debug----
         ca_result = [self.get_eef_from_conf(q) for q in conf_result]
-
-
         for i in range(len(ca_result)-1):
             pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
 
-        #reset to beginning
-        # print("initial conf: ", initial_conf)
-        # print("end conf: ", end_conf)
-        #
-        # print("conf result[0]", conf_result[0])
-        # self.get_eef_from_conf(conf_result[0])
+        #------reset to beginning----
         self.set_conf(initial_conf)
         return conf_result
-
-        #----cartesian result-----#
-        # ca_result = self.stomp.plan(initial, end)
-        # for i in range(len(ca_result)-1):
-        #     pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
-        # return
-
-
 
 
     def ur5_collision_fn(self, robot, ik_joints, workspace):
@@ -179,7 +164,7 @@ class UR5Mover:
         ee_link_name = self.env.agents[0].ee_link
         self.tool_link = link_from_name(self.robot, ee_link_name)
         self.n=0
-        self.dt = 0.1
+        self.dt = 0.2
 
     def reset_conf_traj(self, conf_traj):
         self.n = 0
@@ -207,7 +192,7 @@ class UR5Mover:
         #     # self.move_timer.cancel()
         #     return
 
-        # print("self.n is", self.n)
+        print("self.n is", self.n)
 
         conf_traj = self.conf_traj
 
@@ -218,10 +203,12 @@ class UR5Mover:
             return
         target_p = conf_traj[self.n,:]
         target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt
+
+        print("target v: ", target_v)
         for i in range(6):
             pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
                                     target_p[i], target_v[i],
-                                           positionGain=1, velocityGain=0.5, maxVelocity=0.8, physicsClientId=self.clientid)
+                                           positionGain=1, velocityGain=0.5, maxVelocity=1.5, physicsClientId=self.clientid)
         pybullet.stepSimulation(physicsClientId=self.clientid)
         self.n+=1
 
@@ -276,13 +263,13 @@ def main(env, test):
 
 
     #-------------start planning------------------------------
-    initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
-    end_conf = ur5_planner.calculate_ur5_ik( obs['desired_goal'])
-    conf_result = ur5_planner.stomp_planning(initial_conf = initial_conf, end_conf = end_conf, initial_trajectory=initial_ref_path)
+
+    conf_result = ur5_planner.stomp_planning(initial_conf = initial_ref_path[0], end_conf = initial_ref_path[-1], initial_trajectory=initial_ref_path)
 
     #debug
 
     #-----start moving------
+    print("length of conf result", len(conf_result))
     ur5_mover.reset_conf_traj(conf_result)
     ur5_mover.move_step()
 
