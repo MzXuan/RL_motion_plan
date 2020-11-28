@@ -9,7 +9,8 @@ import numpy as np
 import random
 import time
 import pybullet
-import cv2
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 import pandas as pd
@@ -250,7 +251,7 @@ def main(args):
         pybullet.connect(pybullet.DIRECT)
         # env = gym.make("UR5RealTestEnv-v0")
         env = gym.make("UR5HumanEnv-v0")
-        env.render("human")
+        # env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -267,34 +268,59 @@ def main(args):
         eef_current = obs['observation'][:3]
         goal = obs['desired_goal']
 
+        collision_lst = []
+        success_count = 0
+        success_steps = []
         traj_count = 0
-        while traj_count < 300:
+        s=0
+        while traj_count < 100:
             try:
 
                 # update env for several steps (let obstacle move)
                 actions, Q, q, _ = model.step_with_q(obs)
                 obs, rew, done, info = env.step(actions)
+                s+=1
+
+                collision_lst.append(info['is_collision'])
 
                 done_any = done.any() if isinstance(done, np.ndarray) else done
                 if done_any:
-                    print("info", info)
+
+                    # print("info", info)
+                    # print("collision_lst is: ", collision_lst)
+                    print("number of collision steps: ", sum(collision_lst))
+                    print("success info",info["is_success"])
+                    if sum(collision_lst) <=3 and info['is_success']:
+                        success_count+=1
+                        success_steps.append(s)
                     env.agents[0].stop()
-                    time.sleep(2)
+
                     print("-------------end step {}---------".format(traj_count))
+                    s=0
                     traj_count+=1
                     seed +=1
                     obs = env.reset()
+                    collision_lst = []
+                    print("current success rate is: ", success_count / traj_count)
+                    print("current mean success steps is: ", np.array(success_steps).mean())
+                    print("current std success steps is: ", np.array(success_steps).std())
+
+
+
                             # break
 
+
+
                 #----todo: generate batch obs---#
-                start_time = time.time()
+
+                # start_time = time.time()
                 line_traj = []
                 q_lst=[]
 
                 path_remain = env.ws_path_gen.path_remain.copy()
                 _,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.5, remove=False)
-                print("goal indices: ", goal_indices)
-                if goal_indices>10:
+                # print("goal indices: ", goal_indices)
+                if goal_indices>15:
                     for i in range(0, goal_indices, int(goal_indices/15)):
                         try:
                             p=path_remain[i]
@@ -305,17 +331,22 @@ def main(args):
                         # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
 
 
-                    print("time cost 1 is: ", time.time() - start_time)
+                    # print("time cost 1 is: ", time.time() - start_time)
                     q_lst = model.get_collision_q(line_traj)
-                    print("time cost 3 is: ", time.time() - start_time)
+                    # print("time cost 3 is: ", time.time() - start_time)
                 env.update_r(line_traj, q_lst, draw=False)
-
 
 
                 # time.sleep(200)
             except KeyboardInterrupt:
+                print("success rate is: ", success_count / traj_count)
+                print("mean success steps is: ", np.array(success_steps).mean())
+                print("std success steps is: ", np.array(success_steps).std())
                 env.close()
                 raise
+        print("success rate is: ", success_count / traj_count)
+        print("mean success steps is: ", np.array(success_steps).mean())
+        print("std success steps is: ", np.array(success_steps).std())
 
 
 

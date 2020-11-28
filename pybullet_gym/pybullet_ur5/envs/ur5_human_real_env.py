@@ -517,10 +517,10 @@ class UR5RealTestEnv(gym.Env):
         if mode != "rgb_array":
             return np.array([])
 
-        base_pos = [0, 0, 10]
-        if (hasattr(self, 'robot')):
-            if (hasattr(self.robot, 'body_xyz')):
-                base_pos = self.robot.body_xyz
+        # base_pos = [0, 0, 10]
+        # if (hasattr(self, 'robot')):
+        #     if (hasattr(self.robot, 'body_xyz')):
+        #         base_pos = self.robot.body_xyz
 
         # self._p.setRealTimeSimulation(0)
         view_matrix = self.viewmat

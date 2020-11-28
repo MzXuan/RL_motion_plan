@@ -60,14 +60,14 @@ class WsPathGen():
                 if idx < len(dists)-1:
                     dists = dists[idx+1:]
                     self.path_remain = self.path_remain[idx+1:]
-                    print("remove data after idx:", idx)
+                    # print("remove data after idx:", idx)
 
         d_min = np.min(dists)
 
         if d_min > r:
             r+=d_min
 
-        print("r is: ", r)
+        # print("r is: ", r)
 
         indices = np.where(dists < r)[0]
         # print(indices)
@@ -85,8 +85,6 @@ class WsPathGen():
                 return self.path_remain[-1], self.vel_path_remain[-1], i
 
         #no interection, return the waypoint with minimum distance
-        # todo: or expand r please
-        ####!!!!todo!!!! problem here######
         idx = np.argmin(dists)
         return self.path_remain[idx], self.vel_path_remain[idx], idx
 

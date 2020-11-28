@@ -83,7 +83,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=False, distance_threshold = 0.04,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse", use_rnn = True):
+                 reward_type="sparse", use_rnn = False):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -152,8 +152,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def _set_agents(self, max_obs_dist):
         self.agents = [UR5EefRobot(dt= self.sim_dt*self.frame_skip),
-                       URDFHumanoid(max_obs_dist, load = True)]
-
+                       URDFHumanoid(max_obs_dist, load = True, test=False)]
 
 
 

@@ -78,7 +78,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
     self_collision = True
     foot_list = ["right_foot", "left_foot"]  # "left_hand", "right_hand"
 
-    def __init__(self, max_obs_dist_threshold, obs_dim=27, load=False, test=True):
+    def __init__(self, max_obs_dist_threshold, obs_dim=27, load=False, test=False):
         self.power = 0.41
         self.camera_x = 0
 
@@ -97,8 +97,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         self.human_base_link = "SpineBase"
         if self.load and self.test:
-            print("use recorded data")
+            print("use test recorded data")
             self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=range(1, 7))
+            # self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=[1])
         elif self.load:
             print("use recorded data")
             self.human_file = FileHuman(file='/home/xuan/demos/human_data_', index_range=range(2,9))
@@ -108,7 +109,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             self.human_model = HumanModel()
 
         trans_mat = pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
-        trans_mat[:3, 3] = [-0.81, -0.55, 0.75]
+        trans_mat[:3, 3] = [-0.95, -0.85, 0.75]
         self.trans_matrix = trans_mat
 
 
@@ -380,9 +381,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
             #1.-----move human base--------
             if self.test:
-                if self.human_file.play_end:
-                    print("!!!!!!!!!!!!!!!!end test!!!!!")
-                    return
+                # if self.human_file.play_end:
+                #     print("!!!!!!!!!!!!!!!!end test!!!!!")
+                #     return
                 #testing using real human data
                 base = joints['SpineBase']
                 pos, ori = self.trans_pose(pos = base[:3], ori = base[3:])

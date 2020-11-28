@@ -1,8 +1,4 @@
-import os
-import joblib
-import pybullet
 import os, glob
-import time
 import pybullet_ur5
 import gym
 import pybullet
@@ -10,12 +6,9 @@ import pybullet
 import numpy as np
 import tensorflow as tf
 import random
-import matplotlib.pyplot as plt
-import pickle
-from termcolor import cprint
+from scipy.interpolate import CubicSpline
 
 
-import sched
 import time
 import threading
 
@@ -30,38 +23,8 @@ from pybullet_planning import get_joint_positions, plan_waypoints_joint_motion, 
 from pybullet_planning.motion_planners.stomp import STOMP
 
 import ikfast_ur5
-
 import pyquaternion
 
-def test_moving_links_joints(viewer, env):
-    # connect(use_gui=viewer)
-    # sim_id = connect(use_gui=False)
-    client_id = env.physicsClientId
-    print("client id should be: ", client_id)
-    robot = env.agents[0].robot_id
-    workspace = env.agents[1].objects[0]
-    print("robot id is {} and workspace id is: {} ". format(robot, workspace))
-
-    assert isinstance(robot, int) and isinstance(workspace, int)
-
-
-    movable_joints = get_movable_joints(robot)
-    assert isinstance(movable_joints, list) and all([isinstance(mj, int) for mj in movable_joints])
-    assert 6 == len(movable_joints)
-    assert [b'shoulder_pan_joint', b'shoulder_lift_joint', b'elbow_joint', b'wrist_1_joint', b'wrist_2_joint',
-            b'wrist_3_joint'] == \
-           get_joint_names(robot, movable_joints)
-
-    moving_links = get_moving_links(robot, movable_joints)
-    assert isinstance(moving_links, list) and all([isinstance(ml, int) for ml in moving_links])
-    assert 10== len(moving_links)
-    link_names = [get_link_name(robot, link) for link in moving_links]
-    assert ['shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link',
-            'ee_link', 'rg2_body_link', 'rg2_eef_link', 'tool0'] == \
-           link_names
-
-
-    return robot, workspace, movable_joints
 
 
 def normalize_conf(start, end):
@@ -94,18 +57,35 @@ class UR5Planner():
         # self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", \
         #                       "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.ur5_collision_fn(robot, ik_joints, workspace)
-
+        self.reset_stomp()
         self.steps_count =[]
 
 
 
     def reset_stomp(self, n=40 ):
         D = 6
-        N = n
+        self.N = n
         dt = 0.05
         max_joint_v = 0.5
         K = 10
-        self.stomp = STOMP(D, N, K, dt, max_joint_v, collision_fn=self.collision_fn, ik_fn=self.calculate_ur5_ik)
+        self.stomp = STOMP(D, self.N, K, dt, max_joint_v, collision_fn=self.collision_fn, ik_fn=self.calculate_ur5_ik)
+
+
+    def cubic_spline(self, path, n):
+        '''
+        interpolate line longer than 40 time steps to 40 steps
+        '''
+        # path_length = np.zeros(self.D)
+        # for i in range(self.N-1):
+        #     path_length += abs(path[i+1,:]-path[i,:])
+        # min_t =np.max(path_length/self.max_joint_v)
+
+        total_steps = len(path)
+        x = np.linspace(0,total_steps,total_steps)
+        cs = CubicSpline(x, path)
+        xs = np.linspace(0,total_steps, n)
+        splined_path = cs(xs)
+        return splined_path
 
 
     def calculate_ur5_ik(self, p):
@@ -121,27 +101,6 @@ class UR5Planner():
         n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in [pb_q]]
         conf = n_conf_list[0]
         return conf
-
-        # #------------------------ik fn--------------------
-        # ik_fn = ikfast_ur5.get_ik
-        #
-        # Tb = np.array([[ -1, 0,  0, 0],
-        #                 [0, -1,  0, 0],
-        #                 [0,  0,  1, 0],
-        #                 [0,  0,  0, 1]])
-        #
-        # ori = [0, 0.841471, 0, 0.5403023]
-        # quat = pyquaternion.Quaternion(ori[3], ori[0], ori[1], ori[2])
-        # T = quat.transformation_matrix
-        # T[:3, 3] = p
-        # Tp = np.matmul(Tb, T)
-        # pos = Tp[:3, 3]
-        # solutions = ik_fn(list(pos), Tp[:3, :3], [1])
-        #
-        # n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf) for conf in solutions]
-        #
-        # conf = n_conf_list[0]
-        # return conf
 
 
     def get_eef_from_conf(self, q):
@@ -167,7 +126,11 @@ class UR5Planner():
         if initial_trajectory is None:
             self.reset_stomp()
         else:
-            self.reset_stomp(len(initial_trajectory))
+            if len(initial_trajectory)>40:
+                initial_trajectory = self.cubic_spline(initial_trajectory, 40)
+                #todo: spline
+            else:
+                self.reset_stomp(len(initial_trajectory))
         conf_result, step = self.stomp.plan(initial_conf, end_conf, initial_trajectory)
         if step >1:
             self.steps_count.append(step-1)
@@ -177,8 +140,8 @@ class UR5Planner():
         ca_result = [self.get_eef_from_conf(q) for q in conf_result]
 
 
-        # for i in range(len(ca_result)-1):
-        #     pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
+        for i in range(len(ca_result)-1):
+            pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
 
         #reset to beginning
         # print("initial conf: ", initial_conf)
@@ -194,6 +157,7 @@ class UR5Planner():
         # for i in range(len(ca_result)-1):
         #     pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
         # return
+
 
 
 
@@ -268,11 +232,8 @@ class UR5Mover:
         # print("end conf is", conf_traj[-1,:])
 
 
-
 def move_human(env):
     env.agents[1].apply_action(0)
-
-
 
 
 
@@ -294,6 +255,7 @@ def main(env, test):
     get_action = lambda obs: [0.1, 0.1, 0]
     env.render(mode="human")
     obs = env.reset()
+    initial_ref_path = env.reference_path
 
 
     #---------prepare planning------------------
@@ -305,13 +267,18 @@ def main(env, test):
                              ik_joints = ik_joints ,env=env)
     ur5_mover = UR5Mover(robot = env.agents[0].robot_body.bodies[0], ik_joints = ik_joints ,env=env)
 
+    def update_plan(initial_conf, end_conf, initial_trajectory):
+        conf_result = ur5_planner.stomp_planning(initial_conf=initial_conf, end_conf=end_conf, initial_trajectory=initial_trajectory)
+        ur5_mover.reset_conf_traj(conf_result)
+        print("conf result, ", conf_result)
+        ur5_mover.move_step()
+
 
 
     #-------------start planning------------------------------
     initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
     end_conf = ur5_planner.calculate_ur5_ik( obs['desired_goal'])
-    conf_result = ur5_planner.stomp_planning(initial_conf = initial_conf, end_conf = end_conf)
-
+    conf_result = ur5_planner.stomp_planning(initial_conf = initial_conf, end_conf = end_conf, initial_trajectory=initial_ref_path)
 
     #debug
 
@@ -320,87 +287,79 @@ def main(env, test):
     ur5_mover.move_step()
 
 
-    def update_plan(initial_conf, end_conf, initial_trajectory):
-        conf_result = ur5_planner.stomp_planning(initial_conf=initial_conf, end_conf=end_conf, initial_trajectory=initial_trajectory)
-        ur5_mover.reset_conf_traj(conf_result)
-        print("conf result, ", conf_result)
-        ur5_mover.move_step()
+    #--------joint planning-----------#
 
-
-    # t1.start()
-
-    dt = 0.1
-    replan_t = 3
-
-    for _ in range(50000):
-        try:
-            for n in range(int(replan_t/dt)):
-                move_human(env)
-                # move_human(env)
-                pybullet.stepSimulation(physicsClientId=env.physicsClientId)
-                time.sleep(dt)
-
-            initial_conf = ur5_planner.get_current_conf()
-            if np.linalg.norm(np.array(initial_conf)-np.array(end_conf)) < 0.1:
-                print("env reset")
-                obs = env.reset()
-                initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
-                end_conf = ur5_planner.calculate_ur5_ik(obs['desired_goal'])
-                t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, None])
-                t1.start()
-            else:
-                result = ur5_mover.conf_traj - initial_conf
-                error = np.linalg.norm(result, axis=1)
-                id_min = np.argmin(error)
-                ref_traj = ur5_mover.conf_traj[id_min:,:]
-                print("ref traj shape is: ", ref_traj.shape)
-                if len(ref_traj) <=5:
-                    pass
-
-                else:
-                    t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
-                    t1.start()
-
-        except KeyboardInterrupt:
-            print(ur5_planner.steps_count)
-            return
-
-
-
-
-
-    # robot, workspace, movable_joints = test_moving_links_joints(False, env)
-
-    # test_ur5_ik(robot, workspace,movable_joints, env)
-    # obs = env.reset()
-    # print("obs initial", obs)
-    # id=0
-    #
-    # env.render()
-    # ## start simulation loop ##
-    #
-    # obs = env.get_obs()
-    # while(id<300):
+    # dt = 0.2
+    # replan_t = 2
+    # # moving and replanning
+    # for _ in range(50000):
     #     try:
-    #         time.sleep(0.1)
-    #         action = get_action(obs)
-    #         obs, rew, done, info = env.step(action)
+    #         for n in range(int(replan_t / dt)):
+    #             move_human(env)
+    #             pybullet.stepSimulation(physicsClientId=env.physicsClientId)
+    #             time.sleep(dt)
     #
-    #         if done == True:
-    #             #reset all
-    #             print("reset")
-    #             env.reset()
-    #             id+=1
-    #             seed+=1
-    #             np.random.seed(seed)
-    #             tf.set_random_seed(seed)
-    #             random.seed(seed)
+    #         initial_conf = ur5_planner.get_current_conf()
+    #         if np.linalg.norm(np.array(initial_conf) - np.array(end_conf)) < 0.1:
+    #             print("env reset")
+    #             obs = env.reset()
+    #             initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
+    #             end_conf = ur5_planner.calculate_ur5_ik(obs['desired_goal'])
+    #             t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, None])
+    #             t1.start()
+    #         else:
+    #             result = ur5_mover.conf_traj - initial_conf
+    #             error = np.linalg.norm(result, axis=1)
+    #             id_min = np.argmin(error)
+    #             ref_traj = ur5_mover.conf_traj[id_min:, :]
+    #             print("ref traj shape is: ", ref_traj.shape)
+    #             if len(ref_traj) <= 5:
+    #                 pass
     #
-    #         env.render()
+    #             else:
+    #                 t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
+    #                 t1.start()
     #
     #     except KeyboardInterrupt:
-    #         env.close()
-    #         raise
+    #         print(ur5_planner.steps_count)
+    #         return
+
+    # #------------ cartesian start and end planning---------#
+    # dt = 0.2
+    # replan_t = 2
+    #
+    # for _ in range(50000):
+    #     try:
+    #         for n in range(int(replan_t/dt)):
+    #             move_human(env)
+    #             pybullet.stepSimulation(physicsClientId=env.physicsClientId)
+    #             time.sleep(dt)
+    #
+    #         initial_conf = ur5_planner.get_current_conf()
+    #         if np.linalg.norm(np.array(initial_conf)-np.array(end_conf)) < 0.1:
+    #             print("env reset")
+    #             obs = env.reset()
+    #             initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
+    #             end_conf = ur5_planner.calculate_ur5_ik(obs['desired_goal'])
+    #             t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, None])
+    #             t1.start()
+    #         else:
+    #             result = ur5_mover.conf_traj - initial_conf
+    #             error = np.linalg.norm(result, axis=1)
+    #             id_min = np.argmin(error)
+    #             ref_traj = ur5_mover.conf_traj[id_min:,:]
+    #             print("ref traj shape is: ", ref_traj.shape)
+    #             if len(ref_traj) <=5:
+    #                 pass
+    #
+    #             else:
+    #                 t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
+    #                 t1.start()
+    #
+    #     except KeyboardInterrupt:
+    #         print(ur5_planner.steps_count)
+    #         return
+    #
 
 
 
@@ -408,10 +367,10 @@ def main(env, test):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--env", type=str, default="UR5HumanCollisionEnv-v0")
-    # parser.add_argument("--env", type=str, default="PyUR5ReachEnv-v2")
-    # parser.add_argument("--env", type=str, default="UR5HumanSharedEnv-v0")
-    parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
+
+    parser.add_argument("--env", type=str, default="UR5HumanPlanEnv-v0")
+
+    # parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
 
     parser.add_argument("--test", action="store_true")
 
