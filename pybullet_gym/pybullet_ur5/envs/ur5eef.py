@@ -192,11 +192,11 @@ class UR5EefRobot(UR5Robot):
 		while not success and try_count<10:
 			try_count +=1
 
-			js_end= js_start.copy()+ random_n([-1.57, -0.6, -1, -0.5, -0.5, -1.57],[1.57, 0.6, 0.1, 0.5, 0.5, 1.57])
+			js_end= js_start.copy()+ random_n([-1.57, -0.6, -1, -0.5, -0.5, -1.57],[1.57, 0.6, 0.5, 0.5, 0.5, 1.57])
 
 			for i, joint_name in enumerate(self.select_joints):
 				self.jdict[joint_name].reset_position(js_end[i], 0)
-			# self._p.stepSimulation()
+			self._p.stepSimulation()
 			ee_end_state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)
 
 			ca_e_ori = np.array(self._p.getEulerFromQuaternion(list(ee_end_state[1])))

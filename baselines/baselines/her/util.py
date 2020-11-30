@@ -87,7 +87,7 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
     human_step = 6
     batch_size = input.shape[0]
 
-    in_human_flat = tf.expand_dims(input[:,14:14+human_dim*human_step],axis=2)
+    in_human_flat = tf.expand_dims(input[:,21:21+human_dim*human_step],axis=2)
     print("shape of in flat", in_human_flat.shape)
     input_human =tf.reshape(in_human_flat, shape = [-1,human_step, 18])
 
@@ -96,7 +96,7 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
 
     out,state = tf.keras.layers.RNN(gru_cell(reuse), return_sequences=True, return_state=True)(input_human)
 
-    input = tf.concat([input[:,:14],input[:,14+human_dim*human_step:], state], axis=1)
+    input = tf.concat([input[:,:21],input[:,21+human_dim*human_step:], state], axis=1)
 
 
 
