@@ -259,6 +259,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
+        last_obs = obs
         # env.render("rgb_array")
 
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
@@ -271,8 +272,13 @@ def main(args):
         collision_lst = []
         success_count = 0
         success_steps = []
+        traj_len_lst = []
         traj_count = 0
         s=0
+        traj_len = 0
+
+        time_lst = []
+        start_time = time.time()
         while traj_count < 100:
             try:
 
@@ -280,7 +286,8 @@ def main(args):
                 actions, Q, q, _ = model.step_with_q(obs)
                 obs, rew, done, info = env.step(actions)
                 s+=1
-
+                traj_len += np.linalg.norm(obs['observation'][:3] - last_obs['observation'][:3])
+                last_obs = obs
                 collision_lst.append(info['is_collision'])
 
                 done_any = done.any() if isinstance(done, np.ndarray) else done
@@ -293,22 +300,26 @@ def main(args):
                     if sum(collision_lst) <=3 and info['is_success']:
                         success_count+=1
                         success_steps.append(s)
+                        time_lst.append(time.time() - start_time)
+                        traj_len_lst.append(traj_len)
                     env.agents[0].stop()
 
                     print("-------------end step {}---------".format(traj_count))
                     s=0
                     traj_count+=1
                     seed +=1
+                    traj_len = 0
                     obs = env.reset()
+                    last_obs = obs
                     collision_lst = []
+                    start_time = time.time()
+                    print("current mean of traj len is: ", np.array(traj_len_lst).mean())
+                    print("current std of traj len is: ", np.array(traj_len_lst).std())
+                    print("current mean reach time is: ", np.array(time_lst).mean())
+                    print("current std of reach time is: ", np.array(time_lst).std())
                     print("current success rate is: ", success_count / traj_count)
                     print("current mean success steps is: ", np.array(success_steps).mean())
                     print("current std success steps is: ", np.array(success_steps).std())
-
-
-
-                            # break
-
 
 
                 #----todo: generate batch obs---#

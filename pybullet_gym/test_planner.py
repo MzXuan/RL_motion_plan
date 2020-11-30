@@ -15,15 +15,17 @@ import threading
 
 
 from pybullet_planning import link_from_name, get_moving_links, get_link_name
-from pybullet_planning import get_joint_names, get_movable_joints
 from pybullet_planning import multiply, get_collision_fn
-from pybullet_planning import inverse_kinematics, sample_tool_ik
-from pybullet_planning import set_joint_positions, wait_for_duration
-from pybullet_planning import get_joint_positions, plan_waypoints_joint_motion, plan_joint_motion, compute_forward_kinematics
 from pybullet_planning.motion_planners.stomp import STOMP
 
 import ikfast_ur5
 import pyquaternion
+
+global ITERATION_STEPS_COUNT
+
+
+
+ITERATION_STEPS_COUNT = []
 
 
 
@@ -58,7 +60,7 @@ class UR5Planner():
         #                       "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.ur5_collision_fn(robot, ik_joints, workspace)
         self.reset_stomp()
-        self.steps_count =[]
+        # self.steps_count =[]
 
 
 
@@ -66,7 +68,7 @@ class UR5Planner():
         D = 6
         self.N = n
         dt = 0.05
-        max_joint_v = 0.5
+        max_joint_v = 0.7
         K = 10
         self.stomp = STOMP(D, self.N, K, dt, max_joint_v, collision_fn=self.collision_fn, ik_fn=self.calculate_ur5_ik)
 
@@ -131,15 +133,16 @@ class UR5Planner():
                 #todo: spline
             else:
                 self.reset_stomp(len(initial_trajectory))
-        conf_result, step = self.stomp.plan(initial_conf, end_conf, initial_trajectory)
-        if step >1:
-            self.steps_count.append(step-1)
-        print("steps count", self.steps_count)
+        conf_result, iter_step = self.stomp.plan(initial_conf, end_conf, initial_trajectory)
+        # if iter_step >0:
+        ITERATION_STEPS_COUNT.append(iter_step)
+        #     self.steps_count.append(step-1)
+        # print("steps count", self.steps_count)
 
         #-----for visual debug----
-        ca_result = [self.get_eef_from_conf(q) for q in conf_result]
-        for i in range(len(ca_result)-1):
-            pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
+        # ca_result = [self.get_eef_from_conf(q) for q in conf_result]
+        # for i in range(len(ca_result)-1):
+        #     pybullet.addUserDebugLine(ca_result[i] , ca_result[i+1], physicsClientId=self.clientid)
 
         #------reset to beginning----
         self.set_conf(initial_conf)
@@ -164,52 +167,46 @@ class UR5Mover:
         ee_link_name = self.env.agents[0].ee_link
         self.tool_link = link_from_name(self.robot, ee_link_name)
         self.n=0
-        self.dt = 0.2
+        self.dt = 0.1
+        self.collision_lst = []
 
     def reset_conf_traj(self, conf_traj):
         self.n = 0
         self.conf_traj = conf_traj
-        # self.move_step(cancel=False)
 
-    # def move(self, conf_traj):
-    #     self.conf_traj = conf_traj
-    #
-    #     self.move_step()
+        self.move_step(cancel=False)
 
-        # for i in range(6):
-        #     pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
-        #                             target_p[i], target_v[i], positionGain=1, velocityGain=0.5)
-        # scheduler = sched.scheduler(time.time, time.sleep)
-        # self.schedule_it(scheduler, 1/self.dt, 10, self.move_step, conf_traj)
-        # scheduler.run()
-
-        # self.schedule_it(1 / self.dt, 10, self.move_step, conf_traj)
 
 
     def move_step(self, cancel=False):
-        # if cancel:
-        #     print("cancel....")
-        #     # self.move_timer.cancel()
-        #     return
+        if cancel:
+            print("cancel....")
+            # self.move_timer.cancel()
+            return
 
-        print("self.n is", self.n)
+        # print("self.n is", self.n)
 
         conf_traj = self.conf_traj
 
         # print("length of conf is: ", len(conf_traj))
         if self.n>=len(conf_traj)-1:
-            print("cancel due to max n ")
+            # print("cancel due to max n ")
             # self.move_timer.cancel()
             return
         target_p = conf_traj[self.n,:]
         target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt
 
-        print("target v: ", target_v)
+        # print("target v: ", target_v)
         for i in range(6):
             pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
                                     target_p[i], target_v[i],
-                                           positionGain=1, velocityGain=0.5, maxVelocity=1.5, physicsClientId=self.clientid)
+                                           positionGain=1, velocityGain=0.5, maxVelocity=1.2, physicsClientId=self.clientid)
         pybullet.stepSimulation(physicsClientId=self.clientid)
+        contact = self.env.is_contact()
+        # print("contact", contact)
+        self.collision_lst.append(contact)
+
+        # print("contact", contact)
         self.n+=1
 
 
@@ -219,8 +216,13 @@ class UR5Mover:
         # print("end conf is", conf_traj[-1,:])
 
 
+
+
 def move_human(env):
     env.agents[1].apply_action(0)
+
+    pybullet.stepSimulation(physicsClientId=env.physicsClientId)
+    threading.Timer(0.1, move_human, args=[env]).start()
 
 
 
@@ -241,7 +243,8 @@ def main(env, test):
 
     get_action = lambda obs: [0.1, 0.1, 0]
     env.render(mode="human")
-    obs = env.reset()
+    last_obs = env.reset()
+
     initial_ref_path = env.reference_path
 
 
@@ -257,59 +260,124 @@ def main(env, test):
     def update_plan(initial_conf, end_conf, initial_trajectory):
         conf_result = ur5_planner.stomp_planning(initial_conf=initial_conf, end_conf=end_conf, initial_trajectory=initial_trajectory)
         ur5_mover.reset_conf_traj(conf_result)
-        print("conf result, ", conf_result)
+        # print("conf result, ", conf_result)
         ur5_mover.move_step()
 
 
-
     #-------------start planning------------------------------
-
+    end_conf = initial_ref_path[-1]
     conf_result = ur5_planner.stomp_planning(initial_conf = initial_ref_path[0], end_conf = initial_ref_path[-1], initial_trajectory=initial_ref_path)
 
     #debug
-
     #-----start moving------
-    print("length of conf result", len(conf_result))
+    # print("length of conf result", len(conf_result))
     ur5_mover.reset_conf_traj(conf_result)
     ur5_mover.move_step()
 
 
     #--------joint planning-----------#
 
-    # dt = 0.2
-    # replan_t = 2
-    # # moving and replanning
-    # for _ in range(50000):
-    #     try:
-    #         for n in range(int(replan_t / dt)):
-    #             move_human(env)
-    #             pybullet.stepSimulation(physicsClientId=env.physicsClientId)
-    #             time.sleep(dt)
-    #
-    #         initial_conf = ur5_planner.get_current_conf()
-    #         if np.linalg.norm(np.array(initial_conf) - np.array(end_conf)) < 0.1:
-    #             print("env reset")
-    #             obs = env.reset()
-    #             initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
-    #             end_conf = ur5_planner.calculate_ur5_ik(obs['desired_goal'])
-    #             t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, None])
-    #             t1.start()
-    #         else:
-    #             result = ur5_mover.conf_traj - initial_conf
-    #             error = np.linalg.norm(result, axis=1)
-    #             id_min = np.argmin(error)
-    #             ref_traj = ur5_mover.conf_traj[id_min:, :]
-    #             print("ref traj shape is: ", ref_traj.shape)
-    #             if len(ref_traj) <= 5:
-    #                 pass
-    #
-    #             else:
-    #                 t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
-    #                 t1.start()
-    #
-    #     except KeyboardInterrupt:
-    #         print(ur5_planner.steps_count)
-    #         return
+    move_human(env)
+
+    dt = 0.03
+    replan_t = 2
+    # moving and replanning
+
+
+    success_count = 0
+
+
+    time_lst = []
+    traj_len_lst = []
+    start_time = time.time()
+
+    traj_count = 1
+    traj_len = 0
+    while traj_count < 100:
+        try:
+            for _ in range(int(replan_t / dt)):
+                initial_conf = ur5_planner.get_current_conf()
+
+                if np.linalg.norm(np.array(initial_conf) - np.array(end_conf))<0.1:
+                    done = True
+                else:
+                    done = False
+
+                obs = env.get_obs()
+                traj_len+=np.linalg.norm(obs['observation'][:3]-last_obs['observation'][:3])
+                last_obs=obs
+
+                time.sleep(dt)
+
+                    # time.sleep(dt)
+
+            #---------------- if done or replan-----------------------
+            if done:
+
+
+                # reset env, count success rate, reset planner, etc...
+                print("-------------------reach..traj count {}..env reset---------------".format(traj_count))
+                print("number of collision steps: ", sum(ur5_mover.collision_lst))
+
+                print("collision list", ur5_mover.collision_lst)
+                if sum(ur5_mover.collision_lst) == 0:
+                    time_lst.append(time.time()-start_time)
+                    success_count += 1
+                    traj_len_lst.append(traj_len)
+
+
+
+                print("current success rate is: ", success_count / traj_count)
+                print("current mean of traj len is: ", np.array(traj_len_lst).mean())
+                print("current std of traj len is: ", np.array(traj_len_lst).std())
+                print("current mean reach time is: ", np.array(time_lst).mean())
+                print("current std of reach time is: ", np.array(time_lst).std())
+                print("current mean of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).mean())
+                print("current std of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).std())
+                print("------------------------------------------------------")
+
+                last_obs = env.reset()
+                start_time = time.time()
+                traj_count += 1
+                traj_len = 0
+
+                ur5_mover.collision_lst = []
+
+
+
+                end_conf = initial_ref_path[-1]
+                initial_ref_path = env.reference_path
+                ur5_planner = UR5Planner(robot=env.agents[0].robot_body.bodies[0],
+                                         workspace=env.agents[1].robot_body.bodies[0],
+                                         ik_joints=ik_joints, env=env)
+                conf_result = ur5_planner.stomp_planning(initial_conf=initial_ref_path[0],
+                                                         end_conf=initial_ref_path[-1],
+                                                         initial_trajectory=initial_ref_path)
+                ur5_mover.reset_conf_traj(conf_result)
+                ur5_mover.move_step()
+
+            else:
+                #online replan
+
+
+                result = ur5_mover.conf_traj - initial_conf
+                error = np.linalg.norm(result, axis=1)
+                id_min = np.argmin(error)
+                ref_traj = ur5_mover.conf_traj[id_min:, :]
+                print("ref traj shape is: ", ref_traj.shape)
+                if len(ref_traj) <= 5:
+                    pass
+
+                else:
+                    t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
+                    t1.start()
+
+
+        except KeyboardInterrupt:
+            print(ur5_planner.steps_count)
+            return
+
+    time.sleep(1)
 
     # #------------ cartesian start and end planning---------#
     # dt = 0.2

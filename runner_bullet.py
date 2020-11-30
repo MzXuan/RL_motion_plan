@@ -351,6 +351,8 @@ def main(args):
         not_reach_count =0
 
 
+
+
         time_list = []
         while traj_count < 300:
             time.sleep(0.03)

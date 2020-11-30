@@ -307,7 +307,7 @@ class UR5HumanPlanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
                  early_stop=True, distance_threshold = 0.04,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse",  use_rnn = False):
+                 reward_type="sparse",  use_rnn = True):
         super(UR5HumanPlanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
                  early_stop=early_stop, distance_threshold = distance_threshold,
                  max_obs_dist = max_obs_dist ,dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
@@ -397,3 +397,39 @@ class UR5HumanPlanEnv(UR5DynamicReachObsEnv):
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
+
+    def step(self, action):
+        self.iter_num += 1
+
+        # self.agents[0].apply_action(action)
+        # self.agents[1].apply_action(0)
+
+        self.scene.global_step()
+        obs = self._get_obs()
+        done = False
+
+        info = {
+            'is_success': self._is_success(obs['achieved_goal'], self.goal),
+            'is_collision': self._contact_detection(),
+            'min_dist': self.obs_min_dist,
+            'safe_threshold': self.current_safe_dist,
+            'ee_vel':obs["observation"][3:9]
+        }
+
+        reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
+
+
+        if self.iter_num > self.max_episode_steps:
+            done = True
+        if self.early_stop:
+            if info["is_success"]:
+                done = True
+
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
+
+        return obs, reward, done, info
+
+    def is_contact(self):
+        return self._contact_detection()
+
+
