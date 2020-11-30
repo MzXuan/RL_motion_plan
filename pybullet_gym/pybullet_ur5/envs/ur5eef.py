@@ -223,6 +223,9 @@ class UR5EefRobot(UR5Robot):
 
 		# self.last_eef_position = self.parts['ee_link'].get_position()
 		self.last_eef_position, _, self.last_ee_vel, _ = self.getCurrentEEPos()
+		self.last_joint_velocity = np.asarray(
+			[self.jdict[i].get_velocity() for i in self.select_joints if i in self.jdict])
+
 		s = self.calc_state(
 		)  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 		self.potential = self.calc_potential()
@@ -240,11 +243,16 @@ class UR5EefRobot(UR5Robot):
 		#scale
 		max_eef_velocity = 1
 		step_max_velocity = max_eef_velocity*self.dt
-
+		max_rot_angle = 0.8
+		step_max_rot = max_rot_angle*self.dt
 
 
 		ee_lin_pos, ee_lin_ori, _, _ = self.getCurrentEEPos()
-		target_position = ee_lin_pos + np.asarray(a) * step_max_velocity
+		target_position = ee_lin_pos + np.asarray(a[:3]) * step_max_velocity
+
+		ee_lin_euler = np.asarray(self._p.getEulerFromQuaternion(ee_lin_ori))
+		target_pose_quat =  self._p.getQuaternionFromEuler(ee_lin_euler+np.asarray(a[3:])*step_max_rot)
+
 
 
 
@@ -275,7 +283,7 @@ class UR5EefRobot(UR5Robot):
 
 		#------------  pose from simulator -------------#
 		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position,self.orientation
+														target_position, target_pose_quat
 														)
 
 		# jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
@@ -350,14 +358,20 @@ class UR5EefRobot(UR5Robot):
 
 		# eef_pose = self.parts[self.ee_link].get_pose()  # position [0:3], orientation [3:7]
 
-		ee_lin_pos, _, ee_lin_vel,_ = self.getCurrentEEPos()
 
-		obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel, joint_position[:-1].flatten()])
-		# obs = np.concatenate((ee_lin_pos, ee_lin_vel,joint_position.flatten()))
+		ee_lin_pos, ee_lin_ori, ee_lin_vel,_ = self.getCurrentEEPos()
+
+		ee_lin_euler = self._p.getEulerFromQuaternion(ee_lin_ori)
+
+		obs = np.concatenate([ee_lin_pos, ee_lin_euler, joint_velocity[:-1], self.last_joint_velocity[:-1], joint_position[:-1].flatten()]) #21
 
 
-		# obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel])
-		self.last_ee_vel = ee_lin_vel
+
+
+		self.last_joint_velocity = joint_velocity
+		# obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel, joint_position[:-1].flatten()])
+
+		# self.last_ee_vel = ee_lin_vel
 
 		return obs
 

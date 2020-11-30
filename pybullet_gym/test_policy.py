@@ -83,6 +83,7 @@ def load_tf_policy(fpath, itr, deterministic=True):
 
 def main(fpath, env, itr):
     seed = np.random.randint(0,100)
+
     np.random.seed(seed)
     tf.set_random_seed(seed)
     random.seed(seed)
@@ -97,7 +98,7 @@ def main(fpath, env, itr):
 
     if fpath is None:
         # get_action=lambda obs: [-0.1, 0.1, 0.1, 0, 0, 0]
-        get_action = lambda obs: [0, 0, 0]
+        get_action = lambda obs: [0, 0, 0,1,1,1]
     else:
         get_action = load_tf_policy(fpath, itr)
 
@@ -125,7 +126,7 @@ def main(fpath, env, itr):
             obs, rew, done, info = env.step(action)
             #
 
-            # print("obs, ", obs)
+            print("obs, ", obs)
             # print("reward: ", rew)
             # print("obs is: ", obs['observation'][7:13])
             # print("info is:", info)
@@ -157,8 +158,8 @@ if __name__ == "__main__":
     parser.add_argument('--fpath', type=str, default=None)
     parser.add_argument('--itr', '-i', type=int, default=-1)
     # parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
-    # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
-    parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
+    # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
 
 
 

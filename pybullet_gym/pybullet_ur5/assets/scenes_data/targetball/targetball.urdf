@@ -4,6 +4,24 @@
     <color rgba="0.8 0.0 0.0 1 "/>
   </material>
   <link name="boxLink">
+      <inertial>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+     <mass value=".0"/>
+     <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+  </inertial>
+  <visual>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <geometry>
+      <cylinder radius="0.02" length="0.05"/>
+    </geometry>
+    <material name="red"/>
+  </visual>
+</link>
+
+</robot>
+
+
+<!--   <link name="boxLink">
         <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
        <mass value=".0"/>
@@ -16,15 +34,8 @@
       </geometry>
       <material name="red"/>
     </visual>
-<!--     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.02"/>
-      </geometry>
-      <material name="red"/>
-    </collision> -->
   </link>
 
-</robot>
+</robot> -->
 
 
