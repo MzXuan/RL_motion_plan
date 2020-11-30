@@ -235,24 +235,26 @@ class UR5DynamicReachObsEnv(gym.Env):
         collision_flag = True
         while collision_flag:
 
-            x = np.random.uniform(-0.7, 0.7)
-            y = np.random.uniform(-0.7, 0.7)
-            z = np.random.uniform(0.1, 0.7)
+            rob_success = False
+            while not rob_success:
+                x = np.random.uniform(-0.7, 0.7)
+                y = np.random.uniform(-0.7, 0.7)
+                z = np.random.uniform(0.1, 0.7)
 
-            self.robot_start_eef = [x, y, z]
-
-            self.goal = self.random_set_goal()
-            if np.linalg.norm(self.goal) < 0.35 or np.linalg.norm(self.goal) >0.85:
-                continue
+                self.robot_start_eef = [x, y, z]
 
 
+                ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
+                                          base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
 
+                final_goal = self.agents[0].set_final_goal()
+                if final_goal is not False:
+                    self.eef_goal, self.goal = final_goal[0], final_goal[1]
+                    rob_success = True
 
-            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base,
-                                      base_rotation=[0, 0, 0, 1], eef_pose=self.robot_start_eef)
             # ---------------real human----------------------------#
             ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
-                                      base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633], rob_goal=self.goal[:3].copy())
+                                      base_rotation = [0.0005629, 0.707388, 0.706825, 0.0005633], rob_goal=self.eef_goal[:3].copy())
 
 
             if ar is False:
@@ -270,8 +272,8 @@ class UR5DynamicReachObsEnv(gym.Env):
         s = []
         s.append(ar)
         s.append(ah)
-        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal[:3],
-                                                ornObj=self._p.getQuaternionFromEuler(self.goal[3:]))
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3],
+                                                ornObj=self._p.getQuaternionFromEuler(self.eef_goal[3:]))
 
         return obs
 
@@ -389,7 +391,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             'is_collision': self._contact_detection(),
             'min_dist': self.obs_min_dist,
             'safe_threshold': self.current_safe_dist,
-            'joint_vel':obs["observation"][6:16]
+            'joint_vel':obs["observation"][9:21]
         }
 
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
@@ -401,8 +403,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             if info["is_success"] or info["is_collision"]:
                 done = True
 
-        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal[:3],
-                                                ornObj=self._p.getQuaternionFromEuler(self.goal[3:]))
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3],
+                                                ornObj=self._p.getQuaternionFromEuler(self.eef_goal[3:]))
 
         return obs, reward, done, info
 
@@ -420,7 +422,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         dones = [False for _ in range(self._n_agents)]
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
-        achieved_goal = ur5_states[:6] #ur5 eef pose
+
 
         self.human_states = self.agents[1].calc_state()
         infos['succeed'] = dones
@@ -455,6 +457,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         self.last_obs_human = obs_human.copy()
 
+        achieved_goal = ur5_states[3:9]  # ur5 joint
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
@@ -486,19 +489,20 @@ class UR5DynamicReachObsEnv(gym.Env):
         else:
             distance = 0 if distance<0 else distance
 
-        smoothness = np.linalg.norm([info['joint_vel'][0:5] - info['joint_vel'][5:10]])
+        smoothness = np.linalg.norm([info['joint_vel'][0:6] - info['joint_vel'][6:12]])
 
         # sum of reward
         a1 = -1
         a2 = -14
         a3 = -0.1
-        asmooth = -0.2
+        asmooth = -0.01
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
         reward_collision = a2 * (_is_collision > 0) + a3 * distance
 
         return [reward, reward_collision]
+
 
     def _contact_detection(self):
         # collision detection

@@ -14,6 +14,17 @@ import random
 
 import ikfast_ur5
 
+def random_joint(lowerlimit, upperlimit):
+    js = []
+    for i in range(len(lowerlimit)):
+        js.append(np.random.uniform(lowerlimit[i],upperlimit[i]))
+    return np.array(js)
+
+def random_n(min, max):
+    result = []
+    for i in range(len(min)):
+        result.append(np.random.uniform(min[i], max[i]))
+    return np.array(result)
 
 def normalize_conf(start, end):
     circle = 6.2831854
@@ -48,6 +59,8 @@ class UR5EefRobot(UR5Robot):
 		self.dt = dt
 		self.n_dofs = 6
 
+		self.robot_ee_goal = None
+		self.robot_js_goal = None
 		super(UR5EefRobot, self).__init__(dt=dt, action_dim=action_dim, obs_dim=obs_dim)
 
 
@@ -119,12 +132,13 @@ class UR5EefRobot(UR5Robot):
 
 		return False
 
+
 	def robot_specific_reset(self, bullet_client, base_position, base_rotation,
 							 eef_position=None, eef_orienration=[0, 0.841471, 0, 0.5403023 ],
 							 joint_angle=None):
 
 		if joint_angle is not None:
-			print("'reset joint angle", joint_angle)
+			print("reset joint angle", joint_angle)
 
 			self.jdict['shoulder_pan_joint'].reset_position(joint_angle[0], 0)
 			self.jdict['shoulder_lift_joint'].reset_position(joint_angle[1], 0)
@@ -158,19 +172,50 @@ class UR5EefRobot(UR5Robot):
 			print("can not find feasible soltion for robot eef: ", eef_position)
 			return False
 		# print("feasible solutions", feasible_solutions)
-		jointPoses = feasible_solutions[0]
 
-
-		self.jdict['shoulder_pan_joint'].reset_position(jointPoses[0], 0)
-		self.jdict['shoulder_lift_joint'].reset_position(jointPoses[1], 0)
-		self.jdict['elbow_joint'].reset_position(jointPoses[2], 0)
-		self.jdict['wrist_1_joint'].reset_position(jointPoses[3], 0)
-		self.jdict['wrist_2_joint'].reset_position(jointPoses[4], 0)
-		self.jdict['wrist_3_joint'].reset_position(jointPoses[5], 0)
+		js_start = feasible_solutions[0]
+		for i, joint_name in enumerate(self.select_joints):
+			self.jdict[joint_name].reset_position(js_start[i], 0)
+		self._p.stepSimulation()
 
 		self.last_position = list(self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)[0])
 
 
+
+	def set_final_goal(self):
+		#----- random end position----#
+		js_start = np.asarray(
+			[self.jdict[i].get_position() for i in self.select_joints if
+			 i in self.jdict])  # position
+		success = False
+		try_count = 0
+		while not success and try_count<10:
+			try_count +=1
+
+			js_end= js_start.copy()+ random_n([-1.57, -0.6, -1, -0.5, -0.5, -1.57],[1.57, 0.6, 0.1, 0.5, 0.5, 1.57])
+
+			for i, joint_name in enumerate(self.select_joints):
+				self.jdict[joint_name].reset_position(js_end[i], 0)
+			# self._p.stepSimulation()
+			ee_end_state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)
+
+			ca_e_ori = np.array(self._p.getEulerFromQuaternion(list(ee_end_state[1])))
+			ca_e_goal = np.asarray(ee_end_state[0])
+
+			if self._contact_detection() is False:
+				if  ca_e_goal[2] > 0.1 and np.linalg.norm(ca_e_goal) >= 0.35 and np.linalg.norm(ca_e_goal) <=0.85:
+					success = True
+
+		if success is False:
+			print("fail to find end eef, reset start....")
+			return False
+		#
+		robot_ee_goal = np.concatenate([ca_e_goal, ca_e_ori])
+		robot_js_goal = js_end
+		for i, joint_name in enumerate(self.select_joints):
+			self.jdict[joint_name].reset_position(js_start[i], 0)
+
+		return robot_ee_goal, robot_js_goal
 
 
 	def reset(self, bullet_client, client_id, base_position=[0, 0, -1.2], base_rotation=[0, 0, 0, 1],
@@ -235,68 +280,81 @@ class UR5EefRobot(UR5Robot):
 	def stop(self):
 		return 0
 
+	def apply_action(self, a):
+		# set to position
+		max_joint_v = 1
+		step_joint_v = max_joint_v*self.dt
 
-	def apply_action(self,a):
-		#set position without real dynamic
 		assert (np.isfinite(a).all())
+		cur_joint_pos, _ = self.getCurrentJointPosVel()
 
-		#scale
-		max_eef_velocity = 1
-		step_max_velocity = max_eef_velocity*self.dt
-		max_rot_angle = 0.8
-		step_max_rot = max_rot_angle*self.dt
-
-
-		ee_lin_pos, ee_lin_ori, _, _ = self.getCurrentEEPos()
-		target_position = ee_lin_pos + np.asarray(a[:3]) * step_max_velocity
-
-		ee_lin_euler = np.asarray(self._p.getEulerFromQuaternion(ee_lin_ori))
-		target_pose_quat =  self._p.getQuaternionFromEuler(ee_lin_euler+np.asarray(a[3:])*step_max_rot)
+		target_jp = np.asarray(cur_joint_pos[:6]) + a*step_joint_v
+		for i in range((self.action_space.shape)[0]):
+			for i, joint_name in enumerate(self.select_joints):
+				self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
 
-
-
-		# # ------------------ik fast ----------------------#
-		# ik_fn = ikfast_ur5.get_ik
-		#
-		#
-		# pose = self._p.multiplyTransforms(positionA=[0, 0, 0], orientationA=[0, 0, -1, 0],
-		# 								  positionB=target_position, orientationB=self.orientation)
-		#
-		# position = np.asarray(pose[0])
-		# rotation = np.array(self._p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
-		# solutions = ik_fn(position, rotation, [1])
-		# n_conf_list = [normalize_conf(np.asarray([0,0,0,0,0,0]), conf) for conf in solutions]
-		#
-		#
-		# feasible_solutions = self.select_ik_solution(n_conf_list)
-		#
-		# if feasible_solutions == []:
-		# 	print("can not find feasible soltion for robot eef: {}, use pybullet ik ".format(position))
-		# 	jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-		# 													target_position,self.orientation)
-		# else:
-		#
-		# 	jointPoses = feasible_solutions[0]
-
-
-
-		#------------  pose from simulator -------------#
-		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position, target_pose_quat
-														)
-
-		# jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-		# 												target_position, self.orientation,
-		# 												lowerLimits=self.lower_limit, upperLimits=self.upper_limit
-		#
-		# 												)
-
-		target_jp = np.asarray(jointPoses[:6])
-		# print("next joint: ", target_jp)
-
-		for i, joint_name in enumerate(self.select_joints):
-			self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
+	# def apply_action(self,a):
+	# 	#set position without real dynamic
+	# 	assert (np.isfinite(a).all())
+	#
+	# 	#scale
+	# 	max_eef_velocity = 1
+	# 	step_max_velocity = max_eef_velocity*self.dt
+	# 	max_rot_angle = 0.8
+	# 	step_max_rot = max_rot_angle*self.dt
+	#
+	#
+	# 	ee_lin_pos, ee_lin_ori, _, _ = self.getCurrentEEPos()
+	# 	target_position = ee_lin_pos + np.asarray(a[:3]) * step_max_velocity
+	#
+	# 	ee_lin_euler = np.asarray(self._p.getEulerFromQuaternion(ee_lin_ori))
+	# 	target_pose_quat =  self._p.getQuaternionFromEuler(ee_lin_euler+np.asarray(a[3:])*step_max_rot)
+	#
+	#
+	#
+	#
+	# 	# # ------------------ik fast ----------------------#
+	# 	# ik_fn = ikfast_ur5.get_ik
+	# 	#
+	# 	#
+	# 	# pose = self._p.multiplyTransforms(positionA=[0, 0, 0], orientationA=[0, 0, -1, 0],
+	# 	# 								  positionB=target_position, orientationB=self.orientation)
+	# 	#
+	# 	# position = np.asarray(pose[0])
+	# 	# rotation = np.array(self._p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
+	# 	# solutions = ik_fn(position, rotation, [1])
+	# 	# n_conf_list = [normalize_conf(np.asarray([0,0,0,0,0,0]), conf) for conf in solutions]
+	# 	#
+	# 	#
+	# 	# feasible_solutions = self.select_ik_solution(n_conf_list)
+	# 	#
+	# 	# if feasible_solutions == []:
+	# 	# 	print("can not find feasible soltion for robot eef: {}, use pybullet ik ".format(position))
+	# 	# 	jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+	# 	# 													target_position,self.orientation)
+	# 	# else:
+	# 	#
+	# 	# 	jointPoses = feasible_solutions[0]
+	#
+	#
+	#
+	# 	#------------  pose from simulator -------------#
+	# 	jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+	# 													target_position, target_pose_quat
+	# 													)
+	#
+	# 	# jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+	# 	# 												target_position, self.orientation,
+	# 	# 												lowerLimits=self.lower_limit, upperLimits=self.upper_limit
+	# 	#
+	# 	# 												)
+	#
+	# 	target_jp = np.asarray(jointPoses[:6])
+	# 	# print("next joint: ", target_jp)
+	#
+	# 	for i, joint_name in enumerate(self.select_joints):
+	# 		self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
 	def bullet_ik(self, target_position):
 		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
@@ -363,7 +421,8 @@ class UR5EefRobot(UR5Robot):
 
 		ee_lin_euler = self._p.getEulerFromQuaternion(ee_lin_ori)
 
-		obs = np.concatenate([ee_lin_pos, ee_lin_euler, joint_velocity[:-1], self.last_joint_velocity[:-1], joint_position[:-1].flatten()]) #21
+		obs = np.concatenate([ee_lin_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity])#21
+
 
 
 

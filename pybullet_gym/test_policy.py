@@ -97,8 +97,8 @@ def main(fpath, env, itr):
     print(" ---------------------------- ")
 
     if fpath is None:
-        # get_action=lambda obs: [-0.1, 0.1, 0.1, 0, 0, 0]
-        get_action = lambda obs: [0, 0, 0,1,1,1]
+        # get_action=lambda obs: np.array([1, -1, -1, 1, 1, 1])
+        get_action = lambda obs: (obs['desired_goal']-obs['achieved_goal'])/np.linalg.norm(obs['desired_goal']-obs['achieved_goal'])
     else:
         get_action = load_tf_policy(fpath, itr)
 
@@ -126,9 +126,9 @@ def main(fpath, env, itr):
             obs, rew, done, info = env.step(action)
             #
 
-            print("obs, ", obs)
+            # print("obs, ", obs)
             # print("reward: ", rew)
-            # print("obs is: ", obs['observation'][7:13])
+            # print("obs is: ", obs['observation'][3:9])
             # print("info is:", info)
 
             if done == True:

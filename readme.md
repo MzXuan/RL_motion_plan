@@ -1,5 +1,5 @@
 ## bullet runner
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_rnn_c14_1129_1 --log_path=~/log/ur5_rnn_c14_1129_1
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_rnn_c14_1129_3 --log_path=~/log/ur5_rnn_c14_1129_3
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1126_l2 --log_path=~/log/ur5_mlp_c14_1126_l2
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1118_l10 --log_path=~/log/ur5_mlp_c14_1118_l10
