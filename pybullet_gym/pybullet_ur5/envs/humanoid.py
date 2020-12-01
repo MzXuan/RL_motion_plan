@@ -108,8 +108,11 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             print("use data from camera")
             self.human_model = HumanModel()
 
-        trans_mat = pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
-        trans_mat[:3, 3] = [-0.95, -0.85, 0.75]
+        # trans_mat = pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
+        # trans_mat[:3, 3] = [-0.95, -0.85, 0.75]
+
+        trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
+        trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
         self.trans_matrix = trans_mat
 
 

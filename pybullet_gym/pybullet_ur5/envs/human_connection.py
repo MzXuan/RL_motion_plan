@@ -107,6 +107,7 @@ class HumanModel(object):
 
         human_id = list(msg.keys())[0]
 
+        print(msg)
         # print("self.human_id is: ", self.human_id)
         # check is this the previous human
         if self.human_id is None:
@@ -271,9 +272,9 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
-            with open('/home/xuan/demos/human_test_6.pkl', 'wb') as handle:
-                pickle.dump(joint_data_lst, handle, protocol=2)
-                print("save successfully")
+            # with open('/home/xuan/demos/human_test_6.pkl', 'wb') as handle:
+                # pickle.dump(joint_data_lst, handle, protocol=2)
+                # print("save successfully")
 
             measure=np.asarray(measure)
             filter = np.asarray(filter)
