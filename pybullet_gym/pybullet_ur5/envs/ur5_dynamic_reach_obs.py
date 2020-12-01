@@ -67,6 +67,8 @@ def min_dist_conf(initial_conf, conf_list):
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
+
+    # print("distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
@@ -81,7 +83,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.04,
+                 early_stop=False, distance_threshold = 0.8,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse", use_rnn = True):
         self.iter_num = 0

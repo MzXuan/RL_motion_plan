@@ -203,7 +203,7 @@ class UR5EefRobot(UR5Robot):
 			ca_e_goal = np.asarray(ee_end_state[0])
 
 			if self._contact_detection() is False:
-				if  ca_e_goal[2] > 0.1 and np.linalg.norm(ca_e_goal) >= 0.35 and np.linalg.norm(ca_e_goal) <=0.85:
+				if  ca_e_goal[2] > 0.1 and np.linalg.norm(ca_e_goal[:2]) >= 0.3 and np.linalg.norm(ca_e_goal) <=0.85:
 					success = True
 
 		if success is False:

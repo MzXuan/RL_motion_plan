@@ -1,13 +1,12 @@
 ## bullet runner
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_rnn_c14_1129_3 --log_path=~/log/ur5_rnn_c14_1129_3
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_rnn_c14_1129_test --log_path=~/log/ur5_rnn_c14_1129_test
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1126_l2 --log_path=~/log/ur5_mlp_c14_1126_l2
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1118_l10 --log_path=~/log/ur5_mlp_c14_1118_l10
 
 
 ### bullet play
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_c14_1129_1
- --play
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_c14_1129_1 --play
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_mlp_c14_1119_l2 --play
 
