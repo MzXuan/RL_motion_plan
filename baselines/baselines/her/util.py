@@ -83,11 +83,12 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
         # return tf.keras.layers.GRUCell(32)
         # return tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8)
 
+    robot_dim = 21
     human_dim = 18
     human_step = 6
     batch_size = input.shape[0]
 
-    in_human_flat = tf.expand_dims(input[:,21:21+human_dim*human_step],axis=2)
+    in_human_flat = tf.expand_dims(input[:,robot_dim:robot_dim+human_dim*human_step],axis=2)
     print("shape of in flat", in_human_flat.shape)
     input_human =tf.reshape(in_human_flat, shape = [-1,human_step, 18])
 
@@ -96,7 +97,7 @@ def rnn(input, layers_sizes, reuse=False, flatten=False, doubleQ=False,name=""):
 
     out,state = tf.keras.layers.RNN(gru_cell(reuse), return_sequences=True, return_state=True)(input_human)
 
-    input = tf.concat([input[:,:21],input[:,21+human_dim*human_step:], state], axis=1)
+    input = tf.concat([input[:,:robot_dim],input[:,robot_dim+human_dim*human_step:], state], axis=1)
 
 
 
