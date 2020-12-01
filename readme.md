@@ -6,7 +6,7 @@ python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotic
 
 
 ### bullet play
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1130_1 --play
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1130_03 --play
 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_mlp_c14_1119_l2 --play
 

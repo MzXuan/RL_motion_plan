@@ -365,7 +365,7 @@ def main(args):
                 time_list.append(time.time()-start_time)
                 # data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
 
-
+            print("actions", actions)
             if len(time_list) > 3000:
                 time_list = np.array(time_list[1:])
                 print("mean of solving time: ", np.mean(time_list))
