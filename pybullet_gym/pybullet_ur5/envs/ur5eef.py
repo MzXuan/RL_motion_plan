@@ -189,11 +189,16 @@ class UR5EefRobot(UR5Robot):
 			 i in self.jdict])  # position
 		success = False
 		try_count = 0
-		while not success and try_count<10:
+		while not success and try_count<20:
 			try_count +=1
 
 			js_end= js_start.copy()+ random_n([-1.57, -0.6, -1, -0.5, -0.5, -1.57],[1.57, 0.6, 0.5, 0.5, 0.5, 1.57])
 
+			if (js_end<self.upper_limit).all() and (js_end>self.lower_limit).all():
+				pass
+			else:
+				print("goal out of joint range")
+				continue
 			for i, joint_name in enumerate(self.select_joints):
 				self.jdict[joint_name].reset_position(js_end[i], 0)
 			self._p.stepSimulation()
@@ -247,6 +252,12 @@ class UR5EefRobot(UR5Robot):
 									 baseOrientation=self.baseOrientation,
 									 useFixedBase=self.fixed_base))
 
+		#reset limit
+		self.lower_limit = []
+		self.upper_limit = []
+		for i, joint_name in enumerate(self.select_joints):
+			self.lower_limit.append(self.jdict[joint_name].lowerLimit)
+			self.upper_limit.append(self.jdict[joint_name].upperLimit)
 		if self.robot_specific_reset(self._p, base_position, base_rotation, eef_pose, joint_angle=joint_angle) is False:
 			return False
 		self.jdict['shoulder_pan_joint'].max_velocity = 3.15
@@ -259,12 +270,7 @@ class UR5EefRobot(UR5Robot):
 
 
 
-		#reset limit
-		self.lower_limit = []
-		self.upper_limit = []
-		for i, joint_name in enumerate(self.select_joints):
-			self.lower_limit.append(self.jdict[joint_name].lowerLimit)
-			self.upper_limit.append(self.jdict[joint_name].upperLimit)
+
 
 		# self.last_eef_position = self.parts['ee_link'].get_position()
 		self.last_eef_position, _, self.last_ee_vel, _ = self.getCurrentEEPos()
@@ -282,7 +288,7 @@ class UR5EefRobot(UR5Robot):
 
 	def apply_action(self, a):
 		# set to position
-		max_joint_v = 1
+		max_joint_v = 2
 		step_joint_v = max_joint_v*self.dt
 
 		assert (np.isfinite(a).all())

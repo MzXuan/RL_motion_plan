@@ -68,8 +68,15 @@ def min_dist_conf(initial_conf, conf_list):
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
 
+    # print("shape of goal: ", goal_a.shape)
+    w = np.array([3,3,2,1,1,1])
+    weight = w/np.linalg.norm(w)
+    weighted_error = np.multiply(weight, ( goal_a - goal_b))
+    distance = np.linalg.norm(weighted_error,axis=-1)
+    # print("distance shape: ", distance.shape)
+    return distance
     # print("distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
-    return np.linalg.norm(goal_a - goal_b, axis=-1)
+    # return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
 class L(list):
@@ -83,7 +90,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True, distance_threshold = 0.3,
+                 early_stop=False, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse", use_rnn = True):
         self.iter_num = 0
@@ -496,12 +503,12 @@ class UR5DynamicReachObsEnv(gym.Env):
         # sum of reward
         a1 = -1
         a2 = -14
-        a3 = -0.1
+        # a3 = -0.1
         asmooth = -0.01
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
-                 + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
-        reward_collision = a2 * (_is_collision > 0) + a3 * distance
+                 + a2 * (_is_collision > 0) + asmooth*smoothness
+        reward_collision = a2 * (_is_collision > 0)
 
         return [reward, reward_collision]
 
