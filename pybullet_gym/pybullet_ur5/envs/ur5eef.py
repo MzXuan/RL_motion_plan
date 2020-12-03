@@ -269,9 +269,6 @@ class UR5EefRobot(UR5Robot):
 
 
 
-
-
-
 		# self.last_eef_position = self.parts['ee_link'].get_position()
 		self.last_eef_position, _, self.last_ee_vel, _ = self.getCurrentEEPos()
 		self.last_joint_velocity = np.asarray(
@@ -423,9 +420,9 @@ class UR5EefRobot(UR5Robot):
 
 		ee_lin_pos, ee_lin_ori, ee_lin_vel,_ = self.getCurrentEEPos()
 
-		ee_lin_euler = self._p.getEulerFromQuaternion(ee_lin_ori)
+		# ee_lin_euler = self._p.getEulerFromQuaternion(ee_lin_ori)
 
-		obs = np.concatenate([ee_lin_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity])#21
+		obs = np.concatenate([ee_lin_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity.copy()])#21
 		# print("obs:", obs)
 		# print("joint_position,", joint_position)
 		#

@@ -33,7 +33,7 @@ def normalize_conf(start, end):
 class UR5RealRobot(robot_bases.URDFBasedRobot):
     TARG_LIMIT = 0.27
 
-    def __init__(self, action_dim=3, obs_dim=19, fixed_base = 1, self_collision=True):
+    def __init__(self, action_dim=3, obs_dim=19, joint_control = False, fixed_base = 1, self_collision=True):
         # self.select_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",\
         # 					"wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         # self.select_links = ["shoulder_link", "upper_arm_link","forearm_link","ee_link"]
@@ -44,16 +44,14 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
 
         self.last_position = [0, 0, 0]
         self.ee_link = "ee_link"
-        self.lower_limits = [-6, -6, 0, -6, -6, -6]
-        self.upper_limits = [6, 0, 6, 0, 6, 6]
+        # self.lower_limits = [-6, -6, 0, -6, -6, -6]
+        # self.upper_limits = [6, 0, 6, 0, 6, 6]
 
         self.orientation = None
         self.ur5_rob_control = UR5Control(ip='192.168.0.3')
 
-        if action_dim == 6:
-            self.joint_control = True
-        else:
-            self.joint_control = False
+        self.joint_control = joint_control
+
 
 
         super(UR5RealRobot, self).__init__(
@@ -175,6 +173,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         self.jdict['wrist_3_joint'].max_velocity = 3.2
 
         self.last_eef_position, self.last_ee_vel, _ = self.ur5_rob_control.get_tool_state()
+        self.last_joint_velocity = self.ur5_rob_control.get_joint_state()
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
         return s
@@ -183,15 +182,12 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         # todo: send to real robot control script
         assert (np.isfinite(a).all())
         if self.joint_control:
-            # print("use joint control")
-            # self.ur5_rob_control.set_joint_position(a)
+            target_joint_velocity = a*0.05
+            self.ur5_rob_control.set_joint_velocity(target_joint_velocity)
 
-            return 0
         else:
             # scale
-
-
-            max_eef_velocity = 0.08
+            max_eef_velocity = 0.1
             scale = max_eef_velocity
 
             # current_position,_ = self.ur5_rob_control.get_tool_state()
@@ -207,7 +203,6 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
                                                             next_position, self.orientation
                                                             ))
 
-            joint_position, joint_velocity = self.ur5_rob_control.get_joint_state()
 
             joint_v = (next_joint - current_joint)
 
@@ -238,16 +233,13 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
 
         ee_pos, ee_vel, _ = self.ur5_rob_control.get_tool_state()
         if self.joint_control:
-            obs=np.concatenate([ee_pos, joint_position])
+            obs = np.concatenate([ee_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity.copy()])  # 21
+            self.last_joint_velocity = joint_velocity
             return obs
         else:
-            # todo: get from real robot
-            # joint_velocity = np.asarray(joint_velocity)*50
+            joint_position=np.array(joint_position)
 
-
-            # print("joint_velocity,",joint_velocity)
-            # obs = eef_pos
-            obs = np.concatenate([ee_pos, ee_vel, self.last_ee_vel])
+            obs = np.concatenate([ee_pos, ee_vel, self.last_ee_vel, joint_position[:-1].flatten() ])
             self.last_ee_vel = ee_vel
             return obs
 

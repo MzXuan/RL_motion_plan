@@ -6,8 +6,8 @@ os.sys.path.insert(0, parentdir)
 os.sys.path.insert(0, currentdir)
 
 from ur5eef import UR5EefRobot
-from humanoid import URDFHumanoid
-
+from ur5_real import UR5RealRobot
+from humanoid import URDFHumanoid, RealHumanoid
 import assets
 from scenes.stadium import StadiumScene, PlaneScene
 
@@ -263,6 +263,105 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         # 2. change goal state
         obs = self.get_obs()
         obs["desired_goal"] = next_goal
+
+        return obs
+
+
+
+class UR5HumanRealEnv(UR5HumanEnv):
+    def __init__(self, render=False, max_episode_steps=1000,
+                 early_stop=True, distance_threshold = 0.04,
+                 max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 reward_type="sparse",  use_rnn = True):
+        super(UR5HumanRealEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
+                 early_stop=early_stop, distance_threshold = distance_threshold,
+                 max_obs_dist = max_obs_dist ,dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
+                 reward_type=reward_type,  use_rnn = use_rnn)
+
+        # --- following demo----
+        # self.demo_data = load_demo()
+        # self.sphere_radius = 0.03
+        # self.last_collision = False
+        self.first_reset = True
+        #--------------------------
+    def _set_agents(self, max_obs_dist):
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load=True, test=True)]
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load=False, test=True)]
+
+        self.agents = [UR5RealRobot(action_dim=6, obs_dim=21, joint_control = True),
+                       RealHumanoid(max_obs_dist)]
+
+    def reset(self):
+        self.last_obs_human = np.full(18, self.max_obs_dist_threshold + 0.2)
+        self.last_robot_joint = np.zeros(6)
+        self.current_safe_dist = self._set_safe_distance()
+
+        if (self.physicsClientId < 0):
+            self.ownsPhysicsClient = True
+
+            if self.isRender:
+                self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
+            else:
+                self._p = bullet_client.BulletClient()
+
+            self._p.setGravity(0, 0, -9.81)
+            self._p.setTimeStep(self.sim_dt)
+
+            self.physicsClientId = self._p._client
+            self._p.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
+
+        if self.scene is None:
+            self.scene = self.create_single_player_scene(self._p)
+        if not self.scene.multiplayer and self.ownsPhysicsClient:
+            self.scene.episode_restart(self._p)
+
+        self.camera_adjust()
+
+        for a in self.agents:
+            a.scene = self.scene
+
+        self.frame = 0
+        self.iter_num = 0
+
+        self.robot_base = [0, 0, 0]
+
+        move_to_start(self.agents[0].ur5_rob_control, self.demo_data)
+
+
+        #---------------add agent----------------------------#
+        ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
+                                  base_rotation=[0.0005629, 0.707388, 0.706825, 0.0005633])
+
+        if self.first_reset is True:
+            ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
+        else:
+            ar = self.agents[0].calc_state()
+
+        # ------prepare path-----------------
+        path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
+        vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
+        self.ws_path_gen = WsPathGen(path, vel_path, self.distance_threshold)
+
+        self.path_for_drawing = path.copy()
+
+
+        #-------set goal from record demo-------------
+        rob_eef = ar[:3]
+        self.final_goal = self.demo_data[-1]['toolp']
+        self.goal,_,_ = self.ws_path_gen.next_goal(rob_eef, self.sphere_radius)
+        print("goal,", self.goal)
+        #------------------------------------------
+
+        self._p.stepSimulation()
+        obs = self._get_obs()
+
+
+        s = []
+        s.append(ar)
+        s.append(ah)
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
         return obs
 
