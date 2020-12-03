@@ -17,24 +17,29 @@ class WsPathGen():
 
 
     def next_goal(self, center, r, remove=True):
-        #todo: return eef goal + joint interpolation
-
+        #treturn eef goal + joint interpolation
         dists = np.linalg.norm((self.path_remain-center),axis=1)
         if remove is True:
             # remove reached points
             indices = np.where(dists < self.distance_threshold)[0]
+            print("indices",indices)
             if indices != []:
-                idx = indices[0]
+                idx = indices[-1]
                 if idx < len(dists)-1:
                     dists = dists[idx+1:]
                     self.path_remain = self.path_remain[idx+1:]
                     self.vel_path_remain = self.vel_path_remain[idx+1:]
                     self.joint_path_remain = self.joint_path_remain[idx+1:]
+                print("remove idx after; ", idx)
 
         d_min = np.min(dists)
 
+        print("input r: ", r)
         if d_min > r:
-            r+=d_min
+            r=d_min+0.02
+
+        print("r", r)
+        print("d_min", d_min)
 
         indices = np.where(dists < r)[0]
         inverse_indices = np.flip(indices)
@@ -48,14 +53,14 @@ class WsPathGen():
                     # joint interpolation is:  |intersect-lastway|/|nextway-lastway| * (nextjoint-lastjoint)+lastjoint
                     # print("returned intersection is: ", p_insect)
                     ratio = np.linalg.norm(p_insect-self.path_remain[i]) /np.linalg.norm(self.path_remain[i+1]-self.path[i])
-
-                    print("ratio", ratio)
                     jp_insect = ratio*(np.array(self.joint_path_remain[i+1])- np.array(self.joint_path_remain[i]))\
                                 + np.array(self.joint_path_remain[i])
                     return p_insect, jp_insect, self.vel_path_remain[i], i
             else:
                 #the end, return the last way point
                 return self.path_remain[-1], self.joint_path_remain[-1], self.vel_path_remain[-1], i
+
+
 
         #no interection, return the waypoint with minimum distance
         idx = np.argmin(dists)

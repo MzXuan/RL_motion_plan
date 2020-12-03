@@ -49,7 +49,7 @@ def move_to_start(ur5, data):
 
 def move_along_path(ur5, ws_path_gen, dt=0.02):
     toolp,_,_ = ur5.get_tool_state()
-    next_goal, next_vel,_ = ws_path_gen.next_goal(toolp, 0.08)
+    next_goal, next_vel,_ = ws_path_gen.next_goal(toolp, 0.01)
 
     ref_vel = (next_goal-toolp)
     print(f"current goal {toolp}, next goal {next_goal}, next_vel {next_vel}, ref_vel {ref_vel}")
@@ -134,7 +134,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
         joint_path = [self.demo_data[i]['robjp'] for i in range(len(self.demo_data))]
 
-        self.ws_path_gen = WsPathGen(path, vel_path, joint_path, self.distance_threshold)
+        self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.08)
 
         self.path_for_drawing = path.copy()
 
@@ -189,12 +189,13 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             # print("min_q", min_q)
         except:
             self.last_collision = False
-            self.set_sphere(0.1)
+            self.set_sphere(0.15)
             return 0
 
-        if min_q<-0.025:
+        if min_q<-0.10:
+            print("min_q", min_q)
             self.last_collision = True
-            self.set_sphere(0.5)
+            self.set_sphere(0.4)
             #normalize Q for color
             color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
 
@@ -205,7 +206,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
             #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
         elif self.last_collision is False:
-            self.set_sphere(0.1)
+            self.set_sphere(0.15)
         else:
             self.last_collision=False
             return 0

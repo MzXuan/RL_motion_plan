@@ -325,14 +325,14 @@ def main(args):
 
 
                 #----todo: generate batch obs---#
-                # time.sleep(0.1)
-                start_time = time.time()
+                time.sleep(0.1)
+                # start_time = time.time()
                 line_traj = []
                 q_lst=[]
 
                 path_remain = env.ws_path_gen.path_remain.copy()
                 joint_path_remain = env.ws_path_gen.joint_path_remain.copy()
-                _,_,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.5, remove=False)
+                _,_,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.4, remove=False)
 
                 # get trajectory after current indices
                 if goal_indices>15:
@@ -341,7 +341,7 @@ def main(args):
                             p = path_remain[i]
                             jp = joint_path_remain[i]
                             next_state = np.concatenate([p,jp])
-                            print("next state is: ", next_state)
+                            # print("next state is: ", next_state)
                         except:
                             continue
                         line_traj.append(env.update_robot_obs(obs['observation'], next_state)) #0.0016s for one obs if print; if not print, 0.0002s for one obs
@@ -349,9 +349,9 @@ def main(args):
                         # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
 
 
-                    print("time cost 1 is: ", time.time() - start_time)
+                    # print("time cost 1 is: ", time.time() - start_time)
                     q_lst = model.get_collision_q(line_traj)
-                    print("time cost 3 is: ", time.time() - start_time)
+                    # print("time cost 3 is: ", time.time() - start_time)
                 env.update_r(line_traj, q_lst, draw=False)
 
 
