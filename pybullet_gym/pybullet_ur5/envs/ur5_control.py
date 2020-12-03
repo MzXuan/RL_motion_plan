@@ -50,8 +50,9 @@ class UR5Control():
 
 
     def set_joint_velocity(self, target):
-        # target = target.clip(min=-0.04, max=0.04)
-        print("target velocity", target)
+
+        target = target.clip(min=-0.4, max=0.4)
+        # print("target velocity", target)
         self.rob.speedj(target,acc=0.2, min_time=10)
 
 

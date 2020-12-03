@@ -249,8 +249,8 @@ def main(args):
 
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        # env = gym.make("UR5RealTestEnv-v0")
-        env = gym.make("UR5HumanEnv-v0")
+        # env = gym.make("UR5HumanEnv-v0")
+        env = gym.make("UR5HumanRealEnv-v0")
         env.render("human")
 
         logger.log("Running trained model")
@@ -290,6 +290,9 @@ def main(args):
                 traj_len += np.linalg.norm(obs['observation'][:3] - last_obs['observation'][:3])
                 last_obs = obs
                 collision_lst.append(info['is_collision'])
+
+                print("success?", info["is_success"])
+                print("actions",actions)
 
 
                 done_any = done.any() if isinstance(done, np.ndarray) else done

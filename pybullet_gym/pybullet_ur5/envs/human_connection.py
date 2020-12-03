@@ -107,7 +107,7 @@ class HumanModel(object):
 
         human_id = list(msg.keys())[0]
 
-        print(msg)
+        # print(msg)
         # print("self.human_id is: ", self.human_id)
         # check is this the previous human
         if self.human_id is None:
@@ -231,7 +231,7 @@ class HumanModel(object):
 
             self.last_time_stamp = current_time
             self.count +=1
-        print("value dict", self.joints)
+        # print("value dict", self.joints)
         # print("joint velocity", self.joint_velocity['HandRight'])
 
 

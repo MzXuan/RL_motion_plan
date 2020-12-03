@@ -182,7 +182,7 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
         # todo: send to real robot control script
         assert (np.isfinite(a).all())
         if self.joint_control:
-            target_joint_velocity = a*0.05
+            target_joint_velocity = a*0.3
             self.ur5_rob_control.set_joint_velocity(target_joint_velocity)
 
         else:
@@ -233,7 +233,8 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
 
         ee_pos, ee_vel, _ = self.ur5_rob_control.get_tool_state()
         if self.joint_control:
-            obs = np.concatenate([ee_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity.copy()])  # 21
+            obs = np.concatenate([ee_pos, np.array(joint_position).flatten(),
+                                  np.array(joint_velocity).flatten(), np.array(self.last_joint_velocity).flatten()])  # 21
             self.last_joint_velocity = joint_velocity
             return obs
         else:

@@ -310,7 +310,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
     def _set_safe_distance(self):
-        return 0.15
+        return 0.1
         # return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
     def get_obs(self):
@@ -503,12 +503,12 @@ class UR5DynamicReachObsEnv(gym.Env):
         # sum of reward
         a1 = -1
         a2 = -14
-        a3 = -15
+        a3 = -10
         asmooth = -0.1
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
-        reward_collision = a2 * (_is_collision > 0) + a3 * distance
+        reward_collision = a2 * (_is_collision > 0)
 
         return [reward, reward_collision]
 
@@ -547,6 +547,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
     def _is_success(self, achieved_goal, desired_goal):
         d = goal_distance(achieved_goal, desired_goal)
+        # print("self.distance_threshold", self.distance_threshold)
         return (d < self.distance_threshold).astype(np.float32)
 
 

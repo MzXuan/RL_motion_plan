@@ -22,7 +22,7 @@ class WsPathGen():
         if remove is True:
             # remove reached points
             indices = np.where(dists < self.distance_threshold)[0]
-            print("indices",indices)
+            # print("indices",indices)
             if indices != []:
                 idx = indices[-1]
                 if idx < len(dists)-1:
@@ -30,7 +30,7 @@ class WsPathGen():
                     self.path_remain = self.path_remain[idx+1:]
                     self.vel_path_remain = self.vel_path_remain[idx+1:]
                     self.joint_path_remain = self.joint_path_remain[idx+1:]
-                print("remove idx after; ", idx)
+                # print("remove idx after; ", idx)
 
         d_min = np.min(dists)
 
@@ -38,8 +38,8 @@ class WsPathGen():
         if d_min > r:
             r=d_min+0.02
 
-        print("r", r)
-        print("d_min", d_min)
+        # print("r", r)
+        # print("d_min", d_min)
 
         indices = np.where(dists < r)[0]
         inverse_indices = np.flip(indices)

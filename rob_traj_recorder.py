@@ -1,6 +1,7 @@
 from pybullet_ur5.envs.ur5_control import UR5Control
 import pickle
 import time
+import numpy as np
 
 if __name__ == '__main__':
     ur5 = UR5Control(ip='192.168.0.3')
@@ -38,8 +39,15 @@ if __name__ == '__main__':
             time.sleep(0.02)
 
         except KeyboardInterrupt:
-            with open('/home/xuan/demos/traj.pkl', 'wb') as handle:
-                pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            idx = 0
+            for i in range(len(data)-1):
+                if np.linalg.norm(np.array(data[i]['robjp'])-
+                                  np.array(data[i+1]['robjp']))>0.01:
+                    idx = i
+                    break
+
+            with open('/home/xuan/demos/task_demo1.pkl', 'wb') as handle:
+                pickle.dump(data[idx:], handle, protocol=pickle.HIGHEST_PROTOCOL)
                 print("save successfully")
             ur5.close()
             raise

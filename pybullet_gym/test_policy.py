@@ -97,8 +97,8 @@ def main(fpath, env, itr):
     print(" ---------------------------- ")
 
     if fpath is None:
-        # get_action=lambda obs: np.array([0, 0, 1, 1, 1, 1])
-        get_action = lambda obs: (obs['desired_goal']-obs['achieved_goal'])/np.linalg.norm(obs['desired_goal']-obs['achieved_goal'])
+        get_action=lambda obs: np.array([0, 0, 0, 0, 0, 0])
+        # get_action = lambda obs: (obs['desired_goal']-obs['achieved_goal'])/np.linalg.norm(obs['desired_goal']-obs['achieved_goal'])
     else:
         get_action = load_tf_policy(fpath, itr)
 
@@ -126,10 +126,8 @@ def main(fpath, env, itr):
             print("action", action)
             # print("action: ", action)
             obs, rew, done, info = env.step(action)
-            #
 
-            # print("obs, ", obs)
-            # print("reward: ", rew)
+
             print("obs is: ", obs['achieved_goal'])
             print("obs is: ", obs['desired_goal'])
             print("info is:", info)
@@ -150,7 +148,9 @@ def main(fpath, env, itr):
             env.render()
 
         except KeyboardInterrupt:
+            env.agents[0].stop()
             env.close()
+
             raise
 
 
@@ -162,7 +162,8 @@ if __name__ == "__main__":
     parser.add_argument('--itr', '-i', type=int, default=-1)
     # parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
     # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
-    parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+    # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
+    parser.add_argument("--env", type=str, default='UR5HumanRealEnv-v0')
 
 
 

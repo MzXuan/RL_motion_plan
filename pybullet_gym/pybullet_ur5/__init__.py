@@ -33,8 +33,8 @@ register(
 
 # real robot and human
 register(
-    id='UR5RealTestEnv-v0',
-    entry_point='pybullet_ur5.envs.ur5_human_real_env:UR5RealTestEnv',
+    id='UR5HumanRealEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_human_env:UR5HumanRealEnv',
     max_episode_steps=8000,
     reward_threshold=20000.0,
 )
