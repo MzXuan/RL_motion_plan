@@ -6,51 +6,19 @@ from itertools import product, combinations
 
 
 class WsPathGen():
-    def __init__(self, pos_path, vel_path, distance_threshold):
+    def __init__(self, pos_path, vel_path, joint_path, distance_threshold):
         self.path = pos_path
         self.vel_path = vel_path
+        self.joint_path = joint_path
         self.path_remain = pos_path.copy()
         self.vel_path_remain = vel_path.copy()
+        self.joint_path_remain = joint_path.copy()
         self.distance_threshold = distance_threshold
 
 
-    # def next_goal(self, center, r):
-    #     dists = np.linalg.norm((self.path_remain-center),axis=1)
-    #
-    #     max_r = 0.3
-    #
-    #     while r <= max_r:
-    #
-    #         r += 0.05
-    #         print("r is: ", r)
-    #
-    #         indices = np.where(dists < r)[0]
-    #         inverse_indices = np.flip(indices)
-    #
-    #         for i in inverse_indices: # from end to start
-    #             if i+1 < len(dists): # not meet limit
-    #                 # print("current i is: ", i)
-    #                 p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
-    #                 if p_insect is not None:
-    #
-    #                     result = p_insect, self.vel_path_remain[i].copy()
-    #                     self.path_remain = self.path_remain [i+1:]
-    #                     self.vel_path_remain = self.vel_path_remain[i + 1:]
-    #
-    #                     # print("returned intersection is: ", p_insect)
-    #                     return result
-    #             else:
-    #                 #the end, return the last way point
-    #                 return self.path_remain[-1], self.vel_path_remain[-1]
-    #
-    #     #no interection, return the waypoint with minimum distance
-    #     # todo: or expand r please
-    #     ####!!!!todo!!!! problem here######
-    #     idx = np.argmin(dists)
-    #     return self.path_remain[idx], self.vel_path_remain[idx]
-
-
     def next_goal(self, center, r, remove=True):
+        #todo: return eef goal + joint interpolation
+
         dists = np.linalg.norm((self.path_remain-center),axis=1)
         if remove is True:
             # remove reached points
@@ -60,33 +28,38 @@ class WsPathGen():
                 if idx < len(dists)-1:
                     dists = dists[idx+1:]
                     self.path_remain = self.path_remain[idx+1:]
-                    # print("remove data after idx:", idx)
+                    self.vel_path_remain = self.vel_path_remain[idx+1:]
+                    self.joint_path_remain = self.joint_path_remain[idx+1:]
 
         d_min = np.min(dists)
 
         if d_min > r:
             r+=d_min
 
-        # print("r is: ", r)
-
         indices = np.where(dists < r)[0]
-        # print(indices)
         inverse_indices = np.flip(indices)
 
         for i in inverse_indices: # from end to start
             if i+1 < len(dists): # not meet limit
                 # print("current i is: ", i)
-                p_insect = self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
+                p_insect =np.array(self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1]))
                 if p_insect is not None:
+
+                    # joint interpolation is:  |intersect-lastway|/|nextway-lastway| * (nextjoint-lastjoint)+lastjoint
                     # print("returned intersection is: ", p_insect)
-                    return p_insect, self.vel_path_remain[i], i
+                    ratio = np.linalg.norm(p_insect-self.path_remain[i]) /np.linalg.norm(self.path_remain[i+1]-self.path[i])
+
+                    print("ratio", ratio)
+                    jp_insect = ratio*(np.array(self.joint_path_remain[i+1])- np.array(self.joint_path_remain[i]))\
+                                + np.array(self.joint_path_remain[i])
+                    return p_insect, jp_insect, self.vel_path_remain[i], i
             else:
                 #the end, return the last way point
-                return self.path_remain[-1], self.vel_path_remain[-1], i
+                return self.path_remain[-1], self.joint_path_remain[-1], self.vel_path_remain[-1], i
 
         #no interection, return the waypoint with minimum distance
         idx = np.argmin(dists)
-        return self.path_remain[idx], self.vel_path_remain[idx], idx
+        return self.path_remain[idx], self.joint_path_remain[idx], self.vel_path_remain[idx], idx
 
 
 

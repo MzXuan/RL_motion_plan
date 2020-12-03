@@ -359,13 +359,13 @@ def main(args):
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                start_time = time.time()
+                # start_time = time.time()
                 actions, Q, q, _ = model.step_with_q(obs)
-                print("solving time is: ", time.time()-start_time)
-                time_list.append(time.time()-start_time)
+                # print("solving time is: ", time.time()-start_time)
+                # time_list.append(time.time()-start_time)
                 # data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
 
-            print("actions", actions)
+            # print("actions", actions)
             if len(time_list) > 3000:
                 time_list = np.array(time_list[1:])
                 print("mean of solving time: ", np.mean(time_list))
@@ -373,6 +373,9 @@ def main(args):
                 return
 
             obs, rew, done, info = env.step(actions)
+
+            print("info: ", info['is_success'])
+            # print("info: ", info['is_collision'])
             #
             # print("actions:", actions)
             # print("achieved goal", obs['achieved_goal'])

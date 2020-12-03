@@ -204,7 +204,7 @@ class UR5EefRobot(UR5Robot):
 			self._p.stepSimulation()
 			ee_end_state = self._p.getLinkState(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex)
 
-			ca_e_ori = np.array(self._p.getEulerFromQuaternion(list(ee_end_state[1])))
+			ca_e_ori = np.array(ee_end_state[1])
 			ca_e_goal = np.asarray(ee_end_state[0])
 
 			if self._contact_detection() is False:
@@ -420,17 +420,16 @@ class UR5EefRobot(UR5Robot):
 		joint_velocity = np.asarray(
 			[self.jdict[i].get_velocity() for i in self.select_joints if i in self.jdict])  # velocity
 
-		# eef_pose = self.parts[self.ee_link].get_pose()  # position [0:3], orientation [3:7]
-
 
 		ee_lin_pos, ee_lin_ori, ee_lin_vel,_ = self.getCurrentEEPos()
 
 		ee_lin_euler = self._p.getEulerFromQuaternion(ee_lin_ori)
 
 		obs = np.concatenate([ee_lin_pos, joint_position.flatten(), joint_velocity, self.last_joint_velocity])#21
-
-
-
+		# print("obs:", obs)
+		# print("joint_position,", joint_position)
+		#
+		# print("shape of robot obs", obs.shape)
 
 
 		self.last_joint_velocity = joint_velocity

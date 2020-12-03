@@ -290,6 +290,7 @@ def main(args):
                 last_obs = obs
                 collision_lst.append(info['is_collision'])
 
+
                 done_any = done.any() if isinstance(done, np.ndarray) else done
                 if done_any:
 

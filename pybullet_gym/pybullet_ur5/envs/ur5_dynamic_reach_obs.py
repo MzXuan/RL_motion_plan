@@ -69,11 +69,15 @@ def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
 
     # print("shape of goal: ", goal_a.shape)
-    w = np.array([3,3,2,1,1,1])
-    weight = w/np.linalg.norm(w)
-    weighted_error = np.multiply(weight, ( goal_a - goal_b))
+    a = 0.5
+    w = np.array([3,3,2,1,1,1])*a
+    # weight = w/np.linalg.norm(w)
+    weighted_error = np.multiply(w, ( goal_a - goal_b))
     distance = np.linalg.norm(weighted_error,axis=-1)
     # print("distance shape: ", distance.shape)
+    # print("weighted distance: ", distance)
+    # print("normal distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
+
     return distance
     # print("distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
     # return np.linalg.norm(goal_a - goal_b, axis=-1)
@@ -90,7 +94,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.4,
+                 early_stop=False, distance_threshold = 0.3,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse", use_rnn = True):
         self.iter_num = 0
@@ -412,8 +416,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             if info["is_success"] or info["is_collision"]:
                 done = True
 
-        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3],
-                                                ornObj=self._p.getQuaternionFromEuler(self.eef_goal[3:]))
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3], ornObj=self.eef_goal[3:])
 
         return obs, reward, done, info
 
@@ -446,7 +449,15 @@ class UR5DynamicReachObsEnv(gym.Env):
         indices = np.where(d > self.max_obs_dist_threshold)
         obs_human[indices] = np.full((1,3), self.max_obs_dist_threshold+0.2)
 
+        # interface for online test (following path)
+        next_goal = self._get_next_goal(ur5_eef_position)
+        if next_goal is False:
+            pass
+        else:
+            self.eef_goal, self.goal, self.goal_indices = next_goal[0],next_goal[1],next_goal[2]
 
+
+        # add human observation
         self.obs_min_dist = min_dist
         self.last_human_obs_list.append(np.asarray(obs_human.copy()).flatten())
         # print("shape of human states: ", np.asarray(self.last_human_obs_list).shape)
@@ -472,6 +483,9 @@ class UR5DynamicReachObsEnv(gym.Env):
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
+    def _get_next_goal(self, ur5_eef_position):
+        return False
 
 
 
@@ -502,13 +516,13 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -14
-        # a3 = -0.1
-        asmooth = -0.01
+        a2 = -12
+        a3 = -3
+        asmooth = -0.1
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
-                 + a2 * (_is_collision > 0) + asmooth*smoothness
-        reward_collision = a2 * (_is_collision > 0)
+                 + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
+        reward_collision = a2 * (_is_collision > 0) + a3 * distance
 
         return [reward, reward_collision]
 
@@ -588,7 +602,7 @@ def load_demo():
 
 class UR5DynamicReachPlannerEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True, distance_threshold = 0.025,
+                 early_stop=True, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse"):
         super(UR5DynamicReachPlannerEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
