@@ -61,7 +61,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True, distance_threshold = 0.4,
+                 early_stop=False, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -164,7 +164,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         try:
             eef_goal, goal, _, goal_indices = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
             eef_goal = np.concatenate([eef_goal,np.array([0,0,0,1])])
-            return (eef_goal, goal, goal_indices)
+            return (eef_goal, np.array(goal), goal_indices)
         except:
             print("!!!!!!!!!!!!!!not exist self.ws_path_gen")
             return False
@@ -215,7 +215,55 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             if q < -0.025:
                 self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
                                          textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
-                                         lifeTime=2)
+                                         lifeTime=1)
+
+    def update_robot_obs(self, current_obs, next_rob_state):
+        # change robot state to certain state and update obs
+        ur5_states = current_obs[0:21].copy()
+        ur5_states[:9] = next_rob_state
+        ur5_eef_position = ur5_states[:3]
+
+        self.human_states = self.agents[1].calc_state()
+
+
+        delta_p = np.asarray([(p - ur5_eef_position) for p in self.human_states])
+        d = np.linalg.norm(delta_p, axis=1)
+        min_dist = np.min(d)
+
+        # clip obs
+        obs_human = delta_p.copy()
+        indices = np.where(d > self.max_obs_dist_threshold)
+        obs_human[indices] = np.full((1, 3), self.max_obs_dist_threshold + 0.2)
+
+        if self.USE_RNN:
+            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
+
+            # print("human_obs_input", self.last_human_obs_list)
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+        else:
+            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+
+        achieved_goal = ur5_states[3:9]  # ur5 joint
+        return {
+            'observation': obs.copy(),
+            'achieved_goal': achieved_goal.copy(),
+            'desired_goal': self.goal.copy(),
+        }
+
+
+
+
+        return obs
+
+    def update_goal_obs(self, next_goal):
+        # 2. change goal state
+        obs = self.get_obs()
+        obs["desired_goal"] = next_goal
+
+        return obs
 
 
 

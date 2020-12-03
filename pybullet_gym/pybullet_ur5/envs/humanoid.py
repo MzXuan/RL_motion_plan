@@ -108,13 +108,10 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             print("use data from camera")
             self.human_model = HumanModel()
 
-        # trans_mat = pyquaternion.Quaternion([0.415, 0.535, 0.577, 0.457]).transformation_matrix
-        # trans_mat[:3, 3] = [-0.95, -0.85, 0.75]
-
         trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
-        trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
+        # trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
+        trans_mat[:3, 3] = [-0.88, -0.460, 0.656]
         self.trans_matrix = trans_mat
-
 
         high = np.inf * np.ones([obs_dim])
         self.observation_space = gym.spaces.Box(-high, high)
@@ -127,10 +124,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
                      "hand": np.ones(3) + self.max_obs_dist_threshold}
         self.arm_id = None
 
-
         self.human_iter = 0
-
-
 
         super(URDFHumanoid, self).__init__(
             'kinect_human/upper_body.urdf', "human", action_dim=0, obs_dim=obs_dim, fixed_base=1,
@@ -216,12 +210,12 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         add moving human base
         '''
         # set human goal
-        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.25, 0.4)
+        r = np.linalg.norm(rob_goal[:2]) + np.random.uniform(0.22, 0.35)
         if r < 0.7:
             r = 0.7
         human_goal = rob_goal.copy()
         human_goal[:2] = r * rob_goal[:2] / np.linalg.norm(rob_goal[:2])
-        human_goal[2] =  0+np.random.uniform(-0.2, 0.3)
+        human_goal[2] =  0+np.random.uniform(-0.2, 0.2)
 
         y = [0, 0, 1]
         z = [-human_goal[0], -human_goal[1], 0] / np.linalg.norm([-human_goal[0], -human_goal[1], 0])
@@ -239,30 +233,6 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.robot_specific_reset(self._p, base_position=human_goal, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
 
-        # success = False
-        # while not success:
-        #     a = human_goal
-        #     x_b = np.random.choice([-1,1])
-        #     y_b = -x_b*a[0]/a[1]
-        #
-        #     b = [x_b, y_b, a[2]]
-        #
-        #     r = 0.6
-        #
-        #     p_r = a + np.asarray(b)/np.linalg.norm(b) * r #p_r = vector a + vector b
-        #
-        #     xh = p_r[0]
-        #     yh = p_r[1]
-        #     zh = p_r[2]
-        #     # zh = self.human_goal[2] + np.random.uniform(-0.3, 0.3)
-        #
-        #     pos = [xh, yh, zh]
-        #
-        #     self.human_base_velocity = 0.01*(np.asarray(human_goal)-np.asarray(pos))/np.linalg.norm((np.asarray(human_goal)-np.asarray(pos)))
-        #     if np.linalg.norm(pos)>0.3:
-        #         success=True
-        # # self._p.addUserDebugLine(human_goal, p_r, lineColorRGB=[0.9, 0.1, 0.1], lineWidth=2, lifeTime=10)
-        # self.robot_specific_reset(self._p, base_position=pos, base_rotation=[rot_q[1], rot_q[2], rot_q[3], rot_q[0]])
 
 
     def robot_specific_reset(self, bullet_client, base_position, base_rotation):
@@ -448,8 +418,28 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         else:
             joints = self.human_model.joints
-            xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=False)
-            xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=False)
+            # print(joints)
+
+            try:
+                base = joints['SpineBase']
+                pos, ori = self.trans_pose(pos=base[:3], ori=base[3:])
+            except:
+                pos = [2,0,0]
+                ori = [0.7068252, 0, 0, 0.7073883]
+
+
+            self.robot_specific_reset(self._p, base_position=pos,
+                                          base_rotation=ori)
+
+            if joints is {}:
+                xl = np.zeros(7)
+                xr = np.zeros(7)
+            else:
+                xl = self.optimize_joint(joints, "Left", disp=disp, reset_flag=False)
+                xr = self.optimize_joint(joints, "Right", disp=disp, reset_flag=False)
+            if xl is False or xr is False:
+                xl = np.zeros(7)
+                xr = np.zeros(7)
 
         #set
 
@@ -473,4 +463,81 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
 
+
+class RealHumanoid(robot_bases.MJCFBasedRobot):
+    self_collision = True
+
+    def __init__(self,max_obs_dist_threshold, obs_dim=27):
+        self.power = 0.41
+        self.camera_x = 0
+
+        high = np.inf * np.ones([obs_dim])
+        self.observation_space = gym.spaces.Box(-high, high)
+        self.human_model = HumanModel()
+
+        trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
+        trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
+        self.trans_matrix = trans_mat
+        self.robot_name = 'humanoid'
+        self.obs_links = ["ShoulderLeft", "ElbowLeft", "WristLeft", "ShoulderRight", "ElbowRight", "WristRight"]
+        self.max_obs_dist_threshold = max_obs_dist_threshold
+
+
+
+    def reset(self, bullet_client, client_id=None, base_rotation=None):
+        self._p = bullet_client
+
+        s = self.calc_state(
+        )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
+
+
+        return s
+
+    def robot_specific_reset(self, bullet_client):
+        # WalkerBase.robot_specific_reset(self, bullet_client)
+        self._p = bullet_client
+
+
+
+    def calc_state(self, draw=False):
+        obs = []
+        joints = self.human_model.joints
+
+        for link_name in self.obs_links:
+
+
+            pos = [2, 2, 2]
+            obs.append(pos)
+
+        # print("human obs:", obs)
+
+        self.obs_links = ["ShoulderLeft", "ElbowLeft", "WristLeft", "ShoulderRight", "ElbowRight", "WristRight"]
+        if draw:
+            self._p.addUserDebugLine(obs[0],obs[1], lineColorRGB=[0, 0, 1], lineWidth=5,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+            self._p.addUserDebugLine(obs[1], obs[2], lineColorRGB=[0, 0, 1], lineWidth=5,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+            self._p.addUserDebugLine(obs[0], obs[3], lineColorRGB=[0, 0, 1], lineWidth=5,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+            self._p.addUserDebugLine(obs[3], obs[4], lineColorRGB=[0, 0, 1], lineWidth=5,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+            self._p.addUserDebugLine(obs[4], obs[5], lineColorRGB=[0, 0, 1], lineWidth=5,
+                                     lifeTime=0.5)  # ！！！！耗时大户，画一根0.017s
+
+        return obs
+
+
+    def trans_point(self,p):
+        point=np.zeros(4)
+        point[:3] = p
+        point[3] = 1
+        p_new = np.matmul(self.trans_matrix, point)[:3]
+        return p_new
+
+    def apply_action(self, a):
+        return 0
+
+
+    def alive_bonus(self, z, pitch):
+        return +2 if z > 0.78 else -1  # 2 here because 17 joints produce a lot of electricity cost just from policy noise, living must be better than dying
 

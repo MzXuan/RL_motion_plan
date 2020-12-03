@@ -110,6 +110,7 @@ def main(fpath, env, itr):
     goal_label = []
 
     obs = env.reset()
+    env.draw_path()
     print("obs initial", obs)
     id=0
 

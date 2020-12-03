@@ -251,7 +251,7 @@ def main(args):
         pybullet.connect(pybullet.DIRECT)
         # env = gym.make("UR5RealTestEnv-v0")
         env = gym.make("UR5HumanEnv-v0")
-        # env.render("human")
+        env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -259,6 +259,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
+        env.draw_path()
         last_obs = obs
         # env.render("rgb_array")
 
@@ -324,28 +325,33 @@ def main(args):
 
 
                 #----todo: generate batch obs---#
-
-                # start_time = time.time()
+                # time.sleep(0.1)
+                start_time = time.time()
                 line_traj = []
                 q_lst=[]
 
                 path_remain = env.ws_path_gen.path_remain.copy()
-                _,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.5, remove=False)
-                # print("goal indices: ", goal_indices)
+                joint_path_remain = env.ws_path_gen.joint_path_remain.copy()
+                _,_,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.5, remove=False)
+
+                # get trajectory after current indices
                 if goal_indices>15:
                     for i in range(0, goal_indices, int(goal_indices/15)):
                         try:
-                            p=path_remain[i]
+                            p = path_remain[i]
+                            jp = joint_path_remain[i]
+                            next_state = np.concatenate([p,jp])
+                            print("next state is: ", next_state)
                         except:
                             continue
-                        line_traj.append(env.update_robot_obs(p)) #0.0016s for one obs if print; if not print, 0.0002s for one obs
+                        line_traj.append(env.update_robot_obs(obs['observation'], next_state)) #0.0016s for one obs if print; if not print, 0.0002s for one obs
                         # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
                         # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
 
 
-                    # print("time cost 1 is: ", time.time() - start_time)
+                    print("time cost 1 is: ", time.time() - start_time)
                     q_lst = model.get_collision_q(line_traj)
-                    # print("time cost 3 is: ", time.time() - start_time)
+                    print("time cost 3 is: ", time.time() - start_time)
                 env.update_r(line_traj, q_lst, draw=False)
 
 

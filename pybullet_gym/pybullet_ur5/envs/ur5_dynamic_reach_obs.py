@@ -285,8 +285,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         s = []
         s.append(ar)
         s.append(ah)
-        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3],
-                                                ornObj=self._p.getQuaternionFromEuler(self.eef_goal[3:]))
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3], ornObj = self.eef_goal[3:])
 
         return obs
 
@@ -355,36 +354,21 @@ class UR5DynamicReachObsEnv(gym.Env):
         self.physicsClientId = -1
 
 
-    def draw_Q(self, obs_lst, q_lst):
-        # for obstacles in self.move_obstacles:
-        #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
-        #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
-
-        q_lst = np.asarray(q_lst)
-        #normalize Q for color
-        color_lst = (q_lst-min(q_lst))/(max(q_lst)-min(q_lst))
-
-        for obs, q, c in zip(obs_lst, q_lst, color_lst):
-            self._p.addUserDebugText(text = str(q)[2:7], textPosition=obs, textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c, c))
-
-
-        return 0
-
-
-    def update_robot_obs(self, next_eef):
-        #change robot state to certain end_effector and update obs
-        self.agents[0].bullet_ik(next_eef)
-        obs = self.get_obs()
-
-
-        return obs
-
-    def update_goal_obs(self, next_goal):
-        # 2. change goal state
-        obs = self.get_obs()
-        obs["desired_goal"] = next_goal
-
-        return obs
+    # def draw_Q(self, obs_lst, q_lst):
+    #     # for obstacles in self.move_obstacles:
+    #     #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+    #     #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+    #
+    #     q_lst = np.asarray(q_lst)
+    #     #normalize Q for color
+    #     color_lst = (q_lst-min(q_lst))/(max(q_lst)-min(q_lst))
+    #
+    #     for obs, q, c in zip(obs_lst, q_lst, color_lst):
+    #         self._p.addUserDebugText(text = str(q)[2:7], textPosition=obs, textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c, c))
+    #
+    #
+    #     return 0
+    #
 
 
     def step(self, action):
@@ -422,7 +406,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
 
-    def _get_obs(self):
+    def _get_obs(self, rob_state=None):
         '''
         :return:
         obs_robot: [robot states, human states]
@@ -432,13 +416,21 @@ class UR5DynamicReachObsEnv(gym.Env):
         '''
         infos = {}
         dones = [False for _ in range(self._n_agents)]
+
         ur5_states = self.agents[0].calc_state()
         ur5_eef_position = ur5_states[:3]
 
+        # interface for online test (following path)
+        next_goal = self._get_next_goal(ur5_eef_position)
+        if next_goal is False:
+            pass
+        else:
+            self.eef_goal, self.goal, self.goal_indices = next_goal[0],next_goal[1],next_goal[2]
 
+
+        # ------human observation-----
         self.human_states = self.agents[1].calc_state()
         infos['succeed'] = dones
-
 
         delta_p = np.asarray([(p-ur5_eef_position) for p in self.human_states])
         d = np.linalg.norm(delta_p,axis=1)
@@ -449,15 +441,6 @@ class UR5DynamicReachObsEnv(gym.Env):
         indices = np.where(d > self.max_obs_dist_threshold)
         obs_human[indices] = np.full((1,3), self.max_obs_dist_threshold+0.2)
 
-        # interface for online test (following path)
-        next_goal = self._get_next_goal(ur5_eef_position)
-        if next_goal is False:
-            pass
-        else:
-            self.eef_goal, self.goal, self.goal_indices = next_goal[0],next_goal[1],next_goal[2]
-
-
-        # add human observation
         self.obs_min_dist = min_dist
         self.last_human_obs_list.append(np.asarray(obs_human.copy()).flatten())
         # print("shape of human states: ", np.asarray(self.last_human_obs_list).shape)
@@ -483,6 +466,9 @@ class UR5DynamicReachObsEnv(gym.Env):
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
         }
+
+
+
 
     def _get_next_goal(self, ur5_eef_position):
         return False
@@ -516,8 +502,8 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         # sum of reward
         a1 = -1
-        a2 = -12
-        a3 = -3
+        a2 = -13
+        a3 = -6
         asmooth = -0.1
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
