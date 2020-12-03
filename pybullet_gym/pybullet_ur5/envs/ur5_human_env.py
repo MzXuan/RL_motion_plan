@@ -42,7 +42,8 @@ def load_demo():
 
 def load_demo_lst():
     # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
-    file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
+    # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
+    file_lst = ['/home/xuan/demos/task_demo1.pkl']
     data_lst = []
     for f in file_lst:
         try:
@@ -76,7 +77,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
-    def __init__(self, render=False, max_episode_steps=1000,
+    def __init__(self, render=False, max_episode_steps=8000,
                  early_stop=True, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
@@ -93,8 +94,11 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #--------------------------
 
     def _set_agents(self, max_obs_dist):
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load=True, test=True)]
+
         self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-                       URDFHumanoid(max_obs_dist, load=True, test=True)]
+                       RealHumanoid(max_obs_dist)]
 
 
     def _special_rob_reset(self, start_joint):
@@ -154,7 +158,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         vel_path = [demo[i]['toolv'] for i in range(len(demo))]
         joint_path = [demo[i]['robjp'] for i in range(len(demo))]
 
-        self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.08)
+        self.ws_path_gen = WsPathGen(path.copy(), vel_path.copy(), joint_path.copy(), 0.08)
 
         #set goal from record demo-------------
         rob_eef = ar[:3]
@@ -245,7 +249,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             # print("min_q", min_q)
         except:
             self.last_collision = False
-            self.set_sphere(0.15)
+            self.set_sphere(0.18)
             return 0
 
         if min_q<-0.10:
@@ -262,7 +266,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
             #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
         elif self.last_collision is False:
-            self.set_sphere(0.15)
+            self.set_sphere(0.18)
         else:
             self.last_collision=False
             return 0
@@ -322,8 +326,8 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
 
 class UR5HumanRealEnv(UR5HumanEnv):
-    def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True, distance_threshold = 0.35,
+    def __init__(self, render=False, max_episode_steps=8000,
+                 early_stop=True, distance_threshold = 0.25,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanRealEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,

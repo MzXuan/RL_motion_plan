@@ -477,6 +477,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
 
         trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
         trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
+        # trans_mat[:3, 3] = [-1.305, -0.290, 0.606]
         self.trans_matrix = trans_mat
         self.robot_name = 'humanoid'
         self.obs_links = ["ShoulderLeft", "ElbowLeft", "WristLeft", "ShoulderRight", "ElbowRight", "WristRight"]

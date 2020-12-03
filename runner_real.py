@@ -314,10 +314,11 @@ def main(args):
                     traj_count+=1
                     seed +=1
                     traj_len = 0
+                    time.sleep(3)
                     obs = env.reset()
                     last_obs = obs
                     collision_lst = []
-                    start_time = time.time()
+                    # start_time = time.time()
                     print("current mean of traj len is: ", np.array(traj_len_lst).mean())
                     print("current std of traj len is: ", np.array(traj_len_lst).std())
                     print("current mean reach time is: ", np.array(time_lst).mean())
@@ -326,9 +327,10 @@ def main(args):
                     print("current mean success steps is: ", np.array(success_steps).mean())
                     print("current std success steps is: ", np.array(success_steps).std())
 
+                obs = env.get_obs()
 
                 #----todo: generate batch obs---#
-                time.sleep(0.1)
+
                 # start_time = time.time()
                 line_traj = []
                 q_lst=[]
