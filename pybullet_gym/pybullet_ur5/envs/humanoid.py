@@ -505,15 +505,15 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
         joints = self.human_model.joints
         # print("joints", joints)
         for link_name in self.obs_links:
-            try:
-                pos = self.trans_point(joints[link_name][:3])
-                # pos = joints[link_name][:3]
-            except:
-                pos = [2,0,0]
+            # try:
+            #     pos = self.trans_point(joints[link_name][:3])
+            #     # pos = joints[link_name][:3]
+            # except:
+            #     pos = [2,0,0]
 
             # print("pos", pos)
 
-            # pos = [2, 2, 2]
+            pos = [2, 2, 2]
             obs.append(pos)
 
         # print("human obs:", obs)

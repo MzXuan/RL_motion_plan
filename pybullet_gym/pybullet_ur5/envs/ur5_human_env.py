@@ -43,7 +43,9 @@ def load_demo():
 def load_demo_lst():
     # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
-    file_lst = ['/home/xuan/demos/task_demo1.pkl']
+    # file_lst = ['/home/xuan/demos/task_demo1.pkl']
+
+    file_lst = ['/home/xuan/demos/task_task_demo1.pkl']
     data_lst = []
     for f in file_lst:
         try:
