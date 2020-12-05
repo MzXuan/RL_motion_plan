@@ -23,10 +23,10 @@ def get_action(obs, rob_eef_goal, human2robot, env):
     current_eef= obs['observation'][:3]
     # attract to goal:
     # goal_v = (rob_goal-current_eef)/np.linalg.norm(rob_goal-current_eef)
-    goal_v = 2*(rob_goal - current_eef)
+    goal_v = 2.5*(rob_goal - current_eef)
     print("norm of goal v is: ", np.linalg.norm(goal_v))
-    if np.linalg.norm(goal_v) > 0.4:
-        goal_v = 0.4*goal_v/np.linalg.norm(goal_v)
+    if np.linalg.norm(goal_v) > 0.5:
+        goal_v = 0.5*goal_v/np.linalg.norm(goal_v)
 
     #repulsive force from human:
     human_v = []
@@ -36,7 +36,7 @@ def get_action(obs, rob_eef_goal, human2robot, env):
         d_norm = np.linalg.norm(p)
         if d_norm<thre:
             # v =  (np.exp(1/(2*thre))-1)*d/d_norm
-            v = -5*d / d_norm
+            v = -3*d* np.exp((d_norm-thre)/thre)
             human_v.append(v)
     rob_v = np.array(goal_v)
 
