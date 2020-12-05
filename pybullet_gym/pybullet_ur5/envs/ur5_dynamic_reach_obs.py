@@ -501,7 +501,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         smoothness = np.linalg.norm([info['joint_vel'][0:6] - info['joint_vel'][6:12]])
 
         # sum of reward
-        a1 = -1
+        a1 = -1.5
         a2 = -14
         a3 = -8
         asmooth = -0.1

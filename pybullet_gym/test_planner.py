@@ -18,6 +18,7 @@ from pybullet_planning import link_from_name, get_moving_links, get_link_name
 from pybullet_planning import multiply, get_collision_fn
 from pybullet_planning.motion_planners.stomp import STOMP
 
+import pickle
 import ikfast_ur5
 import pyquaternion
 
@@ -295,6 +296,11 @@ def main(env, test):
 
     traj_count = 1
     traj_len = 0
+
+
+    moveing_result = []
+
+    # todo: save robot result
     while traj_count < 100:
         try:
             for _ in range(int(replan_t / dt)):
@@ -307,6 +313,7 @@ def main(env, test):
 
                 obs = env.get_obs()
                 traj_len+=np.linalg.norm(obs['observation'][:3]-last_obs['observation'][:3])
+                moveing_result.append(obs['observation'][:9])
                 last_obs=obs
 
                 time.sleep(dt)
@@ -362,8 +369,6 @@ def main(env, test):
 
             else:
                 #online replan
-
-
                 result = ur5_mover.conf_traj - initial_conf
                 error = np.linalg.norm(result, axis=1)
                 id_min = np.argmin(error)
@@ -377,7 +382,15 @@ def main(env, test):
                     t1.start()
 
 
+
+
         except KeyboardInterrupt:
+            moveing_result = np.asarray(moveing_result)
+            try:
+                np.savetxt("/home/xuan/demos/plan_traj.csv", moveing_result, delimiter=",")
+                print("save successfully")
+            except:
+                print("save failed")
             print(ur5_planner.steps_count)
             return
 
