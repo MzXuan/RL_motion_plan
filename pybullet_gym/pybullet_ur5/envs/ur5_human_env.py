@@ -42,10 +42,12 @@ def load_demo():
 
 def load_demo_lst():
     # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
-    file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
-    # file_lst = ['/home/xuan/demos/task_demo1.pkl']
+    # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
+    file_lst = ['/home/xuan/demos/task_demo1.pkl']
 
     # file_lst = ['/home/xuan/demos/task_task_demo1.pkl']
+
+    # file_lst = ['/home/xuan/demos/plan_2.pkl']
     data_lst = []
     for f in file_lst:
         try:
@@ -343,7 +345,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
 class UR5HumanRealEnv(UR5HumanEnv):
     def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=True, distance_threshold = 0.4,
+                 early_stop=False, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanRealEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -391,8 +393,10 @@ class UR5HumanPlanEnv(UR5HumanEnv):
 
 
     def _set_agents(self, max_obs_dist):
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load=True, test=True)]
         self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-                       URDFHumanoid(max_obs_dist, load=True, test=True)]
+                       URDFHumanoid(max_obs_dist, load=False, test=True)]
 
     def step(self, action):
         self.iter_num += 1
@@ -409,7 +413,7 @@ class UR5HumanPlanEnv(UR5HumanEnv):
             'is_collision': self._contact_detection(),
             'min_dist': self.obs_min_dist,
             'safe_threshold': self.current_safe_dist,
-            'ee_vel':obs["observation"][3:9]
+            'joint_vel': obs["observation"][9:21]
         }
 
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
@@ -421,8 +425,8 @@ class UR5HumanPlanEnv(UR5HumanEnv):
             if info["is_success"]:
                 done = True
 
-        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.goal, ornObj=[0.0, 0.0, 0.0, 1.0])
 
+        self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3], ornObj=self.eef_goal[3:])
         return obs, reward, done, info
 
     def is_contact(self):

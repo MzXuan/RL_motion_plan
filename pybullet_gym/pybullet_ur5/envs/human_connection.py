@@ -272,9 +272,9 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             hm.kinect.skeleton.stop()
-            # with open('/home/xuan/demos/human_test_6.pkl', 'wb') as handle:
-                # pickle.dump(joint_data_lst, handle, protocol=2)
-                # print("save successfully")
+            with open('/home/xuan/demos/human_test1204_1.pkl', 'wb') as handle:
+                pickle.dump(joint_data_lst, handle, protocol=2)
+                print("save successfully")
 
             measure=np.asarray(measure)
             filter = np.asarray(filter)
@@ -283,13 +283,13 @@ if __name__ == "__main__":
             timestep=np.asarray(timestep)
 
 
-            for j in range(3):
-                plt.plot(timestep[:measure.shape[0]], measure[:, j], 'r-')
-                plt.plot(timestep[:filter.shape[0]], filter[:, j], 'bs--')
-                plt.plot(timestep[1:predict.shape[0]], predict[:-1, j], 'g^-')
-                plt.plot(timestep[2:further_predict.shape[0]], further_predict[:-2,j],'y^--')
-
-                plt.show()
+            # for j in range(3):
+            #     plt.plot(timestep[:measure.shape[0]], measure[:, j], 'r-')
+            #     plt.plot(timestep[:filter.shape[0]], filter[:, j], 'bs--')
+            #     plt.plot(timestep[1:predict.shape[0]], predict[:-1, j], 'g^-')
+            #     plt.plot(timestep[2:further_predict.shape[0]], further_predict[:-2,j],'y^--')
+            #
+            #     plt.show()
 
 
             raise

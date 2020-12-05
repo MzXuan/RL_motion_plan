@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import time
 
 MIN_COST_DIFFERENCE = 1e-8
-MAX_ITERATION_STEPS = 20
+MAX_ITERATION_STEPS = 5
 STOP_TOLERANCE = 1e-2
 class STOMP:
 

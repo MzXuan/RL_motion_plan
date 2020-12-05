@@ -168,8 +168,9 @@ class UR5Mover:
         ee_link_name = self.env.agents[0].ee_link
         self.tool_link = link_from_name(self.robot, ee_link_name)
         self.n=0
-        self.dt = 0.1
+        self.dt = 0.25
         self.collision_lst = []
+        self.moving_result = []
 
     def reset_conf_traj(self, conf_traj):
         self.n = 0
@@ -191,19 +192,27 @@ class UR5Mover:
 
         # print("length of conf is: ", len(conf_traj))
         if self.n>=len(conf_traj)-1:
-            # print("cancel due to max n ")
-            # self.move_timer.cancel()
+
             return
         target_p = conf_traj[self.n,:]
         target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt
-
+        # obs = self.env.get_obs()
+        # current_e = obs['observation'][3:9]
+        # target_v = target_p-current_e
         # print("target v: ", target_v)
+        #
+        #
+        # self.env.step(target_v)
         for i in range(6):
             pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
                                     target_p[i], target_v[i],
-                                           positionGain=1, velocityGain=0.5, maxVelocity=1.2, physicsClientId=self.clientid)
+                                           positionGain=1, velocityGain=0.5, maxVelocity=0.5, physicsClientId=self.clientid)
         pybullet.stepSimulation(physicsClientId=self.clientid)
         contact = self.env.is_contact()
+
+        obs = self.env.get_obs()
+        self.moving_result.append({'robjp': obs['observation'][3:9].copy(), 'robjv': obs['observation'][9:15].copy(),
+                               'toolp': obs['observation'][:3].copy(), 'toolv': np.zeros(3)})
         # print("contact", contact)
         self.collision_lst.append(contact)
 
@@ -282,8 +291,8 @@ def main(env, test):
 
     move_human(env)
 
-    dt = 0.03
-    replan_t = 1
+    dt = 0.2
+    replan_t = 4
     # moving and replanning
 
 
@@ -298,8 +307,6 @@ def main(env, test):
     traj_len = 0
 
 
-    moveing_result = []
-
     # todo: save robot result
     while traj_count < 100:
         try:
@@ -313,7 +320,8 @@ def main(env, test):
 
                 obs = env.get_obs()
                 traj_len+=np.linalg.norm(obs['observation'][:3]-last_obs['observation'][:3])
-                moveing_result.append(obs['observation'][:9])
+
+
                 last_obs=obs
 
                 time.sleep(dt)
@@ -337,7 +345,7 @@ def main(env, test):
                     success_count += 1
                     traj_len_lst.append(traj_len)
 
-
+                time.sleep(5)
 
                 print("current success rate is: ", success_count / traj_count)
                 print("current mean of traj len is: ", np.array(traj_len_lst).mean())
@@ -347,6 +355,7 @@ def main(env, test):
                 print("current mean of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).mean())
                 print("current std of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).std())
                 print("------------------------------------------------------")
+
 
                 last_obs = env.reset()
                 start_time = time.time()
@@ -385,10 +394,11 @@ def main(env, test):
 
 
         except KeyboardInterrupt:
-            moveing_result = np.asarray(moveing_result)
+            moving_result = ur5_mover.moving_result
             try:
-                np.savetxt("/home/xuan/demos/plan_traj.csv", moveing_result, delimiter=",")
-                print("save successfully")
+                with open('/home/xuan/demos/plan_2.pkl', 'wb') as handle:
+                    pickle.dump(moving_result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    print("save successfully")
             except:
                 print("save failed")
             print(ur5_planner.steps_count)
