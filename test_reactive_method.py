@@ -44,16 +44,6 @@ def get_action(obs, rob_eef_goal, human2robot, env):
         rob_v += v
 
 
-    # if human_v != []:
-    #     for v in human_v:
-    #         rob_v += v
-    #     print("human_v", human_v)
-    #     print("rob_v", rob_v)
-    #
-    # else:
-    #     rob_v=np.array((goal_v))
-    #     print("goal_v", goal_v)
-
 
 
     print("human_v", human_v)
@@ -83,7 +73,7 @@ def main(env):
     print(env.action_space.shape)
     print(" ---------------------------- ")
 
-    env.render(mode="human")
+    # env.render(mode="human")
 
     env.reset()
     env.draw_path()

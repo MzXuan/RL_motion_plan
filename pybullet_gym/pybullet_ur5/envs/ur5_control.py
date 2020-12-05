@@ -53,7 +53,7 @@ class UR5Control():
 
         target = target.clip(min=-0.4, max=0.4)
         # print("target velocity", target)
-        self.rob.speedj(target,acc=0.2, min_time=10)
+        self.rob.speedj(target,acc=0.7, min_time=10)
 
 
     def stop(self):
