@@ -244,6 +244,22 @@ class UR5RealRobot(robot_bases.URDFBasedRobot):
             self.last_ee_vel = ee_vel
             return obs
 
+    def bullet_ik(self, target_position, orientation=None):
+        if orientation is None:
+            jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0],
+                                                            self.parts['ee_link'].bodyPartIndex,
+                                                            target_position, self.orientation
+                                                            )
+        else:
+            jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0],
+                                                            self.parts['ee_link'].bodyPartIndex,
+                                                            target_position,
+                                                            )
+        target_jp = np.asarray(jointPoses[:6])
+
+        return target_jp
+
+
     def stop(self):
         self.ur5_rob_control.stop()
 

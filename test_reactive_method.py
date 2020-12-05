@@ -17,31 +17,57 @@ import matplotlib.pyplot as plt
 import pickle
 
 
-def get_action(obs, info, hand_v):
-    goal = obs["desired_goal"]
-    ee_pos = obs["achieved_goal"]
-    ee_vel = info['ee_vel'][:3]
+def get_action(obs, rob_eef_goal, human2robot, env):
+    print("rob_eef_goal: ", rob_eef_goal)
+    rob_goal = rob_eef_goal[:3]
+    current_eef= obs['observation'][:3]
+    # attract to goal:
+    # goal_v = (rob_goal-current_eef)/np.linalg.norm(rob_goal-current_eef)
+    goal_v = 2*(rob_goal - current_eef)
+    print("norm of goal v is: ", np.linalg.norm(goal_v))
+    if np.linalg.norm(goal_v) > 0.4:
+        goal_v = 0.4*goal_v/np.linalg.norm(goal_v)
 
-    dist = info['min_dist']
-    # human hand velocity - ee_vel / distance
+    #repulsive force from human:
+    human_v = []
+    thre = 0.4
+    for p in human2robot:
+        d = p
+        d_norm = np.linalg.norm(p)
+        if d_norm<thre:
+            # v =  (np.exp(1/(2*thre))-1)*d/d_norm
+            v = -5*d / d_norm
+            human_v.append(v)
+    rob_v = np.array(goal_v)
 
-    rob_max_v = 1.5
-    scale = 5
-    print("dist is:", dist)
-    if dist < 0.35:
-        print("hand!!!!")
-        ee_next_v = (hand_v)/dist*scale
-    else:
-        ee_next_v = (goal - ee_pos)*scale
+    for v in human_v:
+        rob_v += v
 
 
-    print("vel range is: ", np.linalg.norm(ee_next_v))
-    if np.linalg.norm(ee_next_v) >rob_max_v:
-        ee_next_v =  ee_next_v/np.linalg.norm(ee_next_v)
+    # if human_v != []:
+    #     for v in human_v:
+    #         rob_v += v
+    #     print("human_v", human_v)
+    #     print("rob_v", rob_v)
+    #
+    # else:
+    #     rob_v=np.array((goal_v))
+    #     print("goal_v", goal_v)
 
-    print("ee_next_v", ee_next_v)
 
-    return ee_next_v
+
+    print("human_v", human_v)
+    print("rob_v", rob_v)
+    print("goal_v", goal_v)
+
+    target_jp = env.get_robot_ik(current_eef+rob_v)
+    current_jp = obs['observation'][3:9]
+
+    joint_v = (target_jp-current_jp)
+    print("joint_v", joint_v) #similar to action, max is 1
+    #todo: calculate ik and send to joint xxx
+    return joint_v
+
 
 def main(env):
     seed = np.random.randint(0,100)
@@ -59,27 +85,24 @@ def main(env):
 
     env.render(mode="human")
 
-
-    obs = env.reset()
-    # print("obs initial", obs)
-
+    env.reset()
+    env.draw_path()
     traj_count = 0
-    env.render()
 
-    env.set_sphere(0.2)
+    env.set_sphere(0.15)
 
     ## start simulation loop ##
-    obs, rew, done, info = env.step([0, 0, 0])
+    obs, rew, done, info = env.step(np.array([0, 0, 0,0,0,0]))
     while traj_count < 300:
         try:
             time.sleep(0.03)
             # obs = env.get_obs()
 
-            hand_v = env.get_hand_velocity()
-            action = get_action(obs, info, hand_v)
-            # print("action: ", action)
+            human2robot = env.last_obs_human
+            # human2robot = [obs_human[2], obs_human[5]]
+            rob_eef_goal = env.eef_goal
+            action = get_action(obs, rob_eef_goal, human2robot,env)
             obs, rew, done, info = env.step(action)
-            #
 
             # print("obs, ", obs)
             # print("reward: ", rew)
@@ -90,12 +113,14 @@ def main(env):
                 #reset all
                 traj_count += 1
                 print("reset")
+                env.agents[0].stop()
                 env.reset()
-                obs, rew, done, info = env.step([0, 0, 0])
+                obs, rew, done, info = env.step(np.array([0, 0, 0, 0, 0, 0]))
 
             env.render()
 
         except KeyboardInterrupt:
+            env.agents[0].stop()
             env.close()
             raise
 
@@ -104,7 +129,7 @@ def main(env):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="UR5RealTestEnv-v0")
+    parser.add_argument("--env", type=str, default="UR5HumanRealEnv-v0")
     # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
     args = parser.parse_args()
     main(args.env)

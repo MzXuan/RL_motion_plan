@@ -94,8 +94,8 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.25,
-                 max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
+                 early_stop=False, distance_threshold = 0.3,
+                 max_obs_dist = 1.0 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse", use_rnn = True):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
@@ -310,7 +310,7 @@ class UR5DynamicReachObsEnv(gym.Env):
 
 
     def _set_safe_distance(self):
-        return 0.1
+        return 0.25
         # return np.random.uniform(self.safe_dist_lowerlimit, self.safe_dist_upperlimit)
 
     def get_obs(self):
@@ -456,7 +456,7 @@ class UR5DynamicReachObsEnv(gym.Env):
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
-        # print("shape of obs is: ", obs.shape)
+
 
         self.last_obs_human = obs_human.copy()
 
@@ -503,7 +503,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         # sum of reward
         a1 = -1
         a2 = -14
-        a3 = -10
+        a3 = -5
         asmooth = -0.1
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \

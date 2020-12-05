@@ -284,7 +284,7 @@ class UR5EefRobot(UR5Robot):
 		return 0
 
 	def apply_action(self, a):
-		# set to position
+		# set to position by velocity
 		max_joint_v = 2
 		step_joint_v = max_joint_v*self.dt
 
@@ -359,10 +359,17 @@ class UR5EefRobot(UR5Robot):
 	# 	for i, joint_name in enumerate(self.select_joints):
 	# 		self.jdict[joint_name].set_position(target_jp[i], maxVelocity=0.8)
 
-	def bullet_ik(self, target_position):
-		jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
-														target_position, self.orientation
-														)
+	def bullet_ik(self, target_position, orientation=None):
+		if orientation is None:
+			jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
+															target_position, self.orientation
+															)
+		else:
+			# _,ee_lin_ori, _, _ = self.getCurrentEEPos()
+			jointPoses = self._p.calculateInverseKinematics(self.robot_body.bodies[0],
+															self.parts['ee_link'].bodyPartIndex,
+															target_position,
+															)
 		# jointPoses =  self._p.calculateInverseKinematics(self.robot_body.bodies[0], self.parts['ee_link'].bodyPartIndex,
 		# 												target_position,self.orientation,
 		# 												lowerLimits=self.lower_limit, upperLimits=self.upper_limit

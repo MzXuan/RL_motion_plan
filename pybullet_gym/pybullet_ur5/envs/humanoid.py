@@ -110,7 +110,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
         trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
         # trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
-        trans_mat[:3, 3] = [-0.88, -0.460, 0.656]
+        trans_mat[:3, 3] = [-0.58, -0.460, 0.656]
         self.trans_matrix = trans_mat
 
         high = np.inf * np.ones([obs_dim])

@@ -80,7 +80,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=True, distance_threshold = 0.4,
+                 early_stop=False, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -96,11 +96,11 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #--------------------------
 
     def _set_agents(self, max_obs_dist):
-        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-        #                URDFHumanoid(max_obs_dist, load=True, test=True)]
-
         self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-                       RealHumanoid(max_obs_dist)]
+                       URDFHumanoid(max_obs_dist, load=True, test=True)]
+
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                RealHumanoid(max_obs_dist)]
 
 
     def _special_rob_reset(self, start_joint):
@@ -309,6 +309,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([min_dist])])
 
+
         achieved_goal = ur5_states[3:9]  # ur5 joint
         return {
             'observation': obs.copy(),
@@ -324,6 +325,16 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         obs["desired_goal"] = next_goal
 
         return obs
+
+    def get_robot_ik(self, pos, ori=None):
+        target_jp = self.agents[0].bullet_ik(pos, ori)
+        return target_jp
+
+    # def get_hands_position(self):
+    #     human_current = self.last_human_obs_list[-1]
+    #     wrist_right = human_current[-3:]
+    #     wrist_left = human_current[-12:-9]
+    #     return (wrist_right)
 
 
 
@@ -349,81 +360,13 @@ class UR5HumanRealEnv(UR5HumanEnv):
                        RealHumanoid(max_obs_dist)]
 
     def _special_rob_reset(self, start_joint):
-        ar = self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
+        self.agents[0].reset(self._p, client_id=self.physicsClientId, base_position=self.robot_base)
         move_to_start(self.agents[0].ur5_rob_control, start_joint)
+        ar =  self.agents[0].calc_state(
+        )
         return ar
 
-    # def reset(self):
-    #     self.last_obs_human = np.full(18, self.max_obs_dist_threshold + 0.2)
-    #     self.last_robot_joint = np.zeros(6)
-    #     self.current_safe_dist = self._set_safe_distance()
-    #
-    #     if (self.physicsClientId < 0):
-    #         self.ownsPhysicsClient = True
-    #
-    #         if self.isRender:
-    #             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
-    #         else:
-    #             self._p = bullet_client.BulletClient()
-    #
-    #         self._p.setGravity(0, 0, -9.81)
-    #         self._p.setTimeStep(self.sim_dt)
-    #
-    #         self.physicsClientId = self._p._client
-    #         self._p.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
-    #
-    #     if self.scene is None:
-    #         self.scene = self.create_single_player_scene(self._p)
-    #     if not self.scene.multiplayer and self.ownsPhysicsClient:
-    #         self.scene.episode_restart(self._p)
-    #
-    #     self.camera_adjust()
-    #
-    #     for a in self.agents:
-    #         a.scene = self.scene
-    #
-    #     self.frame = 0
-    #     self.iter_num = 0
-    #
-    #     self.robot_base = [0, 0, 0]
-    #
-    #     move_to_start(self.agents[0].ur5_rob_control, self.demo_data)
-    #
-    #
-    #     #---------------add agent----------------------------#
-    #     ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
-    #                               base_rotation=[0.0005629, 0.707388, 0.706825, 0.0005633])
-    #
-    #     ar = self._special_rob_reset()
-    #
-    #
-    #
-    #     # ------prepare path----------------
-    #     path = [self.demo_data[i]['toolp'] for i in range(len(self.demo_data))]
-    #     vel_path = [self.demo_data[i]['toolv'] for i in range(len(self.demo_data))]
-    #     joint_path = [self.demo_data[i]['robjp'] for i in range(len(self.demo_data))]
-    #
-    #     self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.08)
-    #
-    #     self.path_for_drawing = path.copy()
-    #
-    #     # -------set goal from record demo-------------
-    #     rob_eef = ar[:3]
-    #     self.final_goal = self.demo_data[-1]['robjp']
-    #     next_goal = self._get_next_goal(rob_eef)
-    #     self.eef_goal, self.goal, self.goal_indices = next_goal[0], next_goal[1], next_goal[2]
-    #
-    #     print("goal,", self.goal)
-    #     #------------------------------------------
-    #     self._p.stepSimulation()
-    #     obs = self._get_obs()
-    #
-    #     s = []
-    #     s.append(ar)
-    #     s.append(ah)
-    #     self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3], ornObj=self.eef_goal[3:])
-    #
-    #     return obs
+
 
 
 
@@ -557,5 +500,4 @@ class UR5HumanPlanEnv(UR5DynamicReachObsEnv):
 
     def is_contact(self):
         return self._contact_detection()
-
 
