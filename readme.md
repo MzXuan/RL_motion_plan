@@ -1,5 +1,5 @@
 ## bullet runner
-python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=5e5 --save_path=~/models/ur5_rnn_j_1205_01 --log_path=~/log/ur5_rnn_j_1205_01 --load_path=~/models/ur5_rnn_j_1201_01 
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=5e5 --save_path=~/models/ur5_rnn_j_1205_02 --log_path=~/log/ur5_rnn_j_1205_02 --load_path=~/models/ur5_rnn_j_1201_01 
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1126_l2 --log_path=~/log/ur5_mlp_c14_1126_l2
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1118_l10 --log_path=~/log/ur5_mlp_c14_1118_l10
 
@@ -11,7 +11,7 @@ python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotic
 
 
 ### bullet test with reference trajectory:
-python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1202_06 --play
+python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1205_01 --play
 
 python runner_real.py --alg=her --env=UR5HumanEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_mlp_c14_1126_l2 --play
 
@@ -32,6 +32,11 @@ python runner.py --alg=her --env=FetchDynamicReach-v2 --env_type=robotics --num_
 # test q value function:
 python runner_test_q.py --alg=her --env=FetchDynamicTestReach-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/fetch_reach_her --play
 +
+
+
+#test reactive method:
+1.  python test_reactive_method.py
+
 
 # test data collection:
 1.

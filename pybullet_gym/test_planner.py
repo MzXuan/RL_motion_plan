@@ -277,10 +277,12 @@ def main(env, test):
 
     #--------joint planning-----------#
 
+    env.draw_path()
+
     move_human(env)
 
     dt = 0.03
-    replan_t = 2
+    replan_t = 1
     # moving and replanning
 
 
@@ -312,6 +314,9 @@ def main(env, test):
                     # time.sleep(dt)
 
             #---------------- if done or replan-----------------------
+            print("initial conf", initial_conf)
+            print("end_conf: ", end_conf)
+            print("done", done)
             if done:
 
 
@@ -342,7 +347,6 @@ def main(env, test):
                 traj_len = 0
 
                 ur5_mover.collision_lst = []
-
 
 
                 end_conf = initial_ref_path[-1]

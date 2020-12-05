@@ -40,6 +40,8 @@ def get_action(obs, rob_eef_goal, human2robot, env):
             human_v.append(v)
     rob_v = np.array(goal_v)
 
+    #todo: support pose changing
+
     for v in human_v:
         rob_v += v
 

@@ -34,7 +34,7 @@ class WsPathGen():
 
         d_min = np.min(dists)
 
-        print("input r: ", r)
+        # print("input r: ", r)
         if d_min > r:
             r=d_min+0.02
 

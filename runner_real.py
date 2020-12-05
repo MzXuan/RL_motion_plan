@@ -251,7 +251,7 @@ def main(args):
         pybullet.connect(pybullet.DIRECT)
         # env = gym.make("UR5HumanEnv-v0")
         env = gym.make("UR5HumanRealEnv-v0")
-        env.render("human")
+        # env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -362,6 +362,7 @@ def main(args):
 
                 # time.sleep(200)
             except KeyboardInterrupt:
+                env.agents[0].stop()
                 print("success rate is: ", success_count / traj_count)
                 print("mean success steps is: ", np.array(success_steps).mean())
                 print("std success steps is: ", np.array(success_steps).std())
