@@ -216,7 +216,7 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             r = 0.7
         human_goal = rob_goal.copy()
         human_goal[:2] = r * rob_goal[:2] / np.linalg.norm(rob_goal[:2])
-        human_goal[2] =  0+np.random.uniform(-0.2, 0.3)
+        human_goal[2] =  0+np.random.uniform(-0.2, 0.25)
 
         y = [0, 0, 1]
         z = [-human_goal[0], -human_goal[1], 0] / np.linalg.norm([-human_goal[0], -human_goal[1], 0])

@@ -503,7 +503,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         # sum of reward
         a1 = -1.5
         a2 = -14
-        a3 = -8
+        a3 = -6
         asmooth = -0.1
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
