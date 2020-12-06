@@ -251,7 +251,7 @@ def main(args):
         pybullet.connect(pybullet.DIRECT)
         # env = gym.make("UR5HumanEnv-v0")
         env = gym.make("UR5HumanRealEnv-v0")
-        # env.render("human")
+        env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -372,70 +372,6 @@ def main(args):
         print("mean success steps is: ", np.array(success_steps).mean())
         print("std success steps is: ", np.array(success_steps).std())
 
-
-
-
-
-        # #--------------------------- original test----------------------------------------#
-        # traj_count = 0
-        # total_steps = 1
-        # data_list = []
-        # last_time = time.time()
-        # actions_list = []
-        # env.set_sphere(0.1)
-        # while traj_count < 300: #run at about 120 hz without gui; 30hz with gui
-        #     try:
-        #         print(time.time())
-        #
-        #         obs = env.get_obs() #0.001
-        #         # print("obs",obs)
-        #         actions, _, _, info = model.step(obs)  #0.002s
-        #         data_list.append(np.concatenate([obs['observation'],obs['achieved_goal'], obs['desired_goal'], np.asarray([999]), actions]))
-        #
-        #         actions_list.append(actions)
-        #
-        #         obs, rew, done, info = env.step(actions) #0.01s
-        #
-        #         # img = env.render("rgb_array")
-        #         # cv2.imshow("image", img)
-        #         # cv2.waitKey(1)
-        #         print("actions:", actions)
-        #         print("achieved goal", obs['achieved_goal'])
-        #         print("desired goal", obs['desired_goal'])
-        #
-        #         episode_rew += rew
-        #         total_steps+=1
-        #         # env.render()
-        #         done_any = done.any() if isinstance(done, np.ndarray) else done
-        #
-        #         if done_any:
-        #             print("info", info)
-        #             print("total steps", total_steps)
-        #             np.savetxt("./real_data.csv", np.asarray(data_list), delimiter=",")
-        #             data_list= []
-        #
-        #             np.savetxt("./actions_data.csv", np.asarray(actions_list), delimiter=",")
-        #             actions_list = []
-        #
-        #             env.agents[0].stop()
-        #             time.sleep(2)
-        #             # break
-        #
-        #             for i in np.nonzero(done)[0]:
-        #                 print('episode_rew={}'.format(episode_rew[i]))
-        #                 episode_rew[i] = 0
-        #
-        #
-        #             print("-------------end step {}---------".format(traj_count))
-        #             traj_count+=1
-        #             seed +=1
-        #             obs = env.reset()
-        #
-        #         last_time = time.time()
-        #
-        #     except KeyboardInterrupt:
-        #         env.close()
-        #         raise
 
 
     env.close()

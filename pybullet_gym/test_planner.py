@@ -168,7 +168,7 @@ class UR5Mover:
         ee_link_name = self.env.agents[0].ee_link
         self.tool_link = link_from_name(self.robot, ee_link_name)
         self.n=0
-        self.dt = 0.25
+        self.dt = 0.2
         self.collision_lst = []
         self.moving_result = []
 
@@ -206,13 +206,13 @@ class UR5Mover:
         for i in range(6):
             pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
                                     target_p[i], target_v[i],
-                                           positionGain=1, velocityGain=0.5, maxVelocity=0.5, physicsClientId=self.clientid)
+                                           positionGain=1, velocityGain=0.5, maxVelocity=0.4, physicsClientId=self.clientid)
         pybullet.stepSimulation(physicsClientId=self.clientid)
         contact = self.env.is_contact()
 
-        obs = self.env.get_obs()
-        self.moving_result.append({'robjp': obs['observation'][3:9].copy(), 'robjv': obs['observation'][9:15].copy(),
-                               'toolp': obs['observation'][:3].copy(), 'toolv': np.zeros(3)})
+        self.moving_result.append({'robjp': target_p})
+        # self.moving_result.append({'robjp': obs['observation'][3:9].copy(), 'robjv': obs['observation'][9:15].copy(),
+        #                        'toolp': obs['observation'][:3].copy(), 'toolv': np.zeros(3)})
         # print("contact", contact)
         self.collision_lst.append(contact)
 
@@ -291,7 +291,7 @@ def main(env, test):
 
     move_human(env)
 
-    dt = 0.2
+    dt = 0.1
     replan_t = 4
     # moving and replanning
 
@@ -396,7 +396,7 @@ def main(env, test):
         except KeyboardInterrupt:
             moving_result = ur5_mover.moving_result
             try:
-                with open('/home/xuan/demos/plan_2.pkl', 'wb') as handle:
+                with open('/home/xuan/demos/plan_joint_4.pkl', 'wb') as handle:
                     pickle.dump(moving_result, handle, protocol=pickle.HIGHEST_PROTOCOL)
                     print("save successfully")
             except:

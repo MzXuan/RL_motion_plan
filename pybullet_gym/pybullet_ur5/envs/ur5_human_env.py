@@ -256,13 +256,14 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             # print("min_q", min_q)
         except:
             self.last_collision = False
-            self.set_sphere(0.18)
+            self.set_sphere(0.13)
             return 0
 
-        if min_q<-0.10:
+        print("min_q", min_q)
+        if min_q<-0.20:
             print("min_q", min_q)
             self.last_collision = True
-            self.set_sphere(0.5)
+            self.set_sphere(0.55)
             #normalize Q for color
             color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
 
@@ -273,14 +274,14 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
             #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
         elif self.last_collision is False:
-            self.set_sphere(0.18)
+            self.set_sphere(0.13)
         else:
             self.last_collision=False
             return 0
 
     def draw_q(self, obs_lst, q_lst, color_lst):
         for obs, q, c in zip(obs_lst, q_lst, color_lst):
-            if q < -0.025:
+            if q < -0.026:
                 self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
                                          textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
                                          lifeTime=1)
@@ -345,7 +346,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
 class UR5HumanRealEnv(UR5HumanEnv):
     def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=False, distance_threshold = 0.4,
+                 early_stop=True, distance_threshold = 0.2,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanRealEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
