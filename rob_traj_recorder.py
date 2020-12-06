@@ -46,7 +46,7 @@ if __name__ == '__main__':
                     idx = i
                     break
 
-            with open('/home/xuan/demos/task_demo3.pkl', 'wb') as handle:
+            with open('/home/xuan/demos/task_cloth_demo3.pkl', 'wb') as handle:
                 pickle.dump(data[idx:], handle, protocol=pickle.HIGHEST_PROTOCOL)
                 print("save successfully")
             ur5.close()

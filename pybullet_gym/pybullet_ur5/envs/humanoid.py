@@ -505,7 +505,7 @@ class RealHumanoid(robot_bases.MJCFBasedRobot):
     def calc_state(self, draw=False):
         obs = []
         joints = self.human_model.joints
-        # print("joints", joints)
+        print("joints", joints)
         for link_name in self.obs_links:
             try:
                 pos = self.trans_point(joints[link_name][:3])

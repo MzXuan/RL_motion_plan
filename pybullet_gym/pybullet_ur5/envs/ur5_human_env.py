@@ -43,7 +43,10 @@ def load_demo():
 def load_demo_lst():
     # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
-    file_lst = ['/home/xuan/demos/task_demo1.pkl']
+    # file_lst = ['/home/xuan/demos/task_demo1.pkl']
+
+    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_cloth_demo2.pkl']
+    # file_lst = ['/home/xuan/demos/task_cloth_demo2.pkl']
 
     # file_lst = ['/home/xuan/demos/task_task_demo1.pkl']
 
@@ -82,7 +85,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=False, distance_threshold = 0.4,
+                 early_stop=True, distance_threshold = 0.25,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -164,7 +167,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
         self.reference_path = joint_path.copy()
 
-        self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.08)
+        self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.12)
 
         #set goal from record demo-------------
         rob_eef = ar[:3]
@@ -245,33 +248,76 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
     def set_sphere(self, r):
         self.sphere_radius = r
 
+    # def update_r(self, obs_lst, q_lst, draw=True):
+    #     # for obstacles in self.move_obstacles:
+    #     #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
+    #     #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
+    #
+    #     self.q_thre = -0.1
+    #     q_lst = np.asarray(q_lst)
+    #     q_sum =np.sum(q_lst)
+    #     print("!!!!!!q_sum!!!!!!!",q_sum)
+    #     try:
+    #         min_q = min(q_lst)
+    #         # print("min_q", min_q)
+    #     except:
+    #         self.last_collision = False
+    #         self.set_sphere(0.16)
+    #         return 0
+    #
+    #     print("min_q", min_q)
+    #
+    #
+    #     if min_q<self.q_thre:
+    #         print("min_q", min_q)
+    #         self.last_collision = True
+    #         self.set_sphere(0.3)
+    #         #normalize Q for color
+    #         minimum_q = -2
+    #         b = 0.6
+    #         k=-b/minimum_q
+    #         color_lst = q_lst*k+b
+    #         # color_lst = (q_lst - min_q) / (max(q_lst) - min_q + 0.000001)
+    #         # color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
+    #
+    #         if draw:
+    #             self.draw_q(obs_lst, q_lst, color_lst)
+    #         # for obs, q, c in zip(obs_lst, q_lst, color_lst):
+    #         #     if q<-0.025:
+    #         #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
+    #         #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
+    #     elif self.last_collision is False:
+    #         self.set_sphere(0.16)
+    #     else:
+    #         self.last_collision=False
+    #         return 0
+
     def update_r(self, obs_lst, q_lst, draw=True):
         # for obstacles in self.move_obstacles:
         #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
         #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
 
-        self.q_thre = -0.20
+        self.q_thre = -0.1
         q_lst = np.asarray(q_lst)
+        q_sum = np.sum(q_lst)
+        print("!!!!!!q_sum!!!!!!!", q_sum)
         try:
             min_q = min(q_lst)
             # print("min_q", min_q)
         except:
             self.last_collision = False
-            self.set_sphere(0.1)
+            self.set_sphere(0.16)
             return 0
 
-        print("min_q", min_q)
-
-
-        if min_q<self.q_thre:
+        if q_sum < -1.0:
             print("min_q", min_q)
             self.last_collision = True
             self.set_sphere(0.3)
-            #normalize Q for color
-            minimum_q = -1.5
+            # normalize Q for color
+            minimum_q = -2
             b = 0.6
-            k=-b/minimum_q
-            color_lst = q_lst*k+b
+            k = -b / minimum_q
+            color_lst = q_lst * k + b
             # color_lst = (q_lst - min_q) / (max(q_lst) - min_q + 0.000001)
             # color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
 
@@ -282,9 +328,9 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
             #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
         elif self.last_collision is False:
-            self.set_sphere(0.1)
+            self.set_sphere(0.16)
         else:
-            self.last_collision=False
+            self.last_collision = False
             return 0
 
     def draw_q(self, obs_lst, q_lst, color_lst):
@@ -359,7 +405,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
 class UR5HumanRealEnv(UR5HumanEnv):
     def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=True, distance_threshold = 0.2,
+                 early_stop=True, distance_threshold = 0.4,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanRealEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,

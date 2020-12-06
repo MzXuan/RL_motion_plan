@@ -16,6 +16,9 @@ python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotic
 ### bullet test with reference trajectory:
 python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1205_03 --play
 
+
+python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1206_01 --play
+
 python runner_real.py --alg=her --env=UR5HumanEnv-v0 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_mlp_c14_1126_l2 --play
 
 

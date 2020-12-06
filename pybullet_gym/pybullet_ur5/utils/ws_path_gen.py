@@ -24,14 +24,21 @@ class WsPathGen():
             indices = np.where(dists[:100] < self.distance_threshold)[0]
             # print("indices",indices)
             if indices != []:
-                # idx = indices[-1]
-                idx = indices[0]
+
+                # temp = np.where(np.diff(indices) > 1)[0]
+                # try:
+                #     id_first = temp[0] + 1
+                #     idx = indices[id_first]
+                # except:
+                #     idx = indices[0]
+                idx = indices[-1]
+
                 if idx < len(dists)-1:
                     dists = dists[idx+1:]
                     self.path_remain = self.path_remain[idx+1:]
                     self.vel_path_remain = self.vel_path_remain[idx+1:]
                     self.joint_path_remain = self.joint_path_remain[idx+1:]
-                print("remove idx after; ", idx)
+                # print("remove idx after; ", idx)
 
         d_min = np.min(dists)
 
