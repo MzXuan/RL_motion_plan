@@ -250,6 +250,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
         #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
 
+        self.q_thre = -0.20
         q_lst = np.asarray(q_lst)
         try:
             min_q = min(q_lst)
@@ -260,12 +261,19 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             return 0
 
         print("min_q", min_q)
-        if min_q<-0.20:
+
+
+        if min_q<self.q_thre:
             print("min_q", min_q)
             self.last_collision = True
-            self.set_sphere(0.55)
+            self.set_sphere(0.35)
             #normalize Q for color
-            color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
+            minimum_q = -1.5
+            b = 0.6
+            k=-b/minimum_q
+            color_lst = q_lst*k+b
+            # color_lst = (q_lst - min_q) / (max(q_lst) - min_q + 0.000001)
+            # color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
 
             if draw:
                 self.draw_q(obs_lst, q_lst, color_lst)
@@ -280,10 +288,15 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             return 0
 
     def draw_q(self, obs_lst, q_lst, color_lst):
+
+
         for obs, q, c in zip(obs_lst, q_lst, color_lst):
-            if q < -0.026:
+            if q < self.q_thre:
+                # self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
+                #                          textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
+                #                          lifeTime=1)
                 self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
-                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
+                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(c, 1-c, 1),
                                          lifeTime=1)
 
     def update_robot_obs(self, current_obs, next_rob_state):

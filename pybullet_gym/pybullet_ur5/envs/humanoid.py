@@ -452,9 +452,10 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
 
 
         if self.load:
-            self.human_iter+=1
-            if self.human_iter % 2 == 0:
-                self.human_file.update_joint_queue()
+            self.human_file.update_joint_queue()
+            # self.human_iter+=1
+            # if self.human_iter % 2 == 0:
+            #     self.human_file.update_joint_queue()
 
         return 0
 

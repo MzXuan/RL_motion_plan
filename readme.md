@@ -4,6 +4,9 @@ python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotic
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=10e5 --save_path=~/models/ur5_mlp_c14_1118_l10 --log_path=~/log/ur5_mlp_c14_1118_l10
 
 
+python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=8e5 --save_path=~/models/ur5_rnn_j_1206_01 --log_path=~/log/ur5_rnn_j_1206_01
+
+
 ### bullet play
 python runner_bullet.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_j_1205_03 --play
 
