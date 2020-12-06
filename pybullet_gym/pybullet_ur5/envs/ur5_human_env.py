@@ -257,7 +257,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             # print("min_q", min_q)
         except:
             self.last_collision = False
-            self.set_sphere(0.13)
+            self.set_sphere(0.1)
             return 0
 
         print("min_q", min_q)
@@ -266,7 +266,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         if min_q<self.q_thre:
             print("min_q", min_q)
             self.last_collision = True
-            self.set_sphere(0.35)
+            self.set_sphere(0.3)
             #normalize Q for color
             minimum_q = -1.5
             b = 0.6
@@ -282,7 +282,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
             #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
         elif self.last_collision is False:
-            self.set_sphere(0.13)
+            self.set_sphere(0.1)
         else:
             self.last_collision=False
             return 0
@@ -296,7 +296,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
                 #                          textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5 - c / 2, c + 0.5, c),
                 #                          lifeTime=1)
                 self._p.addUserDebugText(text=str(q)[1:7], textPosition=obs['observation'][:3],
-                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(c, 1-c, 1),
+                                         textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(c, 1-c, 0.8),
                                          lifeTime=1)
 
     def update_robot_obs(self, current_obs, next_rob_state):
