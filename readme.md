@@ -23,9 +23,15 @@ python runner_real.py --alg=her --env=UR5HumanEnv-v0 --env_type=robotics --num_t
 
 
 
-
 ## real robot test env: (BE CAREFUL!!!!)
 python runner_real.py --alg=her --env=UR5DynamicReachEnv-v2 --env_type=robotics --num_timesteps=1 --load_path=~/models/ur5_rnn_c14_1116_1 --play
+
+
+
+__
+# TRAIN STABLE BASELINE for sac+her
+
+
 
 __
 # her:
