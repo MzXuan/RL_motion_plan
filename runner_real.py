@@ -249,8 +249,8 @@ def main(args):
 
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        # env = gym.make("UR5HumanEnv-v0")
-        env = gym.make("UR5HumanRealEnv-v0")
+        env = gym.make("UR5HumanEnv-v0")
+        # env = gym.make("UR5HumanRealEnv-v0")
         env.render("human")
 
         logger.log("Running trained model")
@@ -357,7 +357,7 @@ def main(args):
                     # print("time cost 1 is: ", time.time() - start_time)
                     q_lst = model.get_collision_q(line_traj)
                     # print("time cost 3 is: ", time.time() - start_time)
-                env.update_r(line_traj, q_lst, draw=False)
+                env.update_r(line_traj, q_lst, draw=True)
 
 
                 # time.sleep(200)

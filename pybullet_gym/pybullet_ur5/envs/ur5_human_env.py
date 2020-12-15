@@ -41,11 +41,11 @@ def load_demo():
     return data
 
 def load_demo_lst():
-    # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
+    file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl']
 
-    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_cloth_demo2.pkl']
+    # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_cloth_demo2.pkl']
     # file_lst = ['/home/xuan/demos/task_cloth_demo2.pkl']
 
     # file_lst = ['/home/xuan/demos/task_task_demo1.pkl']
@@ -297,9 +297,10 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
         #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
 
-        self.q_thre = -0.1
+        self.q_thre = 1
         q_lst = np.asarray(q_lst)
         q_sum = np.sum(q_lst)
+        print("!!!!!!q_lst!!!!!!!", q_lst)
         print("!!!!!!q_sum!!!!!!!", q_sum)
         try:
             min_q = min(q_lst)
@@ -309,7 +310,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             self.set_sphere(0.16)
             return 0
 
-        if q_sum < -1.0:
+        if q_sum < 2.0:
             print("min_q", min_q)
             self.last_collision = True
             self.set_sphere(0.3)
