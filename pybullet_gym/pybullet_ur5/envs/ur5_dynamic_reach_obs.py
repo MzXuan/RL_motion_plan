@@ -510,7 +510,7 @@ class UR5DynamicReachObsEnv(gym.Env):
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
         # reward_collision = a2 * (_is_collision > 0)+a3 * distance
-        reward_collision = a2 * (_is_collision > 0)
+        reward_collision = (_is_collision > 0)
 
         # for training reward collision
         return [reward, reward_collision]
