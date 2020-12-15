@@ -339,7 +339,7 @@ def main(args):
                 joint_path_remain = env.ws_path_gen.joint_path_remain.copy()
                 _,_,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.4, remove=False)
 
-                # get trajectory after current indices
+                # get trajectory before current indices
                 if goal_indices>15:
                     for i in range(0, goal_indices, int(goal_indices/15)):
                         try:

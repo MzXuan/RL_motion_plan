@@ -150,7 +150,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             self.observation_space = gym.spaces.Dict(dict(
                 desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
                 achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
-                observation=gym.spaces.Box(-np.inf, np.inf, shape=(77,), dtype='float32'),
+                # observation=gym.spaces.Box(-np.inf, np.inf, shape=(77,), dtype='float32'),
+                observation=gym.spaces.Box(-np.inf, np.inf, shape=(64,), dtype='float32'),
             ))
 
         # Set observation and action spaces
@@ -508,9 +509,14 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
-        reward_collision = a2 * (_is_collision > 0)+a3 * distance
+        # reward_collision = a2 * (_is_collision > 0)+a3 * distance
+        reward_collision = a2 * (_is_collision > 0)
 
+        # for training reward collision
         return [reward, reward_collision]
+        # return reward
+
+
 
 
     def _contact_detection(self):
