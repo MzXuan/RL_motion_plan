@@ -13,6 +13,10 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+
 import pandas as pd
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
@@ -249,9 +253,10 @@ def main(args):
 
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        env = gym.make("UR5HumanEnv-v0")
+        env = gym.make("UR5PreviousTestEnv-v0")
+        # env = gym.make("UR5HumanEnv-v0")
         # env = gym.make("UR5HumanRealEnv-v0")
-        env.render("human")
+        # env.render("human")
 
         logger.log("Running trained model")
         seed = 0
@@ -259,7 +264,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
-        env.draw_path()
+        # env.draw_path()
         last_obs = obs
         # env.render("rgb_array")
 
@@ -277,10 +282,14 @@ def main(args):
         traj_count = 0
         s=0
         traj_len = 0
-
+        robot_state_lst = []
         time_lst = []
-        start_time = time.time()
-        while traj_count < 100:
+        dynamic_time = []
+        r_change_flag = True
+
+        all_joint_err_list = []
+        all_eef_err_list = []
+        while traj_count < 300: #500 test trajectories
             try:
                 # time.sleep(0.05)
                 # update env for several steps (let obstacle move)
@@ -288,79 +297,85 @@ def main(args):
                 obs, rew, done, info = env.step(actions)
                 s+=1
                 traj_len += np.linalg.norm(obs['observation'][:3] - last_obs['observation'][:3])
+                robot_state_lst.append(obs['observation'][:9])
                 last_obs = obs
                 collision_lst.append(info['is_collision'])
 
-                print("success?", info["is_success"])
-                print("actions",actions)
-
-
                 done_any = done.any() if isinstance(done, np.ndarray) else done
-                if done_any:
+                if info['is_success'] or done_any:
 
                     # print("info", info)
                     # print("collision_lst is: ", collision_lst)
                     print("number of collision steps: ", sum(collision_lst))
                     print("success info",info["is_success"])
-                    if sum(collision_lst) <=3 and info['is_success']:
+                    print("steps is: ", s)
+                    if sum(collision_lst) <=1 and info['is_success'] and s<250:
                         success_count+=1
                         success_steps.append(s)
-                        time_lst.append(time.time() - start_time)
+                        time_lst.append(s*0.033)
                         traj_len_lst.append(traj_len)
                     env.agents[0].stop()
+
+                    # ------plot result-----#
+                    # plot_path(env.reference_path, env.eef_reference_path, robot_state_lst)
+                    joint_err_list = calculate_joint_error(env.reference_path, robot_state_lst)
+                    #
+                    eef_error_list = calculate_carte_error(env.eef_reference_path, robot_state_lst)
+                    avg_eef_error = np.asarray(eef_error_list).mean()
+                    avg_joint_error = np.asarray(joint_err_list).mean()
+                    all_joint_err_list.append(avg_joint_error)
+                    all_eef_err_list.append(avg_eef_error)
 
                     print("-------------end step {}---------".format(traj_count))
                     s=0
                     traj_count+=1
                     seed +=1
                     traj_len = 0
-                    time.sleep(3)
+                    time.sleep(1)
                     obs = env.reset()
                     last_obs = obs
                     collision_lst = []
+                    robot_state_lst = []
                     # start_time = time.time()
                     print("current mean of traj len is: ", np.array(traj_len_lst).mean())
                     print("current std of traj len is: ", np.array(traj_len_lst).std())
                     print("current mean reach time is: ", np.array(time_lst).mean())
                     print("current std of reach time is: ", np.array(time_lst).std())
+
+                    print("current mean joint error is: ", np.array(all_joint_err_list).mean())
+                    print("current std of joint error is: ", np.array(all_joint_err_list).std())
+
+                    print("current mean end_effector error is: ", np.array(all_eef_err_list).mean())
+                    print("current std of end_effector error is: ", np.array(all_eef_err_list).std())
+
+                    print("current mean dynamic time is: ", np.array(dynamic_time).mean())
+                    print("current std of dynamic time is: ", np.array(dynamic_time).std())
                     print("current success rate is: ", success_count / traj_count)
                     print("current mean success steps is: ", np.array(success_steps).mean())
                     print("current std success steps is: ", np.array(success_steps).std())
-
                 obs = env.get_obs()
-
-                #----todo: generate batch obs---#
-
-                # start_time = time.time()
-                line_traj = []
-                q_lst=[]
-
+                #
+                # #----generate batch obs and dynamic select goal---#
+                # #
+                start_time = time.time()
                 path_remain = env.ws_path_gen.path_remain.copy()
                 joint_path_remain = env.ws_path_gen.joint_path_remain.copy()
-                _,_,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.4, remove=False)
+                _,joint_goal,_,goal_indices = env.ws_path_gen.next_goal(center=obs['observation'][:3],r=0.3, remove=False, test=True)
 
-                # get trajectory before current indices
-                if goal_indices>15:
-                    for i in range(0, goal_indices, int(goal_indices/15)):
-                        try:
-                            p = path_remain[i]
-                            jp = joint_path_remain[i]
-                            next_state = np.concatenate([p,jp])
-                            # print("next state is: ", next_state)
-                        except:
-                            continue
-                        line_traj.append(env.update_robot_obs(obs['observation'], next_state)) #0.0016s for one obs if print; if not print, 0.0002s for one obs
-                        # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
-                        # line_traj.append(env.update_robot_obs(p + random_n(max=[0.05, 0.05, 0.05])))
+                # linear interpolate robot states between current to future
+                rob_current = obs['observation'][:9]
+                goal_state = np.concatenate([path_remain[goal_indices],joint_path_remain[goal_indices]])
+                next_states = np.linspace(rob_current, goal_state, num=10)
 
+                # rob_current = obs['observation'][:3]
+                # goal_state = np.array(path_remain[goal_indices])
+                # next_states = np.linspace(rob_current, goal_state, num=10)
 
-                    # print("time cost 1 is: ", time.time() - start_time)
-                    q_lst = model.get_collision_q(line_traj)
-                    # print("time cost 3 is: ", time.time() - start_time)
-                env.update_r(line_traj, q_lst, draw=True)
+                line_traj = [env.update_robot_obs(obs['observation'], ns) for ns in next_states]
+                q_lst = model.get_collision_q(line_traj)
+                r_change_flag = env.update_r(line_traj, q_lst, draw=False)
+                dynamic_time.append(time.time()-start_time)
 
-
-                # time.sleep(200)
             except KeyboardInterrupt:
                 env.agents[0].stop()
                 print("success rate is: ", success_count / traj_count)
@@ -372,11 +387,61 @@ def main(args):
         print("mean success steps is: ", np.array(success_steps).mean())
         print("std success steps is: ", np.array(success_steps).std())
 
-
-
     env.close()
-
     return model
+
+
+def calculate_joint_error(ref, real):
+    error_lst = []
+    for p in real:
+        # print("ref", ref.shape)
+        # print("pshape",p.shape)
+        jp = p[3:]
+        # result = np.sum(np.abs(ref - jp), axis=1)
+        result = np.linalg.norm(ref - jp, axis=1)
+        error_lst.append(min(result))
+        # print("shape of ref", len(ref))
+        # print("shape of result", result.shape)
+    return smoothing(error_lst)
+
+
+def calculate_carte_error(ref, real):
+    error_lst = []
+    for p in real:
+        jp = p[:3]
+        result = np.linalg.norm(ref-jp,axis=1)
+        error_lst.append(min(result))
+        # print("shape of ref", len(ref))
+        # print("shape of result", result.shape)
+
+    return smoothing(error_lst)
+
+
+def smoothing(dataset, smoothingWeight=0.2):
+	set_smoothing =[]
+	for idx, d in enumerate(dataset):
+		if idx==0:
+			last = d
+		else:
+			d_smoothed = last * smoothingWeight + (1 - smoothingWeight) * d
+			last=d_smoothed
+		set_smoothing.append(last)
+	return set_smoothing
+
+
+def plot_path(joint_ref_path, cat_ref_path,  real_path):
+    # joint error
+    j_error_lst = calculate_joint_error(joint_ref_path, real_path)
+    plt.plot(range(len(j_error_lst)), j_error_lst)
+    cat_error_lst = calculate_carte_error(cat_ref_path, real_path)
+    plt.plot(range(len(cat_error_lst)), cat_error_lst)
+    plt.show()
+
+    df = pd.DataFrame()
+    df['joint'] = j_error_lst
+    df['end_effector'] = cat_error_lst
+    df.to_csv(path_or_buf="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/utils/error_lst_5.csv")
+
 
 if __name__ == '__main__':
     main(sys.argv)

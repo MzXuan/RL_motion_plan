@@ -59,6 +59,7 @@ class FileHuman(object):
 
     def update_joint_queue(self):
         # print("self.index: ", self.index)
+        # print("current fild index", self.file_index)
         if self.index > self.len_list[self.file_index]-1:
             self.file_index = np.random.choice(range(len(self.len_list)))
             self.index = np.random.randint(low=0, high=int(self.len_list[self.file_index]/2))
@@ -98,8 +99,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         self.human_base_link = "SpineBase"
         if self.load and self.test:
             print("use test recorded data")
-            # self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=range(1, 7))
-            self.human_file = FileHuman(file='/home/xuan/demos/human_test1204_', index_range=range(1, 2))
+            self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=range(3, 7))
+            # self.human_file = FileHuman(file='/home/xuan/demos/human_test1204_', index_range=range(1, 3))
             # self.human_file = FileHuman(file='/home/xuan/demos/human_test_', index_range=[1])
         elif self.load:
             print("use recorded data")
@@ -110,8 +111,8 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
             self.human_model = HumanModel()
 
         trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
-        trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
-        # trans_mat[:3, 3] = [-0.58, -0.460, 0.656]
+        # trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
+        trans_mat[:3, 3] = [-0.52, -0.480, 0.656]
         self.trans_matrix = trans_mat
 
         high = np.inf * np.ones([obs_dim])

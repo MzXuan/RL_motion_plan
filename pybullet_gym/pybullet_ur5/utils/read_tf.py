@@ -17,7 +17,6 @@ def mean_arr(arr, win=10):
 	new_arr = np.zeros_like(arr)
 	for i in range(arr_len - win):
 		new_arr[i] = np.mean(arr[i:i + win])
-
 	return new_arr
 
 
@@ -96,10 +95,10 @@ def reading(csv_list, step, column_list, smoothingWeight=0.8):
 
 def read_eprew():
 
-	csv_list = ["success_rate"]
+	csv_list = ["success_rate_1220"]
 	# column_list =["train/success_rate_rnn", "train/success_rate_mlp", "train/success_rate_1127_mlp", "train/success_rate_joint_space"]
-	column_list = ["train/success_rate_rnn", "train/success_rate_mlp"]
-	step = 'epoch'
+	column_list = ["success_rate_GRU+MLP", "success_rate_MLP_2steps", "success_rate_MLP_6steps"]
+	step = 'train/episode'
 	color = ['red','green','blue','orange']
 
 
@@ -108,7 +107,7 @@ def read_eprew():
 
 	fig, ax = plt.subplots()
 
-	win = 10
+	win = 8
 
 	for i, df in enumerate(df_c):
 		rews = df["value"].tolist()
@@ -117,15 +116,9 @@ def read_eprew():
 		print(rew_list)
 		print(np.shape(rew_list))
 		sns.tsplot(time=df[step].tolist()[:-win], data=rew_list, color=color[i], linestyle='-', condition=column_list[i])
-	
 
-	# for i, df in enumerate(df_c):
-	# 	ax.plot(df['Step'], df['smoothvalue'], '-', linewidth=2, color = color[i], label=df['mdoelname'][0])
-	# 	ax.plot(df['Step'], df['Value'], '-', linewidth=4, color = color[i], alpha=.2, label="")
-	# ax.tick_params(axis='both', which='major', labelsize=16)
-
-	ax.set_xlabel('Steps', fontsize=20)
-	ax.set_ylabel('Epoch task reward', fontsize=20)
+	ax.set_xlabel('Episode', fontsize=20)
+	ax.set_ylabel('Episode success rate', fontsize=20)
 
 
 	plt.tight_layout()
@@ -137,64 +130,93 @@ def read_eprew():
 	fig.savefig('success_rate.jpg', dpi=600)
 
 
+def read_loss():
+	csv_list = ["qc_progress"]
+	# column_list =["train/success_rate_rnn", "train/success_rate_mlp", "train/success_rate_1127_mlp", "train/success_rate_joint_space"]
+	column_list = ["stats_Qc_loss/mean"]
+	step = 'train/episode'
+	color = ['blue', 'orange']
 
-def seq2seq(csvname):
-	colnames=["Step", "Value"]
-	color = ['orange','red','green','blue']
-	model_name = ['Predictor_iter1','Predictor_iter2','Predictor_iter3']
-
-	df = pd.read_csv(csvname+".csv")
-
-	steps = df[colnames[0]].tolist()
-	values = df[colnames[1]].tolist()
-
-	df['Step']-=df['Step'][0]
-
-	df['smoothvalue']=smoothing(values)
+	df_c = reading(csv_list, step, column_list, 0.0)
 
 	fig, ax = plt.subplots()
 
-	# for i in range(len(steps)//30):
-	# 	end = 30*(i+1)
-	# 	if i == 0:
-	# 		sta = 0
-	# 	else:
-	# 		sta = 30*i-1
-	# 	sns.tsplot(time=df["Step"][sta:], data=df['smoothvalue'][sta:], color=color[i], linestyle='-', condition=model_name[i])
-		# ax.plot(df['Step'][sta:end], df['Value'][sta:end], '-', linewidth=2, color = color[i], alpha=.2, label="")
+	win = 1
 
-	for i in range(len(steps)//30):
-		end = 30*(i+1)
-		if i == 0:
-			sta = 0
-		else:
-			sta = 30*i-1
-		ax.plot(df['Step'][sta:end], df['smoothvalue'][sta:end], '-', linewidth=2, color = color[i], label=model_name[i])
-		ax.plot(df['Step'][sta:end], df['Value'][sta:end], '-', linewidth=2, color = color[i], alpha=.2, label="")
-	
-	ax.tick_params(axis='both', which='major', labelsize=14)
+	for i, df in enumerate(df_c):
+		rews = df["value"].tolist()
+		rew_list = get_plot_list(rews, win)
+		print(type(rew_list))
+		print(rew_list)
+		print(np.shape(rew_list))
+		sns.lineplot(data=df, x='train/episode', y=column_list[i],linewidth=4,color=color[i])
 
-	ax.set_xlabel('Steps', fontsize=24)
-	ax.set_ylabel('Validation loss', fontsize=24)
-
+	ax.set_xlabel('Episode', fontsize=20)
+	ax.set_ylabel('Episode loss of collision value ', fontsize=20)
 
 	plt.tight_layout()
-	plt.legend(fontsize =20)
+	plt.legend(fontsize=14)
 	plt.grid()
-	# plt.show()
-	fig.savefig('valloss.jpg', dpi=600)
+	plt.show()
+
+	# fig.savefig('eprew.pdf', dpi=1000)
+	fig.savefig('Qc_loss.jpg', dpi=600)
 
 
-	# fig.savefig('val_loss.pdf', dpi=1000)
+def read_path_error():
+	csv_list = ["eef_tracking_error"]
+	column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+
+	step = 'step'
+	color = ['blue', 'lightblue','darkblue']
+	df_c = reading(csv_list, step, column_list, 0.0)
+	fig, ax = plt.subplots()
+
+	for i, df in enumerate(df_c):
+		plt.plot(df['step'], df[column_list[i]], color=color[i], label=column_list[i], linestyle="-", linewidth=3)
+
+	ax.set_xlabel('Step', fontsize=18)
+	ax.set_ylabel('End-effector tracking error / m', fontsize=20)
+
+	plt.tight_layout()
+	plt.legend(fontsize=14, loc=1)
+	plt.grid()
+	plt.show()
+
+	fig.savefig('eef_error.jpg', dpi=600)
+
+def read_j_path_error():
+	csv_list = ["joint_tracking_error"]
+	column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+	step = 'step'
+	color = ['red', 'pink',"maroon"]
+	df_c = reading(csv_list, step, column_list, 0.0)
+	fig, ax = plt.subplots()
+
+	for i, df in enumerate(df_c):
+		plt.plot(df['step'], df[column_list[i]], color=color[i], label=column_list[i], linestyle="-", linewidth=3)
+
+	ax.set_xlabel('Step', fontsize=18)
+	ax.set_ylabel('Joint tracking error', fontsize=20)
+
+	plt.tight_layout()
+	plt.legend(fontsize=14, loc=1)
+	plt.grid()
+	plt.show()
+
+	# fig.savefig('eprew.pdf', dpi=1000)
+	fig.savefig('joint_error.jpg', dpi=600)
 
 
 
 
 def main():
 
-	read_eprew()
-	# read_pred()
-	# seq2seq('seq2seq_val_loss')
+	# read_eprew()
+	# read_loss()
+	read_path_error()
+	read_j_path_error()
+
 
 
 if __name__ == "__main__":

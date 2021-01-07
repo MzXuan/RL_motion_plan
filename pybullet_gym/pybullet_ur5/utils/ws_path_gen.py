@@ -14,24 +14,24 @@ class WsPathGen():
         self.vel_path_remain = vel_path.copy()
         self.joint_path_remain = joint_path.copy()
         self.distance_threshold = distance_threshold
+        self.last_i = 0
 
-
-    def next_goal(self, center, r, remove=True):
+    def next_goal(self, center, r, r_change = True, remove=True, test=False):
         #treturn eef goal + joint interpolation
         dists = np.linalg.norm((self.path_remain-center),axis=1)
         if remove is True:
             # remove reached points
-            indices = np.where(dists[:100] < self.distance_threshold)[0]
+            indices = np.where(dists < self.distance_threshold)[0]
             # print("indices",indices)
             if indices != []:
-
-                # temp = np.where(np.diff(indices) > 1)[0]
-                # try:
-                #     id_first = temp[0] + 1
-                #     idx = indices[id_first]
-                # except:
-                #     idx = indices[0]
-                idx = indices[-1]
+                #find last non-continuous and remove all before it
+                temp = np.where(np.diff(indices) > 1)[0]
+                try:
+                    id_first = temp[0] + 1
+                    idx = indices[id_first]
+                except:
+                    idx = indices[0]
+                # idx = indices[-1]
 
                 if idx < len(dists)-1:
                     dists = dists[idx+1:]
@@ -43,31 +43,27 @@ class WsPathGen():
         d_min = np.min(dists)
 
         # print("input r: ", r)
-        # if d_min > r:
-        if d_min>0.2:
-            r += 0.2
-        else:
-            r+=d_min
+        if d_min > r:
+            r=d_min+0.2
 
-        # print("r", r)
-        # print("d_min", d_min)
 
         indices = np.where(dists < r)[0]
         temp = np.where(np.diff(indices) > 1)[0]
-        # id_first_circle = temp[0]
-        # if id_first_circle != []:
+
+
         try:
             id_first_circle = temp[0]+1
             inverse_indices = np.flip(indices[:id_first_circle])
         except:
             inverse_indices = np.flip(indices)
 
-        # print("indices",indices)
 
         for i in inverse_indices: # from end to start
             if i+1 < len(dists): # not meet limit
                 # print("current i is: ", i)
                 p_insect =self.calculate_interaction(center, r, self.path_remain[i], self.path_remain[i+1])
+
+
                 if p_insect is not None:
                     p_insect = np.asarray(p_insect)
 

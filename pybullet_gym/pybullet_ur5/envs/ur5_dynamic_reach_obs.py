@@ -65,22 +65,15 @@ def min_dist_conf(initial_conf, conf_list):
     id_min = np.argmin(np.asarray(dist_list))
     return conf_list[id_min]
 
+
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
-
-    # print("shape of goal: ", goal_a.shape)
     a = 0.5
     w = np.array([3,3,2,1,1,1])*a
-    # weight = w/np.linalg.norm(w)
     weighted_error = np.multiply(w, ( goal_a - goal_b))
     distance = np.linalg.norm(weighted_error,axis=-1)
-    # print("distance shape: ", distance.shape)
-    # print("weighted distance: ", distance)
-    # print("normal distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
-
     return distance
-    # print("distance: ", np.linalg.norm(goal_a - goal_b, axis=-1))
-    # return np.linalg.norm(goal_a - goal_b, axis=-1)
+
 
 
 class L(list):
@@ -94,7 +87,7 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.3,
+                 early_stop=False, distance_threshold = 0.4,
                  max_obs_dist = 1.0 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse", use_rnn = True):
         self.iter_num = 0
@@ -151,8 +144,17 @@ class UR5DynamicReachObsEnv(gym.Env):
                 desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
                 achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
                 # observation=gym.spaces.Box(-np.inf, np.inf, shape=(77,), dtype='float32'),
-                observation=gym.spaces.Box(-np.inf, np.inf, shape=(64,), dtype='float32'),
+                observation=gym.spaces.Box(-np.inf, np.inf, shape=(136,), dtype='float32'),
             ))
+
+
+
+            # self.observation_space = gym.spaces.Dict(dict(
+            #     desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
+            #     achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
+            #     # observation=gym.spaces.Box(-np.inf, np.inf, shape=(77,), dtype='float32'),
+            #     observation=gym.spaces.Box(-np.inf, np.inf, shape=(64,), dtype='float32'),
+            # ))
 
         # Set observation and action spaces
 
@@ -448,14 +450,17 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         if self.USE_RNN:
             human_obs_input = np.asarray(self.last_human_obs_list).flatten()
-
-            # print("human_obs_input", self.last_human_obs_list)
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
         else:
-            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+
+
+            # human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            # obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+            #                       np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
 
 
@@ -509,8 +514,8 @@ class UR5DynamicReachObsEnv(gym.Env):
 
         reward = a1 * (d > self.distance_threshold).astype(np.float32) \
                  + a2 * (_is_collision > 0) + a3 * distance + asmooth*smoothness
-        # reward_collision = a2 * (_is_collision > 0)+a3 * distance
-        reward_collision =1* (_is_collision > 0)
+        reward_collision = a1*(_is_collision > 0)+a3 * distance
+        # reward_collision =1* (_is_collision > 0)
 
         # for training reward collision
         return [reward, reward_collision]

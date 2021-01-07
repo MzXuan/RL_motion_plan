@@ -339,7 +339,7 @@ def main(args):
 
         # ------------------------------ normal test ----------------------#
         min_dist_list = []
-        # env.render(mode="human")
+        env.render(mode="human")
         traj_count = 0
         success_rg_dist=[]
         fail_rg_dist=[]
@@ -354,8 +354,8 @@ def main(args):
 
 
         time_list = []
-        while traj_count < 300:
-            time.sleep(0.03)
+        while traj_count < 100:
+
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:

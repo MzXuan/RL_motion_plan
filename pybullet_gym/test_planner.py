@@ -345,7 +345,7 @@ def main(env, test):
                     success_count += 1
                     traj_len_lst.append(traj_len)
 
-                time.sleep(5)
+                time.sleep(1)
 
                 print("current success rate is: ", success_count / traj_count)
                 print("current mean of traj len is: ", np.array(traj_len_lst).mean())
@@ -394,55 +394,17 @@ def main(env, test):
 
 
         except KeyboardInterrupt:
-            moving_result = ur5_mover.moving_result
-            try:
-                with open('/home/xuan/demos/plan_joint_4.pkl', 'wb') as handle:
-                    pickle.dump(moving_result, handle, protocol=pickle.HIGHEST_PROTOCOL)
-                    print("save successfully")
-            except:
-                print("save failed")
-            print(ur5_planner.steps_count)
+            # moving_result = ur5_mover.moving_result
+            # try:
+            #     with open('/home/xuan/demos/plan_joint_4.pkl', 'wb') as handle:
+            #         pickle.dump(moving_result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            #         print("save successfully")
+            # except:
+            #     print("save failed")
+            # print(ur5_planner.steps_count)
             return
 
     time.sleep(1)
-
-    # #------------ cartesian start and end planning---------#
-    # dt = 0.2
-    # replan_t = 2
-    #
-    # for _ in range(50000):
-    #     try:
-    #         for n in range(int(replan_t/dt)):
-    #             move_human(env)
-    #             pybullet.stepSimulation(physicsClientId=env.physicsClientId)
-    #             time.sleep(dt)
-    #
-    #         initial_conf = ur5_planner.get_current_conf()
-    #         if np.linalg.norm(np.array(initial_conf)-np.array(end_conf)) < 0.1:
-    #             print("env reset")
-    #             obs = env.reset()
-    #             initial_conf = ur5_planner.calculate_ur5_ik(obs['achieved_goal'])
-    #             end_conf = ur5_planner.calculate_ur5_ik(obs['desired_goal'])
-    #             t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, None])
-    #             t1.start()
-    #         else:
-    #             result = ur5_mover.conf_traj - initial_conf
-    #             error = np.linalg.norm(result, axis=1)
-    #             id_min = np.argmin(error)
-    #             ref_traj = ur5_mover.conf_traj[id_min:,:]
-    #             print("ref traj shape is: ", ref_traj.shape)
-    #             if len(ref_traj) <=5:
-    #                 pass
-    #
-    #             else:
-    #                 t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
-    #                 t1.start()
-    #
-    #     except KeyboardInterrupt:
-    #         print(ur5_planner.steps_count)
-    #         return
-    #
-
 
 
 

@@ -22,6 +22,25 @@ register(
     reward_threshold=20000.0,
 )
 
+
+
+register(
+    id='UR5DynamicPreviousEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_previous_icra:UR5DynamicPreviousEnv',
+    max_episode_steps=200,
+    # max_episode_steps=400,
+    reward_threshold=20000.0,
+)
+
+register(
+    id='UR5PreviousTestEnv-v0',
+    entry_point='pybullet_ur5.envs.ur5_dynamic_previous_icra:UR5PreviousTestEnv',
+    max_episode_steps=200,
+    # max_episode_steps=400,
+    reward_threshold=20000.0,
+)
+
+
 register(
     id='UR5DynamicReachEnv-v2',
     entry_point='pybullet_ur5.envs.ur5_dynamic_reach_obs:UR5DynamicReachObsEnv',
@@ -51,7 +70,7 @@ register(
 register(
     id='UR5HumanEnv-v0',
     entry_point='pybullet_ur5.envs.ur5_human_env:UR5HumanEnv',
-    max_episode_steps=4000,
+    max_episode_steps=400,
     reward_threshold=20000.0,
 )
 

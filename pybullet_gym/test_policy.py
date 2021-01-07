@@ -97,7 +97,8 @@ def main(fpath, env, itr):
     print(" ---------------------------- ")
 
     if fpath is None:
-        get_action=lambda obs: np.array([0, 0, 0, 0, 0, 0])
+        # get_action=lambda obs: np.array([0, 0, 0, 0, 0, 0])
+        get_action = lambda obs: np.array([0, 0, 0])
         # get_action = lambda obs: (obs['desired_goal']-obs['achieved_goal'])/np.linalg.norm(obs['desired_goal']-obs['achieved_goal'])
     else:
         get_action = load_tf_policy(fpath, itr)
@@ -163,7 +164,10 @@ if __name__ == "__main__":
     # parser.add_argument("--env", type=str, default="UR5DynamicReachPlannerEnv-v0")
     # parser.add_argument("--env", type=str, default="UR5DynamicReachEnv-v2")
     # parser.add_argument("--env", type=str, default="UR5HumanEnv-v0")
-    parser.add_argument("--env", type=str, default='UR5HumanRealEnv-v0')
+    # parser.add_argument("--env", type=str, default='UR5HumanRealEnv-v0')
+
+    # parser.add_argument("--env", type=str, default='UR5DynamicPreviousEnv-v0')
+    parser.add_argument("--env", type=str, default='UR5PreviousTestEnv-v0')
 
 
 

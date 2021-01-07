@@ -41,7 +41,13 @@ def load_demo():
     return data
 
 def load_demo_lst():
-    file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
+    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_demo1.pkl',
+                '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
+                '/home/xuan/demos/plan_2.pkl']
+
+    # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_cloth_demo2.pkl',
+    #             '/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
+    #             '/home/xuan/demos/plan_2.pkl', '/home/xuan/demos/task_task_demo1.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl']
 
@@ -61,7 +67,6 @@ def load_demo_lst():
             print("fail to load data, stop")
             return
 
-    # print("length of data is: ", len(data))
     return data_lst
 
 
@@ -84,10 +89,10 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
-    def __init__(self, render=False, max_episode_steps=8000,
-                 early_stop=True, distance_threshold = 0.25,
+    def __init__(self, render=False, max_episode_steps=400,
+                 early_stop=False, distance_threshold = 0.32,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse",  use_rnn = True):
+                 reward_type="sparse",  use_rnn = False):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
                  early_stop=early_stop, distance_threshold = distance_threshold,
                  max_obs_dist = max_obs_dist ,dist_lowerlimit=dist_lowerlimit, dist_upperlimit=dist_upperlimit,
@@ -96,8 +101,10 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         # --- following demo----
         self.demo_data_lst = load_demo_lst()
         self.demo_id = 0
-        self.sphere_radius = 0.1
+        self.default_r = 0.1
+        self.sphere_radius = self.default_r
         self.last_collision = False
+        self.r_change_flag = True
         #--------------------------
 
     def _set_agents(self, max_obs_dist):
@@ -154,17 +161,20 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         #-----------------initial agent and set to start
         demo = self.demo_data_lst[self.demo_id]
 
+        print("demo_id is", self.demo_id)
+
         start_joint  = demo[0]['robjp']
         ar = self._special_rob_reset(start_joint)
         ah = self.agents[1].reset(self._p, client_id=self.physicsClientId,
                                   base_rotation=[0.0005629, 0.707388, 0.706825, 0.0005633])
 
         #------prepare path----------------
-        demo = self.demo_data_lst[self.demo_id]
         path = [demo[i]['toolp'] for i in range(len(demo))]
+        vel_path = [demo[i]['toolv'] for i in range(len(demo))]
         vel_path = [demo[i]['toolv'] for i in range(len(demo))]
         joint_path = [demo[i]['robjp'] for i in range(len(demo))]
 
+        self.eef_reference_path = path.copy()
         self.reference_path = joint_path.copy()
 
         self.ws_path_gen = WsPathGen(path, vel_path, joint_path, 0.12)
@@ -173,6 +183,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         rob_eef = ar[:3]
         self.final_goal = np.array(demo[-1]['robjp'])
         next_goal = self._get_next_goal(rob_eef)
+
         self.eef_goal, self.goal, self.goal_indices = next_goal[0], next_goal[1], next_goal[2]
 
 
@@ -229,7 +240,7 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
 
     def _get_next_goal(self, ur5_eef_position):
         try:
-            eef_goal, goal, _, goal_indices = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius)
+            eef_goal, goal, _, goal_indices = self.ws_path_gen.next_goal(ur5_eef_position, self.sphere_radius, r_change=self.r_change_flag)
             eef_goal = np.concatenate([eef_goal,np.array([0,0,0,1])])
             return (eef_goal, np.array(goal), goal_indices)
         except:
@@ -237,7 +248,9 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             return False
 
     def draw_path(self):
-        color_list = [[0.8,0.8,0.0], [0.8,0.0,0.0],[0.0,0.0,0.8]]
+        color_list = [[0.8,0.8,0.0], [0.8,0.0,0.0],[0.0,0.0,0.8],[0.0,0.0,0.8],
+                      [0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],
+                      [0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8]]
         for d_idx, demo in enumerate(self.demo_data_lst):
             idxs = list(np.linspace(0, len(demo)-2, 20))
             for i in range(len(idxs)-1):
@@ -246,93 +259,37 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
                                          lineColorRGB=color_list[d_idx],lineWidth=3 )
 
     def set_sphere(self, r):
-        self.sphere_radius = r
-
-    # def update_r(self, obs_lst, q_lst, draw=True):
-    #     # for obstacles in self.move_obstacles:
-    #     #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
-    #     #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
-    #
-    #     self.q_thre = -0.1
-    #     q_lst = np.asarray(q_lst)
-    #     q_sum =np.sum(q_lst)
-    #     print("!!!!!!q_sum!!!!!!!",q_sum)
-    #     try:
-    #         min_q = min(q_lst)
-    #         # print("min_q", min_q)
-    #     except:
-    #         self.last_collision = False
-    #         self.set_sphere(0.16)
-    #         return 0
-    #
-    #     print("min_q", min_q)
-    #
-    #
-    #     if min_q<self.q_thre:
-    #         print("min_q", min_q)
-    #         self.last_collision = True
-    #         self.set_sphere(0.3)
-    #         #normalize Q for color
-    #         minimum_q = -2
-    #         b = 0.6
-    #         k=-b/minimum_q
-    #         color_lst = q_lst*k+b
-    #         # color_lst = (q_lst - min_q) / (max(q_lst) - min_q + 0.000001)
-    #         # color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
-    #
-    #         if draw:
-    #             self.draw_q(obs_lst, q_lst, color_lst)
-    #         # for obs, q, c in zip(obs_lst, q_lst, color_lst):
-    #         #     if q<-0.025:
-    #         #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
-    #         #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
-    #     elif self.last_collision is False:
-    #         self.set_sphere(0.16)
-    #     else:
-    #         self.last_collision=False
-    #         return 0
+        if r != self.sphere_radius:
+            self.sphere_radius = r
+            self.r_change_flag = True
+        else:
+            self.r_change_flag = False
+        return  self.r_change_flag
 
     def update_r(self, obs_lst, q_lst, draw=True):
-        # for obstacles in self.move_obstacles:
-        #     self._p.addUserDebugLine(obstacles.pos_list[0], 5*(obstacles.pos_list[2]-obstacles.pos_list[0])+obstacles.pos_list[0],
-        #                              lineColorRGB=[0.8, 0.8, 0.0], lineWidth=4)
-
         self.q_thre = 1
         q_lst = np.asarray(q_lst)
         q_sum = np.sum(q_lst)
-        print("!!!!!!q_lst!!!!!!!", q_lst)
-        print("!!!!!!q_sum!!!!!!!", q_sum)
-        try:
-            min_q = min(q_lst)
-            # print("min_q", min_q)
-        except:
-            self.last_collision = False
-            self.set_sphere(0.16)
-            return 0
+        # print("!!!!!!q_lst!!!!!!!", q_lst)
+        # print("!!!!!!q_sum!!!!!!!", q_sum)
 
-        if q_sum < 2.0:
-            print("min_q", min_q)
+        if q_sum < -0.05:
+            # print("min_q", min_q)
             self.last_collision = True
-            self.set_sphere(0.3)
+            self.set_sphere(0.5)
+            # self.set_sphere(self.default_r)
             # normalize Q for color
-            minimum_q = -2
+            minimum_q = -0.8
             b = 0.6
             k = -b / minimum_q
             color_lst = q_lst * k + b
-            # color_lst = (q_lst - min_q) / (max(q_lst) - min_q + 0.000001)
-            # color_lst = (q_lst-min_q)/(max(q_lst)-min_q+0.000001)
 
             if draw:
                 self.draw_q(obs_lst, q_lst, color_lst)
-            # for obs, q, c in zip(obs_lst, q_lst, color_lst):
-            #     if q<-0.025:
-            #         self._p.addUserDebugText(text = str(q)[1:7], textPosition=obs['observation'][:3],
-            #                                  textSize=1.2, textColorRGB=colorsys.hsv_to_rgb(0.5-c/2, c+0.5, c), lifeTime=2)
-        elif self.last_collision is False:
-            self.set_sphere(0.16)
         else:
-            self.last_collision = False
+            self.set_sphere(self.default_r)
             return 0
+
 
     def draw_q(self, obs_lst, q_lst, color_lst):
 
@@ -364,6 +321,8 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         indices = np.where(d > self.max_obs_dist_threshold)
         obs_human[indices] = np.full((1, 3), self.max_obs_dist_threshold + 0.2)
 
+
+        #todo: bugs here
         if self.USE_RNN:
             human_obs_input = np.asarray(self.last_human_obs_list).flatten()
 
@@ -371,9 +330,15 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([min_dist])])
         else:
-            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
+
+            # print("human_obs_input", self.last_human_obs_list)
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([min_dist])])
+
+            # human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            # obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+            #                       np.asarray(self.goal).flatten(), np.asarray([min_dist])])
 
 
         achieved_goal = ur5_states[3:9]  # ur5 joint
@@ -438,7 +403,7 @@ class UR5HumanRealEnv(UR5HumanEnv):
 
 class UR5HumanPlanEnv(UR5HumanEnv):
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=True, distance_threshold = 0.04,
+                 early_stop=True, distance_threshold = 0.1,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = True):
         super(UR5HumanPlanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -454,10 +419,10 @@ class UR5HumanPlanEnv(UR5HumanEnv):
 
 
     def _set_agents(self, max_obs_dist):
-        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-        #                URDFHumanoid(max_obs_dist, load=True, test=True)]
         self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
-                       URDFHumanoid(max_obs_dist, load=False, test=True)]
+                       URDFHumanoid(max_obs_dist, load=True, test=True)]
+        # self.agents = [UR5EefRobot(dt=self.sim_dt * self.frame_skip),
+        #                URDFHumanoid(max_obs_dist, load=False, test=True)]
 
     def step(self, action):
         self.iter_num += 1
