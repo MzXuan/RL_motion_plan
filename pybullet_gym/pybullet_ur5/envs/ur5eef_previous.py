@@ -40,8 +40,8 @@ class UR5EefPreviousRobot(UR5Robot):
 
 		self.last_position = [0,0,0]
 		self.ee_link = "ee_link"
-		self.lower_limits = [-3.5, -3.5, -3.5, -3.5, -3.5, -6]
-		self.upper_limits = [3.5, 3.5, 3.5, 3.5, 3.5, 6]
+		self.lower_limits = [-3.8, -3.8, -3.8, -3.8, -3.8, -6]
+		self.upper_limits = [3.8, 3.8, 3.8, 3.8, 3.8, 6]
 		# self.orientation = [0, 0.7071068, 0, 0.7071068]
 		# self.orientation = [0.707, 0, 0.707, 0]
 		self.orientation = [0, 0.841471, 0, 0.5403023]
@@ -161,10 +161,6 @@ class UR5EefPreviousRobot(UR5Robot):
 														)
 		n_conf_list = [normalize_conf(np.asarray([0, 0, 0, 0, 0, 0]), conf)]
 		feasible_solutions = self.select_ik_solution(n_conf_list)
-
-
-
-
 
 		if feasible_solutions == []:
 			print("can not find feasible soltion for robot eef: ", eef_position)
@@ -298,6 +294,7 @@ class UR5EefPreviousRobot(UR5Robot):
 		ee_ang_vel = np.array(ee_state[7])  # worldLinkAngularVelocity
 		return ee_lin_pos, ee_lin_ori, ee_lin_vel, ee_ang_vel
 
+
 	def getCurrentJointPosVel(self):
 
 		cur_joint_states = self._p.getJointStates(self.robot_body.bodies[0], self.controlled_joints_id)
@@ -334,9 +331,6 @@ class UR5EefPreviousRobot(UR5Robot):
 		# obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel, joint_position[:-1].flatten()])
 		obs = np.concatenate([ee_lin_pos, joint_position.flatten(), ee_lin_vel, self.last_ee_vel])
 		# obs = np.concatenate((ee_lin_pos, ee_lin_vel,joint_position.flatten()))
-
-
-
 
 		# obs = np.concatenate([ee_lin_pos, ee_lin_vel, self.last_ee_vel])
 		self.last_ee_vel = ee_lin_vel

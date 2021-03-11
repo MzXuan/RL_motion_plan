@@ -45,7 +45,7 @@ class FileHuman(object):
                 exit()
 
         self.file_index =0
-        self.index = 0
+        self.index = 30
         self.reset_flag=True
         self.play_end = False
         # self.joint_queue = self.joint_queue_list[0]
@@ -113,6 +113,9 @@ class URDFHumanoid(robot_bases.URDFBasedRobot):
         trans_mat = pyquaternion.Quaternion([0.423, 0.547, 0.565, 0.450]).transformation_matrix
         # trans_mat[:3, 3] = [-1.305, -0.290, 0.656]
         trans_mat[:3, 3] = [-0.52, -0.480, 0.656]
+
+        # trans_mat[:3, 3] = [-0.85, -0.75, 0.656]
+        # trans_mat[:3, 3] = [-2, -2, 2]
         self.trans_matrix = trans_mat
 
         high = np.inf * np.ones([obs_dim])

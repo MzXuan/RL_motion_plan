@@ -253,8 +253,8 @@ def main(args):
 
     if args.play:
         pybullet.connect(pybullet.DIRECT)
-        env = gym.make("UR5PreviousTestEnv-v0")
-        # env = gym.make("UR5HumanEnv-v0")
+        # env = gym.make("UR5PreviousTestEnv-v0")
+        env = gym.make("UR5HumanEnv-v0")
         # env = gym.make("UR5HumanRealEnv-v0")
         # env.render("human")
 
@@ -264,7 +264,7 @@ def main(args):
         tf.set_random_seed(seed)
         random.seed(seed)
         obs = env.reset()
-        # env.draw_path()
+        env.draw_path()
         last_obs = obs
         # env.render("rgb_array")
 
@@ -293,6 +293,8 @@ def main(args):
             try:
                 # time.sleep(0.05)
                 # update env for several steps (let obstacle move)
+                # print("shape of obs is:", obs['observation'].shape)
+
                 actions, Q, q, _ = model.step_with_q(obs)
                 obs, rew, done, info = env.step(actions)
                 s+=1
@@ -440,7 +442,7 @@ def plot_path(joint_ref_path, cat_ref_path,  real_path):
     df = pd.DataFrame()
     df['joint'] = j_error_lst
     df['end_effector'] = cat_error_lst
-    df.to_csv(path_or_buf="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/utils/error_lst_5.csv")
+    df.to_csv(path_or_buf="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/utils/joint_human.csv")
 
 
 if __name__ == '__main__':

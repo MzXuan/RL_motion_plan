@@ -164,48 +164,78 @@ def read_loss():
 
 
 def read_path_error():
-	csv_list = ["eef_tracking_error"]
-	column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+	csv_list = ["tracking error - end-effector_nohuman"]
+	# csv_list = ["tracking error - end-effector_human"]
+	# column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+
+	column_list = ["Our method","Previous RL based method","Previous RL based method +dymanic goal","ITOMP with STOMP optimizer"]
 
 	step = 'step'
-	color = ['blue', 'lightblue','darkblue']
-	df_c = reading(csv_list, step, column_list, 0.0)
+	color = ['red', 'lightblue','darkblue','green']
+	line = ['-', '--', '--', '-.']
+	df_c = reading(csv_list, step, column_list, 0.2)
 	fig, ax = plt.subplots()
 
 	for i, df in enumerate(df_c):
-		plt.plot(df['step'], df[column_list[i]], color=color[i], label=column_list[i], linestyle="-", linewidth=3)
+		steps=np.asarray(range(100))
 
-	ax.set_xlabel('Step', fontsize=18)
+		y_raw = df[column_list[i]].values
+		y_raw = y_raw[~np.isnan(y_raw)]
+		x_raw = np.linspace(0,100,len(y_raw))
+
+		y = np.interp(steps, x_raw, y_raw)
+		plt.plot(steps, y, color=color[i], label=column_list[i], linestyle=line[i], linewidth=3)
+
+	ax.set_xlabel('Percent', fontsize=18)
 	ax.set_ylabel('End-effector tracking error / m', fontsize=20)
 
 	plt.tight_layout()
-	plt.legend(fontsize=14, loc=1)
+	plt.legend(fontsize=12, loc=1)
 	plt.grid()
 	plt.show()
 
-	fig.savefig('eef_error.jpg', dpi=600)
+	fig.savefig('eef_error.jpg', dpi=1000)
 
 def read_j_path_error():
-	csv_list = ["joint_tracking_error"]
-	column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+	csv_list = ["tracking error - joint_no_human"]
+	# csv_list = ["tracking error - joint_human"]
+	# column_list = ["dynamic_goal_no_human", "dynamic_goal_human_nearby", "final_goal_no_human"]
+
+	column_list = ["Our method", "Previous RL based method", "Previous RL based method +dymanic goal",
+				   "ITOMP with STOMP optimizer"]
 	step = 'step'
-	color = ['red', 'pink',"maroon"]
-	df_c = reading(csv_list, step, column_list, 0.0)
+	color = ['red', 'lightblue','darkblue','green']
+	line = ['-','--','--','-.']
+	df_c = reading(csv_list, step, column_list, 0.2)
 	fig, ax = plt.subplots()
 
-	for i, df in enumerate(df_c):
-		plt.plot(df['step'], df[column_list[i]], color=color[i], label=column_list[i], linestyle="-", linewidth=3)
 
-	ax.set_xlabel('Step', fontsize=18)
+	for i, df in enumerate(df_c):
+		steps=np.asarray(range(100))
+		y_raw = df[column_list[i]].values
+		y_raw = y_raw[~np.isnan(y_raw)]
+		x_raw = np.linspace(0, 100, len(y_raw))
+
+		y = np.interp(steps, x_raw, y_raw)
+		plt.plot(steps, y, color=color[i], label=column_list[i], linestyle=line[i], linewidth=3)
+
+	ax.set_xlabel('Percent', fontsize=18)
 	ax.set_ylabel('Joint tracking error', fontsize=20)
 
+
+	# for i, df in enumerate(df_c):
+	# 	plt.plot(df['step'], df[column_list[i]], color=color[i], label=column_list[i], linestyle=line[i], linewidth=3)
+	#
+	# ax.set_xlabel('Step', fontsize=18)
+	# ax.set_ylabel('Joint tracking error', fontsize=20)
+
 	plt.tight_layout()
-	plt.legend(fontsize=14, loc=1)
+	plt.legend(fontsize=12, loc=1)
 	plt.grid()
 	plt.show()
 
 	# fig.savefig('eprew.pdf', dpi=1000)
-	fig.savefig('joint_error.jpg', dpi=600)
+	fig.savefig('joint_error.jpg', dpi=1000)
 
 
 

@@ -41,13 +41,19 @@ def load_demo():
     return data
 
 def load_demo_lst():
-    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_demo1.pkl',
-                '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
-                '/home/xuan/demos/plan_2.pkl']
+    # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl']
+
+    # file_lst = ['/home/xuan/demos/task_eef_demo3.pkl']
+    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl','/home/xuan/demos/task_cloth_demo2.pkl',
+                '/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
+                '/home/xuan/demos/task_task_demo1.pkl']
+
 
     # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_cloth_demo2.pkl',
     #             '/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
-    #             '/home/xuan/demos/plan_2.pkl', '/home/xuan/demos/task_task_demo1.pkl']
+    #              '/home/xuan/demos/task_task_demo1.pkl','/home/xuan/demos/task_teak_demo4.pkl','/home/xuan/demos/task_eef_demo4.pkl',
+    #             '/home/xuan/demos/task_eef_demo3.pkl','/home/xuan/demos/task_eef_demo1.pkl']
+
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl']
 
@@ -56,7 +62,6 @@ def load_demo_lst():
 
     # file_lst = ['/home/xuan/demos/task_task_demo1.pkl']
 
-    # file_lst = ['/home/xuan/demos/plan_2.pkl']
     data_lst = []
     for f in file_lst:
         try:
@@ -90,7 +95,7 @@ def move_along_path(ur5, ws_path_gen, dt=0.02):
 
 class UR5HumanEnv(UR5DynamicReachObsEnv):
     def __init__(self, render=False, max_episode_steps=400,
-                 early_stop=False, distance_threshold = 0.32,
+                 early_stop=False, distance_threshold = 0.2,
                  max_obs_dist = 0.8 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
                  reward_type="sparse",  use_rnn = False):
         super(UR5HumanEnv, self).__init__(render=render, max_episode_steps=max_episode_steps,
@@ -248,11 +253,11 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
             return False
 
     def draw_path(self):
-        color_list = [[0.8,0.8,0.0], [0.8,0.0,0.0],[0.0,0.0,0.8],[0.0,0.0,0.8],
-                      [0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],
-                      [0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8],[0.0,0.0,0.8]]
+        color_list = [[0.8,0.0,0.0], [0.0,0.8,0.0],[0.0,0.0,0.8],[0.8,0.8,0.0],
+                      [0.0,0.8,0.8],[0.5,0.5,0.0],[0.0,0.5,0.5],[0.0,0.3,0.6],
+                      [0.0,0.4,0.5],[0.0,0.1,0.1],[0.1,0.1,0.1],[0.3,0.3,0.3]]
         for d_idx, demo in enumerate(self.demo_data_lst):
-            idxs = list(np.linspace(0, len(demo)-2, 20))
+            idxs = list(np.linspace(0, len(demo)-2, 50))
             for i in range(len(idxs)-1):
                 self._p.addUserDebugLine(demo[int(idxs[i])]['toolp'],
                                          demo[int(idxs[i+1])]['toolp'],
@@ -321,19 +326,21 @@ class UR5HumanEnv(UR5DynamicReachObsEnv):
         indices = np.where(d > self.max_obs_dist_threshold)
         obs_human[indices] = np.full((1, 3), self.max_obs_dist_threshold + 0.2)
 
+        obs_human_states = np.asarray(self.last_human_obs_list)
+        obs_human_states[-1:] = obs_human.flatten()
 
         #todo: bugs here
         if self.USE_RNN:
             human_obs_input = np.asarray(self.last_human_obs_list).flatten()
 
             # print("human_obs_input", self.last_human_obs_list)
-            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+            obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states).flatten(),
                                   np.asarray(self.goal).flatten(), np.asarray([min_dist])])
         else:
             human_obs_input = np.asarray(self.last_human_obs_list).flatten()
 
             # print("human_obs_input", self.last_human_obs_list)
-            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+            obs = np.concatenate([np.asarray(ur5_states), np.asarray(obs_human_states[-2:]).flatten(),
                                   np.asarray(self.goal).flatten(), np.asarray([min_dist])])
 
             # human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
@@ -454,6 +461,13 @@ class UR5HumanPlanEnv(UR5HumanEnv):
 
         self._p.resetBasePositionAndOrientation(self.goal_id, posObj=self.eef_goal[:3], ornObj=self.eef_goal[3:])
         return obs, reward, done, info
+
+    def draw_state_list(self, state_lst):
+        for i in range(len(state_lst)-2):
+            self._p.addUserDebugLine(state_lst[i][:3],
+                                     state_lst[i+1][:3],
+                                     lineColorRGB=[0.5,0.5,0.5], lineWidth=3)
+
 
     def is_contact(self):
         return self._contact_detection()

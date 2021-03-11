@@ -118,8 +118,7 @@ def main(env):
     print(env.observation_space.shape)
     print(env.action_space.shape)
     print(" ---------------------------- ")
-
-    # env.render(mode="human")
+    env.render(mode="human")
 
     env.reset()
     env.draw_path()
@@ -142,6 +141,7 @@ def main(env):
         try:
             # time.sleep(0.03)
             # obs = env.get_obs()
+            time.sleep(0.01)
 
             human2robot = env.last_obs_human
             # human2robot = [obs_human[2], obs_human[5]]
@@ -159,11 +159,6 @@ def main(env):
             collision_lst.append(info['is_collision'])
             traj_len += np.linalg.norm(obs['observation'][:3] - last_obs['observation'][:3])
             last_obs = obs
-
-            # print("obs, ", obs)
-            # print("reward: ", rew)
-            # print("obs is: ", obs['observation'][7:13])
-            # print("info is:", info)
 
             if done == True:
 
@@ -188,7 +183,6 @@ def main(env):
                 env.reset()
                 obs, rew, done, info = env.step(np.array([0, 0, 0, 0, 0, 0]))
                 last_obs = obs
-
             env.render()
 
         except KeyboardInterrupt:

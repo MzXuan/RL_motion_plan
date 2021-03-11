@@ -87,9 +87,9 @@ class UR5DynamicReachObsEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
     def __init__(self, render=False, max_episode_steps=1000,
-                 early_stop=False, distance_threshold = 0.4,
+                 early_stop=False, distance_threshold = 0.2,
                  max_obs_dist = 1.0 ,dist_lowerlimit=0.02, dist_upperlimit=0.2,
-                 reward_type="sparse", use_rnn = True):
+                 reward_type="sparse", use_rnn = False):
         self.iter_num = 0
         self.max_episode_steps = max_episode_steps
 
@@ -143,8 +143,8 @@ class UR5DynamicReachObsEnv(gym.Env):
             self.observation_space = gym.spaces.Dict(dict(
                 desired_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
                 achieved_goal=gym.spaces.Box(-np.inf, np.inf, shape=(6,), dtype='float32'),
-                # observation=gym.spaces.Box(-np.inf, np.inf, shape=(77,), dtype='float32'),
-                observation=gym.spaces.Box(-np.inf, np.inf, shape=(136,), dtype='float32'),
+                observation=gym.spaces.Box(-np.inf, np.inf, shape=(64,), dtype='float32'),
+                # observation=gym.spaces.Box(-np.inf, np.inf, shape=(136,), dtype='float32'),
             ))
 
 
@@ -453,14 +453,14 @@ class UR5DynamicReachObsEnv(gym.Env):
             obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
                                   np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
         else:
-            human_obs_input = np.asarray(self.last_human_obs_list).flatten()
-            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
-                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
-
-
-            # human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            # human_obs_input = np.asarray(self.last_human_obs_list).flatten()
             # obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
             #                       np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
+
+
+            human_obs_input = np.asarray(self.last_human_obs_list[-2:]).flatten()
+            obs = np.concatenate([np.asarray(ur5_states), human_obs_input,
+                                  np.asarray(self.goal).flatten(), np.asarray([self.obs_min_dist])])
 
 
 

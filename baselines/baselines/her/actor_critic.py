@@ -120,6 +120,7 @@ class ActorCriticRNN:
             # self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])
 
             input_Qc = tf.concat(axis=1, values=[o[:, 0:9], o[:, -22:-4], g])
+            # input_Qc = tf.concat(axis=1, values=[o[:, 0:9], o[:, -18:], g])
             self._input_Qc = input_Qc  # exposed for tests
             # self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1], acti_fun=tf.nn.sigmoid)
             self.Qc_tf = nn(input_Qc, [self.hidden] * self.layers + [1])

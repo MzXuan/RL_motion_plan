@@ -743,6 +743,8 @@ class UR5DynamicPreviousEnv(gym.Env):
 
 
 def load_demo_lst():
+    # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl']
+    file_lst = ['/home/xuan/demos/task_eef_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl']
@@ -759,9 +761,9 @@ def load_demo_lst():
     #             '/home/xuan/demos/task_demo1.pkl','/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
     #             '/home/xuan/demos/plan_2.pkl', '/home/xuan/demos/task_task_demo1.pkl']
 
-    file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_demo1.pkl',
-                '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
-                '/home/xuan/demos/plan_2.pkl']
+    # file_lst = ['/home/xuan/demos/task_cloth_demo1.pkl', '/home/xuan/demos/task_demo1.pkl',
+    #             '/home/xuan/demos/task_demo2.pkl','/home/xuan/demos/task_demo3.pkl',
+    #             '/home/xuan/demos/plan_2.pkl']
     # file_lst = ['/home/xuan/demos/task_demo1.pkl', '/home/xuan/demos/task_demo3.pkl']]
     data_lst = []
     for f in file_lst:
@@ -781,6 +783,7 @@ class L(list):
     def append(self, item):
         list.append(self, item)
         if len(self) > 6: del self[0]
+
 
 class UR5PreviousTestEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
@@ -840,9 +843,7 @@ class UR5PreviousTestEnv(gym.Env):
         self.default_r = 0.1
         self.sphere_radius = self.default_r
         self.last_collision = False
-
         self.last_human_obs_list = L(np.zeros((2, 12)))
-
 
 
     def create_single_player_scene(self, bullet_client):
@@ -1134,7 +1135,7 @@ class UR5PreviousTestEnv(gym.Env):
         # print("!!!!!!q_lst!!!!!!!", q_lst)
         # print("!!!!!!q_sum!!!!!!!", q_sum)
 
-        if q_sum < -0.2:
+        if q_sum < -0.1:
             # print("min_q", min_q)
             self.last_collision = True
             self.set_sphere(0.5)

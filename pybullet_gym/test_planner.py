@@ -13,11 +13,13 @@ import time
 import threading
 
 
-
 from pybullet_planning import link_from_name, get_moving_links, get_link_name
 from pybullet_planning import multiply, get_collision_fn
 from pybullet_planning.motion_planners.stomp import STOMP
 
+
+import pandas as pd
+import matplotlib.pyplot as plt
 import pickle
 import ikfast_ur5
 import pyquaternion
@@ -61,6 +63,7 @@ class UR5Planner():
         #                       "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.ur5_collision_fn(robot, ik_joints, workspace)
         self.reset_stomp()
+        self.is_planning = False
         # self.steps_count =[]
 
 
@@ -114,9 +117,15 @@ class UR5Planner():
 
 
     def get_current_conf(self):
-        jointstates = pybullet.getJointStates(self.robot, self.ik_joints, physicsClientId=self.clientid)
-        joint_pos = [js[0] for js in jointstates]
+        if self.is_planning:
+            joint_pos = self.current_conf
+            # print("is planning conf: ", joint_pos)
+        else:
+            jointstates = pybullet.getJointStates(self.robot, self.ik_joints, physicsClientId=self.clientid)
+            joint_pos = [js[0] for js in jointstates]
+            # print("normal joint pos", joint_pos)
         return joint_pos
+
 
     def set_conf(self,q):
         for i in range(6):
@@ -125,6 +134,12 @@ class UR5Planner():
 
     def stomp_planning(self, initial_conf, end_conf, initial_trajectory=None):
         #---configuration space result---#
+        self.current_conf = initial_conf
+
+        self.is_planning = True
+        print("initial conf", initial_conf)
+        print("------------------------------------------------")
+
 
         if initial_trajectory is None:
             self.reset_stomp()
@@ -147,6 +162,7 @@ class UR5Planner():
 
         #------reset to beginning----
         self.set_conf(initial_conf)
+        self.is_planning = False
         return conf_result
 
 
@@ -168,7 +184,7 @@ class UR5Mover:
         ee_link_name = self.env.agents[0].ee_link
         self.tool_link = link_from_name(self.robot, ee_link_name)
         self.n=0
-        self.dt = 0.2
+        self.dt = 0.5
         self.collision_lst = []
         self.moving_result = []
 
@@ -195,7 +211,8 @@ class UR5Mover:
 
             return
         target_p = conf_traj[self.n,:]
-        target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt
+        target_v = (conf_traj[self.n+1,:] - conf_traj[self.n,:])/self.dt*2
+        print("target v", target_v)
         # obs = self.env.get_obs()
         # current_e = obs['observation'][3:9]
         # target_v = target_p-current_e
@@ -206,7 +223,7 @@ class UR5Mover:
         for i in range(6):
             pybullet.setJointMotorControl2(self.robot, self.ik_joints[i], pybullet.POSITION_CONTROL,
                                     target_p[i], target_v[i],
-                                           positionGain=1, velocityGain=0.5, maxVelocity=0.4, physicsClientId=self.clientid)
+                                           positionGain=1.2, velocityGain=1.3, maxVelocity=0.6, physicsClientId=self.clientid)
         pybullet.stepSimulation(physicsClientId=self.clientid)
         contact = self.env.is_contact()
 
@@ -268,10 +285,11 @@ def main(env, test):
     ur5_mover = UR5Mover(robot = env.agents[0].robot_body.bodies[0], ik_joints = ik_joints ,env=env)
 
     def update_plan(initial_conf, end_conf, initial_trajectory):
-        conf_result = ur5_planner.stomp_planning(initial_conf=initial_conf, end_conf=end_conf, initial_trajectory=initial_trajectory)
-        ur5_mover.reset_conf_traj(conf_result)
-        # print("conf result, ", conf_result)
-        ur5_mover.move_step()
+        if ur5_planner.is_planning is False:
+            conf_result = ur5_planner.stomp_planning(initial_conf=initial_conf, end_conf=end_conf, initial_trajectory=initial_trajectory)
+            ur5_mover.reset_conf_traj(conf_result)
+            # print("conf result, ", conf_result)
+            ur5_mover.move_step()
 
 
     #-------------start planning------------------------------
@@ -294,10 +312,7 @@ def main(env, test):
     dt = 0.1
     replan_t = 4
     # moving and replanning
-
-
     success_count = 0
-
 
     time_lst = []
     traj_len_lst = []
@@ -306,8 +321,9 @@ def main(env, test):
     traj_count = 1
     traj_len = 0
 
-
-    # todo: save robot result
+    robot_state_lst = []
+    all_joint_err_list = []
+    all_eef_err_list = []
     while traj_count < 100:
         try:
             for _ in range(int(replan_t / dt)):
@@ -318,11 +334,18 @@ def main(env, test):
                 else:
                     done = False
 
-                obs = env.get_obs()
+
+                if ur5_planner.is_planning:
+                    obs = last_obs
+                else:
+                    obs = env.get_obs()
+
+
                 traj_len+=np.linalg.norm(obs['observation'][:3]-last_obs['observation'][:3])
+                robot_state_lst.append(obs['observation'][:9])
 
-
-                last_obs=obs
+                # print("rob current state: ", obs['observation'][:9])
+                last_obs=obs.copy()
 
                 time.sleep(dt)
 
@@ -334,16 +357,26 @@ def main(env, test):
             print("done", done)
             if done:
 
-
                 # reset env, count success rate, reset planner, etc...
                 print("-------------------reach..traj count {}..env reset---------------".format(traj_count))
                 print("number of collision steps: ", sum(ur5_mover.collision_lst))
 
-                print("collision list", ur5_mover.collision_lst)
+                # print("collision list", ur5_mover.collision_lst)
                 if sum(ur5_mover.collision_lst) == 0:
                     time_lst.append(time.time()-start_time)
                     success_count += 1
                     traj_len_lst.append(traj_len)
+
+
+                # env.draw_state_list(robot_state_lst)
+                # plot_path(env.reference_path, env.eef_reference_path, robot_state_lst)
+                joint_err_list = calculate_joint_error(env.reference_path, robot_state_lst)
+                #
+                eef_error_list = calculate_carte_error(env.eef_reference_path, robot_state_lst)
+                avg_eef_error = np.asarray(eef_error_list).mean()
+                avg_joint_error = np.asarray(joint_err_list).mean()
+                all_joint_err_list.append(avg_joint_error)
+                all_eef_err_list.append(avg_eef_error)
 
                 time.sleep(1)
 
@@ -351,6 +384,13 @@ def main(env, test):
                 print("current mean of traj len is: ", np.array(traj_len_lst).mean())
                 print("current std of traj len is: ", np.array(traj_len_lst).std())
                 print("current mean reach time is: ", np.array(time_lst).mean())
+
+                print("current mean joint error is: ", np.array(all_joint_err_list).mean())
+                print("current std of joint error is: ", np.array(all_joint_err_list).std())
+
+                print("current mean end_effector error is: ", np.array(all_eef_err_list).mean())
+                print("current std of end_effector error is: ", np.array(all_eef_err_list).std())
+
                 print("current std of reach time is: ", np.array(time_lst).std())
                 print("current mean of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).mean())
                 print("current std of iteration steps count is: ", np.array(ITERATION_STEPS_COUNT).std())
@@ -363,10 +403,12 @@ def main(env, test):
                 traj_len = 0
 
                 ur5_mover.collision_lst = []
+                robot_state_lst = []
 
 
-                end_conf = initial_ref_path[-1]
+
                 initial_ref_path = env.reference_path
+                end_conf = initial_ref_path[-1]
                 ur5_planner = UR5Planner(robot=env.agents[0].robot_body.bodies[0],
                                          workspace=env.agents[1].robot_body.bodies[0],
                                          ik_joints=ik_joints, env=env)
@@ -383,15 +425,12 @@ def main(env, test):
                 id_min = np.argmin(error)
                 ref_traj = ur5_mover.conf_traj[id_min:, :]
                 print("ref traj shape is: ", ref_traj.shape)
-                if len(ref_traj) <= 5:
+                if len(ref_traj) <= 1:
                     pass
 
                 else:
                     t1 = threading.Thread(target=update_plan, args=[initial_conf, end_conf, ref_traj])
                     t1.start()
-
-
-
 
         except KeyboardInterrupt:
             # moving_result = ur5_mover.moving_result
@@ -406,6 +445,57 @@ def main(env, test):
 
     time.sleep(1)
 
+
+def calculate_joint_error(ref, real):
+    error_lst = []
+    for p in real:
+        # print("ref", ref.shape)
+        # print("pshape",p.shape)
+        jp = p[3:]
+        # result = np.sum(np.abs(ref - jp), axis=1)
+        result = np.linalg.norm(ref - jp, axis=1)
+        error_lst.append(min(result))
+        # print("shape of ref", len(ref))
+        # print("shape of result", result.shape)
+    return smoothing(error_lst)
+
+
+def calculate_carte_error(ref, real):
+    error_lst = []
+    for p in real:
+        jp = p[:3]
+        result = np.linalg.norm(ref-jp,axis=1)
+        error_lst.append(min(result))
+        # print("shape of ref", len(ref))
+        # print("shape of result", result.shape)
+
+    return smoothing(error_lst)
+
+
+def smoothing(dataset, smoothingWeight=0.2):
+	set_smoothing =[]
+	for idx, d in enumerate(dataset):
+		if idx==0:
+			last = d
+		else:
+			d_smoothed = last * smoothingWeight + (1 - smoothingWeight) * d
+			last=d_smoothed
+		set_smoothing.append(last)
+	return set_smoothing
+
+
+def plot_path(joint_ref_path, cat_ref_path,  real_path):
+    # joint error
+    j_error_lst = calculate_joint_error(joint_ref_path, real_path)
+    plt.plot(range(len(j_error_lst)), j_error_lst)
+    cat_error_lst = calculate_carte_error(cat_ref_path, real_path)
+    plt.plot(range(len(cat_error_lst)), cat_error_lst)
+    plt.show()
+
+    df = pd.DataFrame()
+    df['joint'] = j_error_lst
+    df['end_effector'] = cat_error_lst
+    df.to_csv(path_or_buf="/home/xuan/Code/motion_style/pybullet_gym/pybullet_ur5/utils/planner1_human.csv")
 
 
 if __name__ == "__main__":
